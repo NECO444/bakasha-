@@ -35,18 +35,17 @@ test("public lobby lists only active public waiting rooms without room credentia
   );
 });
 
-test("public lobby removes started rooms and inactive hosts", async () => {
+test("public lobby hides inactive hosts but allows joining a still-waiting room", async () => {
   const inactiveRoom = await handleCreate({ body: { name: "Away host", isPublic: true } });
   const inactiveData = await loadRoom(inactiveRoom.roomCode);
   inactiveData.players[0].lastSeenAt -= 31_000;
   await saveRoom(inactiveRoom.roomCode, inactiveData);
-  await assert.rejects(
-    handleJoin({
-      request: request(inactiveRoom.roomCode),
-      body: { name: "Guest", publicJoin: true },
-    }),
-    (error) => error.status === 404,
-  );
+  assert.equal((await handleListPublicRooms()).rooms.some((room) => room.roomCode === inactiveRoom.roomCode), false);
+  const joinedInactiveRoom = await handleJoin({
+    request: request(inactiveRoom.roomCode),
+    body: { name: "Guest", publicJoin: true },
+  });
+  assert.equal(joinedInactiveRoom.seat, 1);
 
   const activeRoom = await handleCreate({ body: { name: "Playing host", isPublic: true } });
   const joined = await handleJoin({
