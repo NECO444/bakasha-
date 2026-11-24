@@ -90,10 +90,15 @@ test("an Ace needs a chosen suit and sets it", () => {
   assert.equal(g.activeSuit, "clubs");
 });
 
-test("a King reverses and a 7 skips (two players: the same player goes again)", () => {
-  const g = table({ hands: [[c("hearts", "7"), c("clubs", "3")], [c("clubs", "9")]] });
-  applyAction(g, 0, { type: "play", cardId: "hearts-7" }, 2000);
-  assert.equal(g.current, 0);
+test("Seven and King are ordinary cards and pass the turn normally", () => {
+  for (const rank of ["7", "K"]) {
+    const card = c("hearts", rank);
+    const g = table({ hands: [[card, c("clubs", "3")], [c("clubs", "9")]] });
+    const result = applyAction(g, 0, { type: "play", cardId: card.id }, 2000);
+    assert.match(result.message, /played a card/);
+    assert.equal(g.current, 1);
+    assert.equal(g.direction, 1);
+  }
 });
 
 test("8 chain with an odd count reverses direction when it ends", () => {
@@ -117,10 +122,12 @@ test("timeouts are ignored early and draw once the 60 seconds are up", () => {
 });
 
 test("emptying your hand wins", () => {
-  const g = table({ hands: [[c("hearts", "9")], [c("clubs", "9")]] });
-  applyAction(g, 0, { type: "play", cardId: "hearts-9" }, 2000);
+  const winningCard = c("hearts", "9");
+  const g = table({ hands: [[winningCard], [c("clubs", "9")]] });
+  applyAction(g, 0, { type: "play", cardId: winningCard.id }, 2000);
   assert.equal(g.finished, true);
   assert.equal(g.winner, "Ann");
+  assert.deepEqual(publicGame(g).discard[0], winningCard);
   assert.ok(applyAction(g, 1, { type: "draw" }, 2100).error);
 });
 

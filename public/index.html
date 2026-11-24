@@ -230,7 +230,8 @@
         <div class="rematch-mark" aria-hidden="true">✦</div>
         <div class="eyebrow">THE TABLE HAS A WINNER</div>
         <h2 id="rematch-title"><span id="rematch-winner">Player</span> wins!</h2>
-        <p>Keep this table going with the same players.</p>
+        <div class="winning-card-preview hidden" id="winning-card" aria-label="Winning card"></div>
+        <p id="rematch-status">Keep this table going with the same players.</p>
         <button class="primary-button rematch-button" id="rematch-button" type="button">Rematch <span aria-hidden="true">↻</span></button>
         <button class="secondary-button" id="new-table-button" type="button">Return to room lobby</button>
       </div>
@@ -247,8 +248,8 @@
           <li><span class="rule-icon diamonds">2</span><span><strong>Two</strong> — Normally gives the next player a 2-card penalty. They may play another 2 to cancel the penalty, or draw 2 cards. Against a Joker penalty, a 2 reduces it by 2 instead.</span></li>
           <li><span class="rule-icon wild">✳</span><span><strong>Joker</strong> — Gives the next player a 4-card penalty. While it is pending, a 2 reduces it by 2; that player may reduce it again or draw the remainder. Another Joker cancels the remainder. If the full penalty is drawn without any 2s reducing it, or a Joker cancels it, the following player may play any card. After a 2 reduces the penalty, play follows the last 2’s suit.</span></li>
           <li><span class="rule-icon clubs">8/J</span><span><strong>Eight / Jack</strong> — Chain 8s that match the previous card by suit or rank. An odd number of 8s reverses direction when the chain ends; an even number does not. On a normal turn, a Jack must match the active suit; in a chain, it must match the last card’s suit unless that card was a Jack. With 3+ players, a Jack ends the chain and skips the next player, after any 8 reversal. Otherwise, finish the chain with same-suit support (an 8 or Jack extends it) or draw 1. In a 2-player game, a Jack needs same-suit support; a Jack can extend another Jack but cannot be support. A support 2 also gives the next player a 2-card penalty.</span></li>
-          <li><span class="rule-icon spades">↻</span><span><strong>King</strong> — Outside a chain, reverses the turn order. As chain support, it only ends the chain.</span></li>
-          <li><span class="rule-icon clubs">7</span><span><strong>Seven</strong> — Outside a chain, skips the next player. As chain support, it only ends the chain.</span></li>
+          <li><span class="rule-icon spades">K</span><span><strong>King</strong> — A normal card; it has no special effect.</span></li>
+          <li><span class="rule-icon clubs">7</span><span><strong>Seven</strong> — A normal card; it has no special effect.</span></li>
         </ul>
         <p class="rules-note">Each turn has a 60-second timer. If time runs out, you draw the active penalty, or 1 card if there is none; your turn then ends. First player to empty their hand wins!</p>
       </div>

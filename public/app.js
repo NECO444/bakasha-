@@ -61,6 +61,7 @@ const online = {
   pollTimer: null,
   polling: false,
   movePending: false,
+  pendingAction: null,
   chatSending: false,
   timeoutSentAt: null,
   version: 0,
@@ -117,6 +118,9 @@ function startGame() {
 function dealGame(names) {
   onlineMode = false;
   onlineSeat = -1;
+  elements.rematch.disabled = false;
+  elements.rematch.innerHTML = 'Rematch <span aria-hidden="true">↻</span>';
+  document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
   document.querySelector("#mode-label").textContent = "Local game";
   document.querySelector("#round-mode-label").textContent = "PASS & PLAY";
   window.clearInterval(turnTimer);
@@ -226,9 +230,14 @@ function renderGame() {
   elements.timer.setAttribute("aria-label", game.finished ? "Game over" : `${game.timeLeft} seconds remaining`);
   elements.pileCount.textContent = `${game.deckCount === undefined ? game.deck.length : game.deckCount} LEFT`;
   elements.drawPile.setAttribute("aria-label", game.pending > 0 ? `Draw ${game.pending} penalty cards` : "Draw a card");
+  elements.drawPile.classList.toggle("is-drawing", online.movePending && online.pendingAction === "draw");
   elements.drawPile.disabled = onlineMode && (game.current !== onlineSeat || online.movePending);
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
   elements.discard.replaceChildren(createCardElement(topCard(), { interactive: false }));
+  const winningCard = document.querySelector("#winning-card");
+  winningCard.replaceChildren();
+  winningCard.classList.toggle("hidden", !game.finished);
+  if (game.finished) winningCard.append(createCardElement(topCard(), { interactive: false }));
   const jokerSuitPending = game.pendingType === "draw-four" && !game.jokerReduced;
   if (game.freeSuitPlay || jokerSuitPending || game.activeSuit === "wild") {
     elements.activeSuit.classList.add("hidden");
@@ -276,6 +285,13 @@ function renderHand() {
     cardElement.style.setProperty("--tilt", `${spread}deg`);
     elements.hand.append(cardElement);
   });
+  if (onlineMode && online.movePending && online.pendingAction === "draw") {
+    const pendingCard = document.createElement("div");
+    pendingCard.className = "playing-card pending-draw-card";
+    pendingCard.setAttribute("aria-hidden", "true");
+    pendingCard.textContent = "DRAWING";
+    elements.hand.append(pendingCard);
+  }
 }
 
 function updateMessage() {
@@ -476,13 +492,6 @@ function playCard(index, chosenSuit, aceAgreed) {
     game.jokerReduced = false;
     showToast(game.pending === 4 ? "Joker! Draw four is on the table." : `Penalty stacked: ${game.pending} cards.`);
     advanceTurn();
-  } else if (card.rank === "K") {
-    game.direction *= -1;
-    showToast("The turn order reversed!");
-    advanceTurn();
-  } else if (card.rank === "7") {
-    showToast(`${game.players[nextPlayerIndex(1)].name} is skipped.`);
-    advanceTurn(2);
   } else {
     if (card.rank === "A") {
       showToast(aceAgreed ? `${SUITS[game.activeSuit].name} stays active.` : `Next suit: ${SUITS[chosenSuit].name}.`);
@@ -538,7 +547,10 @@ function takeCards(player, count) {
 function drawCard() {
   if (!game || game.finished) return;
   if (onlineMode) {
-    if (game.current === onlineSeat) submitOnlineMove({ type: "draw" });
+    if (game.current === onlineSeat) {
+      showToast("Drawing card…");
+      submitOnlineMove({ type: "draw" });
+    }
     return;
   }
   const player = game.players[game.current];
@@ -677,11 +689,18 @@ elements.start.addEventListener("click", startGame);
 elements.drawPile.addEventListener("click", () => {
   drawCard();
 });
-elements.rematch.addEventListener("click", () => {
+elements.rematch.addEventListener("click", async () => {
   if (!game) return;
   if (onlineMode) {
-    if (online.isHost) startOnlineGame();
-    else showToast("Ask the room creator to start the rematch.");
+    if (!online.roomCode || !game.finished) return;
+    elements.rematch.disabled = true;
+    try {
+      const snapshot = await callGameApi(`/api/rooms/${online.roomCode}/rematch`, "POST", {});
+      applyRoomSnapshot(snapshot);
+    } catch (error) {
+      elements.rematch.disabled = false;
+      showToast(onlineErrorMessage(error));
+    }
     return;
   }
   const names = game.players.map((player) => player.name);
@@ -845,6 +864,7 @@ function disconnectOnlineRoom() {
     ownHand: null,
     isHost: false,
     movePending: false,
+    pendingAction: null,
     timeoutSentAt: null,
     version: 0,
     clockOffset: 0,
@@ -1022,7 +1042,7 @@ for (const modalId of ["account-modal", "leaderboard-modal"]) {
 function pollDelay() {
   const data = online.publicData;
   if (!data || !data.game) return 3000; // lobby: waiting for a friend or for the host to start
-  if (data.game.finished) return 4000;
+  if (data.game.finished) return 1500;
   return data.game.current === online.seat ? 5000 : 2000;
 }
 
@@ -1192,6 +1212,32 @@ function renderOnlineGame() {
   } else if (!game.finished) {
     hideModal(elements.rematchModal);
   }
+  if (game.finished) updateRematchControls(data);
+  else {
+    elements.rematch.disabled = false;
+    elements.rematch.innerHTML = 'Rematch <span aria-hidden="true">↻</span>';
+    document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
+  }
+}
+
+function updateRematchControls(data) {
+  const requests = Array.isArray(data.rematchRequests) ? data.rematchRequests : [false, false];
+  const otherSeat = online.seat === 0 ? 1 : 0;
+  const button = elements.rematch;
+  const message = document.querySelector("#rematch-status");
+  if (requests[online.seat]) {
+    button.textContent = "Rematch requested";
+    button.disabled = true;
+    message.textContent = `Waiting for ${data.players[otherSeat].name} to accept.`;
+  } else if (requests[otherSeat]) {
+    button.textContent = "Accept rematch";
+    button.disabled = false;
+    message.textContent = `${data.players[otherSeat].name} wants a rematch.`;
+  } else {
+    button.textContent = "Rematch";
+    button.disabled = false;
+    message.textContent = "Keep this table going with the same players.";
+  }
 }
 
 function beginRoomSession(snapshot, token) {
@@ -1290,6 +1336,7 @@ async function submitOnlineMove(action) {
   if (!onlineMode || !online.roomCode || online.movePending) return;
   if (action.type !== "timeout" && game.current !== onlineSeat) return;
   online.movePending = true;
+  online.pendingAction = action.type;
   const actionId = window.crypto && window.crypto.randomUUID
     ? window.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -1297,6 +1344,7 @@ async function submitOnlineMove(action) {
   try {
     const snapshot = await callGameApi(`/api/rooms/${online.roomCode}/action`, "POST", { ...action, actionId });
     online.movePending = false;
+    online.pendingAction = null;
     applyRoomSnapshot(snapshot);
     if (game) renderGame();
     if (snapshot.ignored) {
@@ -1305,6 +1353,7 @@ async function submitOnlineMove(action) {
     }
   } catch (error) {
     online.movePending = false;
+    online.pendingAction = null;
     showToast(onlineErrorMessage(error));
     if (game) renderGame();
     if (action.type === "timeout") {
