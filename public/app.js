@@ -49,6 +49,8 @@ let toastTimer = null;
 let turnTimer = null;
 let onlineMode = false;
 let onlineSeat = -1;
+let accountUser = null;
+let accountMode = "login";
 const online = {
   roomCode: null,
   token: null,
@@ -282,6 +284,14 @@ function updateMessage() {
     elements.handHelp.textContent = "Start a new game to deal again";
     return;
   }
+  if (counteringDrawTwo) {
+    game.pending = 0;
+    game.pendingType = null;
+    game.jokerReduced = false;
+    showToast(`${player.name} canceled the 2-card penalty.`);
+    advanceTurn();
+    return;
+  }
   if (onlineMode && game.current !== onlineSeat) {
     elements.message.textContent = `${player.name}’s turn`;
     elements.hint.textContent = "Waiting for your friend to play.";
@@ -292,15 +302,15 @@ function updateMessage() {
     const count = game.pending;
     elements.message.textContent = game.pendingType === "draw-four"
       ? `${player.name}, draw ${count}, reduce it with a 2, or cancel it with a Joker.`
-      : `${player.name}, draw ${count} or stack another 2.`;
+      : `${player.name}, draw ${count} or cancel the penalty with a 2.`;
     elements.hint.textContent = game.pendingType === "draw-four"
       ? game.jokerReduced
         ? "Each 2 cancels two cards. If you draw the remainder, the next play follows the last 2’s suit."
         : "Each 2 cancels two cards; a Joker cancels the remainder. Drawing all 4 lets the next player play any suit."
-      : "Play another 2 to pass the penalty along—or take the cards.";
+      : "Play a 2 to cancel the penalty—or take the cards.";
     elements.handHelp.textContent = game.pendingType === "draw-four"
       ? "Play a 2 to reduce the draw, or a Joker to cancel it"
-      : "Only another 2 can be played right now";
+      : "Play a 2 to cancel the penalty or draw 2";
     return;
   }
   if (game.freeSuitPlay) {
@@ -367,6 +377,7 @@ function playCard(index, chosenSuit, aceAgreed) {
   const [card] = player.hand.splice(index, 1);
   if (!card) return;
   const counteringJoker = game.pending > 0 && game.pendingType === "draw-four";
+  const counteringDrawTwo = game.pending > 0 && game.pendingType === "draw-two" && card.rank === "2";
   game.discard.push(card);
   game.freeSuitPlay = false;
   if (chosenSuit) game.activeSuit = chosenSuit;
@@ -455,7 +466,7 @@ function playCard(index, chosenSuit, aceAgreed) {
   if (card.rank === "2") {
     game.pending += 2;
     game.pendingType = "draw-two";
-    showToast(game.pending === 2 ? "Draw two is on the table." : `Penalty stacked: ${game.pending} cards.`);
+    showToast("Draw two is on the table.");
     advanceTurn();
   } else if (card.rank === "JOKER") {
     game.pending += 4;
@@ -708,7 +719,7 @@ function returnToSetup() {
 document.querySelector("#back-button").addEventListener("click", returnToSetup);
 document.querySelector("#new-table-button").addEventListener("click", returnToSetup);
 
-// ---------- Online play (Vercel API, no accounts) ----------
+// ---------- Online play (Vercel API) ----------
 const NAME_KEY = "bakasha:name";
 const roomStorageKey = (code) => `bakasha:room:${code}`;
 
@@ -824,6 +835,142 @@ async function callGameApi(path, method, body, token) {
   return result;
 }
 
+function setAccountStatus(message) {
+  document.querySelector("#account-status").textContent = message;
+}
+
+function renderAccountMode() {
+  const registering = accountMode === "register";
+  const signedIn = Boolean(accountUser);
+  document.querySelector("#account-title").textContent = signedIn ? "Your account" : registering ? "Create account" : "Sign in";
+  document.querySelector("#account-description").textContent = signedIn
+    ? "Your public leaderboard name and match history."
+    : registering
+      ? "Choose a unique username and password. There is no email or password recovery."
+      : "Use your Bakasha username and password. No Vercel account or email is needed.";
+  document.querySelector("#account-submit").textContent = registering ? "Create account" : "Sign in";
+  document.querySelector("#account-mode-toggle").textContent = registering ? "Already have an account? Sign in" : "Create an account";
+  document.querySelector("#account-mode-toggle").classList.toggle("hidden", signedIn);
+  document.querySelector("#auth-password").autocomplete = registering ? "new-password" : "current-password";
+}
+
+function updateAccountUI(user) {
+  const previousUser = accountUser;
+  accountUser = user;
+  const accountButton = document.querySelector("#account-button");
+  const formPanel = document.querySelector("#account-form-panel");
+  const sessionPanel = document.querySelector("#account-session-panel");
+  const roomNameInput = document.querySelector("#account-username");
+  accountButton.textContent = user ? user.username : "Sign in";
+  accountButton.title = user ? `Signed in as ${user.username}` : "Sign in or create an account";
+  formPanel.classList.toggle("hidden", Boolean(user));
+  sessionPanel.classList.toggle("hidden", !user);
+  roomNameInput.disabled = Boolean(user);
+  if (user) {
+    roomNameInput.value = user.username;
+    document.querySelector("#account-current-name").textContent = user.username;
+    document.querySelector("#score-note").textContent = "Signed in. Your opponent must also sign in before the game starts for it to count.";
+  } else {
+    document.querySelector("#score-note").textContent = "Guests can play. Sign in before the game starts; both players must be signed in for a match to count.";
+    if (previousUser) roomNameInput.value = readStored(NAME_KEY) || "";
+  }
+}
+
+async function submitAccountForm(event) {
+  event.preventDefault();
+  const button = document.querySelector("#account-submit");
+  button.disabled = true;
+  setAccountStatus(accountMode === "register" ? "Creating your account…" : "Signing in…");
+  try {
+    const result = await callGameApi(`/api/account/${accountMode}`, "POST", {
+      username: document.querySelector("#auth-username").value,
+      password: document.querySelector("#auth-password").value,
+    });
+    updateAccountUI(result.user);
+    renderAccountMode();
+    document.querySelector("#auth-password").value = "";
+    setAccountStatus(`Signed in as ${result.user.username}.`);
+  } catch (error) {
+    setAccountStatus(onlineErrorMessage(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function signOutAccount() {
+  const button = document.querySelector("#account-signout");
+  button.disabled = true;
+  try {
+    await callGameApi("/api/account", "DELETE");
+    updateAccountUI(null);
+    renderAccountMode();
+    setAccountStatus("You are signed out. You can still play as a guest.");
+  } catch (error) {
+    setAccountStatus(onlineErrorMessage(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function loadAccount() {
+  try {
+    const result = await callGameApi("/api/account");
+    updateAccountUI(result.user);
+  } catch (error) {
+    setAccountStatus(onlineErrorMessage(error));
+  }
+}
+
+async function openLeaderboard() {
+  const modal = document.querySelector("#leaderboard-modal");
+  const rows = document.querySelector("#leaderboard-rows");
+  const status = document.querySelector("#leaderboard-status");
+  modal.classList.remove("hidden");
+  rows.replaceChildren();
+  status.textContent = "Loading the last four weeks…";
+  try {
+    const result = await callGameApi("/api/leaderboard");
+    if (!result.players.length) {
+      status.textContent = "No ranked matches in the last four weeks yet.";
+      return;
+    }
+    for (const player of result.players) {
+      const row = document.createElement("tr");
+      for (const value of [player.rank, player.username, player.wins, player.losses, `${player.winRate}%`]) {
+        const cell = document.createElement("td");
+        cell.textContent = String(value);
+        row.append(cell);
+      }
+      rows.append(row);
+    }
+    status.textContent = `Rolling 28-day standings · Updated ${new Date(result.updatedAt).toLocaleString()}`;
+  } catch (error) {
+    status.textContent = onlineErrorMessage(error);
+  }
+}
+
+document.querySelector("#account-button").addEventListener("click", () => {
+  accountMode = "login";
+  renderAccountMode();
+  document.querySelector("#account-status").textContent = "";
+  document.querySelector("#account-modal").classList.remove("hidden");
+});
+document.querySelector("#account-mode-toggle").addEventListener("click", () => {
+  accountMode = accountMode === "login" ? "register" : "login";
+  renderAccountMode();
+  setAccountStatus("");
+});
+document.querySelector("#account-form-panel").addEventListener("submit", submitAccountForm);
+document.querySelector("#account-signout").addEventListener("click", signOutAccount);
+document.querySelector("#close-account").addEventListener("click", () => document.querySelector("#account-modal").classList.add("hidden"));
+document.querySelector("#leaderboard-button").addEventListener("click", openLeaderboard);
+document.querySelector("#close-leaderboard").addEventListener("click", () => document.querySelector("#leaderboard-modal").classList.add("hidden"));
+for (const modalId of ["account-modal", "leaderboard-modal"]) {
+  document.querySelector(`#${modalId}`).addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) event.currentTarget.classList.add("hidden");
+  });
+}
+
 // Waiting for the opponent needs fresher data than your own turn, so poll less when it is yours.
 function pollDelay() {
   const data = online.publicData;
@@ -873,9 +1020,9 @@ function applyRoomSnapshot(snapshot) {
   online.ownHand = Array.isArray(snapshot.ownHand) ? snapshot.ownHand : [];
   online.seat = snapshot.seat;
   online.isHost = snapshot.seat === 0;
+  updateRoomLobby(data);
   if (!changed) return;
   if (!first && data.lastMessage) showToast(data.lastMessage);
-  updateRoomLobby(data);
   if (data.game) renderOnlineGame();
   else setOnlineStatus(online.isHost ? "Room ready. Share the invite link with your friend." : "Joined. Waiting for the host to start.");
 }
@@ -883,8 +1030,21 @@ function applyRoomSnapshot(snapshot) {
 function updateRoomLobby(data) {
   const startButton = document.querySelector("#start-online-game");
   const message = document.querySelector("#room-wait-message");
+  const players = document.querySelector("#room-players");
   document.querySelector("#room-wait-panel").classList.remove("hidden");
   document.querySelector("#current-room-code").textContent = online.roomCode;
+  players.replaceChildren();
+  data.players.forEach((player, index) => {
+    const row = document.createElement("div");
+    row.className = "room-player";
+    const name = document.createElement("span");
+    name.textContent = `${player.name}${index === online.seat ? " (you)" : ""}`;
+    const presence = document.createElement("span");
+    presence.className = `room-player-presence${player.online ? " is-online" : ""}`;
+    presence.textContent = player.online ? "Online" : "Away";
+    row.append(name, presence);
+    players.append(row);
+  });
   const hasGuest = data.players.length === 2;
   startButton.classList.toggle("hidden", !online.isHost || !hasGuest || data.status === "playing");
   if (data.status === "waiting") {
@@ -1095,10 +1255,15 @@ for (const modal of [elements.rulesModal, elements.suitModal]) {
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!elements.rulesModal.classList.contains("hidden")) closeRules();
+  for (const modalId of ["account-modal", "leaderboard-modal"]) {
+    document.querySelector(`#${modalId}`).classList.add("hidden");
+  }
 });
 
 renderPlayerFields();
 document.querySelector("#account-username").value = readStored(NAME_KEY) || "";
+renderAccountMode();
+loadAccount();
 const invitedRoom = new URLSearchParams(window.location.search).get("room");
 if (invitedRoom) {
   openOnlineLobby();

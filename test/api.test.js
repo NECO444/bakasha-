@@ -53,3 +53,21 @@ test("invalid room codes and names are rejected", async () => {
   await assert.rejects(handleCreate({ body: { name: "" } }), (e) => e.status === 400);
   await assert.rejects(handleCreate({ body: { name: "x".repeat(17) } }), (e) => e.status === 400);
 });
+
+test("room presence becomes away after 30 seconds and reconnect restores the same seat", async () => {
+  const created = await handleCreate({ body: { name: "Ann" } });
+  const code = created.roomCode;
+  const hostRequest = req(code, "state", created.token);
+  const joined = await handleJoin({ request: req(code, "join"), body: { name: "Ben" } });
+  const joinedAt = Date.now();
+
+  const active = await handleState({ request: hostRequest });
+  assert.deepEqual(active.publicData.players.map((player) => player.online), [true, true]);
+
+  const stale = await handleState({ request: hostRequest, now: joinedAt + 30_001 });
+  assert.deepEqual(stale.publicData.players.map((player) => player.online), [true, false]);
+
+  const reconnected = await handleJoin({ request: req(code, "join"), body: { token: joined.token } });
+  assert.equal(reconnected.seat, 1);
+  assert.deepEqual(reconnected.publicData.players.map((player) => player.online), [true, true]);
+});

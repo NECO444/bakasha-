@@ -45,6 +45,16 @@ test("a 2 forces a penalty that can be drawn", () => {
   assert.equal(g.current, 0);
 });
 
+test("a second 2 cancels the 2-card penalty instead of stacking it", () => {
+  const g = table({ hands: [[c("hearts", "2"), c("clubs", "3")], [c("clubs", "2"), c("spades", "K")]] });
+  applyAction(g, 0, { type: "play", cardId: "hearts-2" }, 2000);
+  const result = applyAction(g, 1, { type: "play", cardId: "clubs-2" }, 2100);
+  assert.match(result.message, /canceled the 2-card penalty/);
+  assert.equal(g.pending, 0);
+  assert.equal(g.pendingType, null);
+  assert.equal(g.current, 0);
+});
+
 test("it is not your turn", () => {
   const g = table({ hands: [[c("hearts", "9")], [c("hearts", "3")]] });
   assert.match(applyAction(g, 1, { type: "draw" }, 2000).error, /not your turn/);
