@@ -191,6 +191,7 @@ function createCardElement(card, options) {
   button.type = "button";
   button.className = options.interactive ? "playing-card" : "playing-card";
   button.dataset.suit = card.suit;
+  button.dataset.cardId = card.id;
   if (options.interactive) {
     button.disabled = !isPlayable(card) || game.finished ||
       (onlineMode && (game.current !== onlineSeat || online.movePending));
@@ -233,7 +234,12 @@ function renderGame() {
   elements.drawPile.classList.toggle("is-drawing", online.movePending && online.pendingAction === "draw");
   elements.drawPile.disabled = onlineMode && (game.current !== onlineSeat || online.movePending);
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
-  elements.discard.replaceChildren(createCardElement(topCard(), { interactive: false }));
+  const previousDiscard = elements.discard.firstElementChild;
+  const playedCard = createCardElement(topCard(), { interactive: false });
+  if (previousDiscard && previousDiscard.dataset.cardId !== playedCard.dataset.cardId) {
+    playedCard.classList.add("card-play");
+  }
+  elements.discard.replaceChildren(playedCard);
   const winningCard = document.querySelector("#winning-card");
   winningCard.replaceChildren();
   winningCard.classList.toggle("hidden", !game.finished);
@@ -277,12 +283,19 @@ function renderOpponents() {
 }
 
 function renderHand() {
+  const previousCards = new Set(
+    [...elements.hand.querySelectorAll("[data-card-id]")].map((card) => card.dataset.cardId),
+  );
   elements.hand.replaceChildren();
   const hand = game.players[onlineMode ? onlineSeat : game.current].hand;
   hand.forEach((card, index) => {
     const cardElement = createCardElement(card, { interactive: true, index });
     const spread = hand.length > 9 ? 0 : (index - (hand.length - 1) / 2) * 1.4;
     cardElement.style.setProperty("--tilt", `${spread}deg`);
+    if (!previousCards.has(card.id)) {
+      cardElement.classList.add("card-deal");
+      cardElement.style.animationDelay = `${Math.min(index, 8) * 24}ms`;
+    }
     elements.hand.append(cardElement);
   });
   if (onlineMode && online.movePending && online.pendingAction === "draw") {
@@ -799,6 +812,16 @@ function extractRoomCode(value) {
   return input.toUpperCase().replace(/[\s-]/g, "");
 }
 
+function extractInviteRoomCode(value) {
+  try {
+    const invite = new URL(value.trim());
+    const code = invite.searchParams.get("room");
+    return code ? extractRoomCode(code) : "";
+  } catch (error) {
+    return "";
+  }
+}
+
 function makeInviteLink(roomCode) {
   const invite = new URL(window.location.href);
   invite.search = "";
@@ -809,10 +832,9 @@ function makeInviteLink(roomCode) {
 
 function updateRoomShareLinks(roomCode) {
   const inviteLink = makeInviteLink(roomCode);
-  const message = `Join my Bakasha game: ${inviteLink} (Room code: ${roomCode})`;
+  const message = `Join my Bakasha game: ${inviteLink}`;
   const whatsappLink = `https://wa.me/?text=${encodeURIComponent(message)}`;
   document.querySelector("#lobby-whatsapp-invite").href = whatsappLink;
-  document.querySelector("#lobby-room-whatsapp").href = whatsappLink;
   document.querySelector("#game-whatsapp-invite").href = whatsappLink;
 }
 
@@ -871,6 +893,9 @@ function disconnectOnlineRoom() {
   });
   document.querySelector("#room-wait-panel").classList.add("hidden");
   document.querySelector("#invite-result").classList.add("hidden");
+  document.querySelector("#create-room-button").classList.remove("hidden");
+  document.querySelector("#join-room-panel").classList.remove("hidden");
+  document.querySelector("#copy-invite-button").textContent = "Copy invite link";
 }
 
 async function callGameApi(path, method, body, token) {
@@ -1100,7 +1125,6 @@ function updateRoomLobby(data) {
   const message = document.querySelector("#room-wait-message");
   const players = document.querySelector("#room-players");
   document.querySelector("#room-wait-panel").classList.remove("hidden");
-  document.querySelector("#current-room-code").textContent = online.roomCode;
   players.replaceChildren();
   data.players.forEach((player, index) => {
     const row = document.createElement("div");
@@ -1119,7 +1143,7 @@ function updateRoomLobby(data) {
     message.textContent = online.isHost
       ? hasGuest
         ? `${data.players[1].name} joined. Start when you’re ready.`
-        : "Waiting for your friend to join. Share the invite link or room code."
+        : "Waiting for your friend to join…"
       : `Connected to ${data.players[0].name}’s room. Waiting for the host to start.`;
     return;
   }
@@ -1129,6 +1153,9 @@ function updateRoomLobby(data) {
 function renderGameChat(data) {
   const panel = document.querySelector("#game-chat");
   const messages = document.querySelector("#chat-messages");
+  const previousMessageIds = new Set(
+    [...messages.querySelectorAll(".chat-message")].map((message) => message.dataset.messageId),
+  );
   const input = document.querySelector("#chat-input");
   const send = document.querySelector("#chat-send");
   const status = document.querySelector("#chat-status");
@@ -1153,6 +1180,8 @@ function renderGameChat(data) {
   for (const chatMessage of chatMessages) {
     const row = document.createElement("div");
     row.className = `chat-message${chatMessage.seat === online.seat ? " is-own-message" : ""}`;
+    row.dataset.messageId = chatMessage.id;
+    if (!previousMessageIds.has(chatMessage.id)) row.classList.add("chat-message-enter");
     const meta = document.createElement("div");
     meta.className = "chat-message-meta";
     const author = document.createElement("strong");
@@ -1247,9 +1276,9 @@ function beginRoomSession(snapshot, token) {
   writeStored(roomStorageKey(snapshot.roomCode), JSON.stringify({ token }));
   const inviteLink = makeInviteLink(snapshot.roomCode);
   window.history.replaceState(null, "", inviteLink); // reloading this page reconnects you
-  document.querySelector("#generated-invite-link").value = inviteLink;
-  document.querySelector("#current-room-code").textContent = snapshot.roomCode;
   updateRoomShareLinks(snapshot.roomCode);
+  document.querySelector("#create-room-button").classList.add("hidden");
+  document.querySelector("#join-room-panel").classList.add("hidden");
   applyRoomSnapshot(snapshot);
   if (online.isHost) document.querySelector("#invite-result").classList.remove("hidden");
   schedulePoll();
@@ -1269,14 +1298,14 @@ async function createOnlineRoom() {
 
 async function joinOnlineRoom() {
   const inviteInput = document.querySelector("#invite-link-input");
-  const roomCode = extractRoomCode(inviteInput.value);
+  const roomCode = extractInviteRoomCode(inviteInput.value);
   if (!roomCode) {
-    setOnlineStatus("Paste your friend’s invite link or room code first.");
+    setOnlineStatus("Paste your friend’s invite link first.");
     inviteInput.focus();
     return;
   }
   if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(roomCode)) {
-    setOnlineStatus("That invite link or room code is not valid.");
+    setOnlineStatus("That invite link isn’t valid. Check it and try again.");
     inviteInput.focus();
     return;
   }
@@ -1376,14 +1405,9 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && online.roomCode) refreshRoomState(); // catch up right away when the tab returns
 });
 document.querySelector("#copy-invite-button").addEventListener("click", () => {
-  const inviteLink = document.querySelector("#generated-invite-link").value;
+  const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
   copyTextToButton(inviteLink, document.querySelector("#copy-invite-button"), "✓ Copied!", "Invite link copied.", "Could not copy the invite link. Select and copy it manually.");
 });
-for (const selector of ["#lobby-copy-code", "#game-copy-code"]) {
-  document.querySelector(selector).addEventListener("click", (event) => {
-    copyTextToButton(online.roomCode, event.currentTarget, "✓ Copied!", "Room code copied.", "Could not copy the room code. Please copy it manually.");
-  });
-}
 document.querySelector("#mode-label").textContent = "Online play";
 for (const button of document.querySelectorAll(".suit-option")) {
   button.addEventListener("click", () => {
@@ -1428,7 +1452,11 @@ if (invitedRoom) {
   openOnlineLobby();
   const invitedCode = extractRoomCode(invitedRoom);
   const inviteInput = document.querySelector("#invite-link-input");
-  inviteInput.value = invitedCode;
-  if (readSavedRoom(invitedCode)) joinOnlineRoom(); // reload or return visit: reconnect automatically
-  else inviteInput.focus();
+  if (/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(invitedCode)) {
+    inviteInput.value = makeInviteLink(invitedCode);
+    if (readSavedRoom(invitedCode)) joinOnlineRoom(); // reload or return visit: reconnect automatically
+    else inviteInput.focus();
+  } else {
+    setOnlineStatus("That invite link isn’t valid. Check it and try again.");
+  }
 }

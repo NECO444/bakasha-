@@ -61,41 +61,38 @@
           <section class="setup-card online-card" aria-labelledby="online-title">
             <div class="setup-card-head">
               <div class="setup-icon" aria-hidden="true">↗</div>
-              <div><h2 id="online-title">Play online</h2><p>Invite a friend to a 2-player game. Anyone with the room code can join an open seat.</p></div>
+              <div><h2 id="online-title">Play together</h2><p>Create a table and send your friend a link.</p></div>
             </div>
-            <div class="online-player-limit"><span class="mode-dot"></span> TWO PLAYERS <span>·</span> OPEN CODE</div>
 
             <section class="account-panel" aria-label="Your name">
               <label class="field-label" for="account-username">YOUR NAME</label>
               <input class="online-input" id="account-username" type="text" maxlength="16" autocomplete="nickname" placeholder="What should your friend call you?">
-              <p class="score-note" id="score-note">Guests can play. Sign in before the game starts; both players must be signed in for a match to count.</p>
+              <p class="score-note" id="score-note">No account needed to play. Sign in to save your scores.</p>
             </section>
 
-            <button class="primary-button online-action" id="create-room-button" type="button">Create an invite link <span aria-hidden="true">→</span></button>
+            <button class="primary-button online-action" id="create-room-button" type="button">Create a game <span aria-hidden="true">→</span></button>
             <div class="invite-result hidden" id="invite-result">
-              <label class="field-label" for="generated-invite-link">INVITE LINK</label>
-              <div class="invite-link-row">
-                <input class="online-input" id="generated-invite-link" type="text" readonly>
-                <button class="secondary-button" id="copy-invite-button" type="button">Copy</button>
+              <div class="invite-ready-heading">
+                <span class="invite-ready-mark" aria-hidden="true">✓</span>
+                <div><strong>Game is ready</strong><span>Send your friend an invite.</span></div>
               </div>
-              <a class="secondary-button invite-whatsapp" id="lobby-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-              <p>Share the link or 4-character code with your friend. Anyone who knows the code can join an open seat.</p>
+              <div class="invite-actions">
+                <button class="secondary-button" id="copy-invite-button" type="button">Copy invite link</button>
+                <a class="secondary-button invite-whatsapp" id="lobby-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+              </div>
+              <p>Anyone with the invite link can join an open seat.</p>
             </div>
 
-            <div class="online-divider"><span>OR JOIN A FRIEND</span></div>
-            <label class="field-label" for="invite-link-input">INVITE LINK OR ROOM CODE</label>
-            <input class="online-input" id="invite-link-input" type="text" autocomplete="off" placeholder="Paste an invite link or 4-character code">
-            <button class="secondary-button online-action" id="join-room-button" type="button">Join room</button>
+            <section class="join-room-panel" id="join-room-panel" aria-label="Join a game">
+              <div class="online-divider"><span>OR JOIN A FRIEND</span></div>
+              <label class="field-label" for="invite-link-input">INVITE LINK</label>
+              <input class="online-input" id="invite-link-input" type="url" autocomplete="url" placeholder="Paste your friend’s link">
+              <button class="secondary-button online-action" id="join-room-button" type="button">Join game</button>
+            </section>
 
             <section class="room-wait hidden" id="room-wait-panel" aria-live="polite">
-              <div class="field-label">ROOM CODE</div>
-              <strong class="room-code" id="current-room-code"></strong>
-              <div class="room-invite-actions">
-                <button class="secondary-button copy-code-button" id="lobby-copy-code" type="button">Copy code</button>
-                <a class="secondary-button whatsapp-invite" id="lobby-room-whatsapp" href="https://wa.me/" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-              </div>
               <div class="room-players" id="room-players" aria-label="Room player statuses"></div>
-              <p id="room-wait-message">Waiting for your friend to join.</p>
+              <p id="room-wait-message">Waiting for your friend to join…</p>
               <button class="primary-button online-action hidden" id="start-online-game" type="button">Start game <span aria-hidden="true">→</span></button>
               <button class="secondary-button online-action" id="leave-online-room" type="button">Back to lobby</button>
             </section>
@@ -152,8 +149,7 @@
               <div><h2>Table chat</h2><p>Only you and your opponent can see these messages.</p></div>
               <div class="game-chat-tools">
                 <div class="game-invite-actions">
-                  <button class="secondary-button copy-code-button" id="game-copy-code" type="button">Copy code</button>
-                  <a class="secondary-button whatsapp-invite" id="game-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">WhatsApp invite</a>
+                  <a class="secondary-button whatsapp-invite" id="game-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">Invite</a>
                 </div>
                 <span class="chat-live-label"><span></span> LIVE</span>
               </div>

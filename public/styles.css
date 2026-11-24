@@ -101,17 +101,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue-accent); o
 .online-divider { display: flex; align-items: center; gap: 11px; margin: 22px 0 18px; color: #8da1b7; font-size: 8px; font-weight: 700; letter-spacing: 1px; }
 .online-divider::before, .online-divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }
 .online-status { margin: 18px 0 0; padding: 10px 12px; border: 1px solid #88b1dc33; border-radius: 7px; color: #b7c8da; background: #88b1dc0d; font-size: 10px; line-height: 1.6; }
-.invite-result { margin-top: 16px; padding: 13px; border: 1px solid var(--line); border-radius: 8px; background: #1d2f43; }
-.invite-link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
-.invite-link-row .online-input { min-width: 0; margin-top: 0; }
-.invite-link-row .secondary-button { width: auto; min-height: 42px; padding: 0 13px; }
-.invite-whatsapp { margin-top: 8px; text-decoration: none; }
+.invite-result { margin-top: 15px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: #1d2f43; }
+.invite-ready-heading { display: flex; align-items: center; gap: 10px; }
+.invite-ready-mark { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: #fff; background: #16854a; font-size: 13px; font-weight: 700; }
+.invite-ready-heading strong, .invite-ready-heading div > span { display: block; }
+.invite-ready-heading strong { color: #e7f1fc; font-size: 12px; }
+.invite-ready-heading div > span { margin-top: 2px; color: #9cafc3; font-size: 10px; }
+.invite-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.invite-actions .secondary-button { min-height: 40px; }
 .invite-result p { margin: 10px 0 0; color: #9cafc3; font-size: 9px; line-height: 1.5; }
 .room-wait { margin-top: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #1d2f43; }
-.room-code { display: block; margin-top: 5px; color: #e7f1fc; font-family: "Outfit", sans-serif; font-size: 22px; letter-spacing: 0.12em; }
-.room-invite-actions, .game-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.room-invite-actions .secondary-button, .game-invite-actions .secondary-button { width: auto; min-height: 36px; padding: 0 11px; text-decoration: none; font-size: 10px; }
-.copy-code-button.is-copied { border-color: #9ed66c; color: #296236; background: #e9f5dc; }
+.game-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0; }
+.game-invite-actions .secondary-button { width: auto; min-height: 36px; padding: 0 11px; text-decoration: none; font-size: 10px; }
 .whatsapp-invite { border-color: #55b981; color: #f5fff8; background: #188c52; }
 .whatsapp-invite:hover { border-color: #75d99e; color: #fff; background: #147643; }
 .room-players { display: grid; gap: 7px; margin-top: 14px; }
@@ -359,9 +360,8 @@ body {
 .account-session p, .account-status { color: var(--muted); text-align: center; }
 .account-session .secondary-button { margin-bottom: 4px; }
 .account-status { min-height: 17px; margin: 13px 0 0; font-size: 11px; }
-.invite-whatsapp, .room-invite-actions .whatsapp-invite { border-color: #16854a; color: #fff; background: #16854a; text-decoration: none; }
-.invite-whatsapp:hover, .room-invite-actions .whatsapp-invite:hover { border-color: #126d3d; color: #fff; background: #126d3d; }
-.copy-code-button.is-copied { border-color: #16854a; color: #117843; background: #e8f4e9; }
+.invite-whatsapp { border-color: #16854a; color: #fff; background: #16854a; text-decoration: none; }
+.invite-whatsapp:hover { border-color: #126d3d; color: #fff; background: #126d3d; }
 .leaderboard-card { width: min(560px, 100%); }
 .leaderboard-table-wrap { max-height: min(55vh, 440px); overflow: auto; border: 1px solid #e3d9c9; border-radius: 9px; }
 .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; }
@@ -428,4 +428,108 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+.topbar { border-bottom-color: #ffffff24; }
+.topbar-right { gap: clamp(12px, 2vw, 24px); }
+.text-button { font-size: 11px; }
+.setup-card, .modal-card { border-radius: 20px; }
+.online-card { width: min(440px, 100%); padding: 28px; }
+.online-card .setup-card-head { margin-bottom: 21px; }
+.online-card .setup-card-head p { font-size: 12px; }
+.account-panel { margin-bottom: 16px; padding: 0; border: 0; background: transparent; }
+.account-panel .field-label { margin-bottom: 7px; }
+.online-input { height: 46px; border-radius: 10px; }
+.online-action { margin-top: 10px; }
+.primary-button, .secondary-button { min-height: 46px; border-radius: 10px; }
+.online-divider { margin: 20px 0 16px; }
+.online-status { min-height: 0; padding: 8px 0 0; border: 0; background: transparent; }
+.invite-result { border: 0; border-radius: 14px; background: #f6efdf; }
+.invite-ready-heading strong { color: var(--ink); }
+.invite-ready-heading div > span, .invite-result p { color: var(--muted); }
+.invite-actions .secondary-button { min-height: 42px; }
+.room-wait { margin-top: 14px; padding: 8px 0 0; border: 0; background: transparent; }
+.room-players { gap: 5px; }
+.room-player { min-height: 34px; padding: 0 10px; border-radius: 8px; background: #ffffff9c; }
+.room-wait p { margin: 12px 0; }
+.game-chat { width: min(250px, calc(100vw - 24px)); border-color: #ffffff45; border-radius: 14px; }
+.game-chat-heading { margin-bottom: 8px; }
+.game-chat-heading p { display: none; }
+.chat-status { margin-top: 5px; }
+.whatsapp-invite { border-radius: 10px; }
+
+@media (max-width: 760px) {
+  .online-card { padding: 23px 20px; }
+}
+
+.setup-screen:not(.hidden), .online-screen:not(.hidden), .game-screen:not(.hidden) {
+  animation: screen-enter 280ms cubic-bezier(.2, .75, .25, 1);
+}
+.primary-button, .secondary-button, .icon-button, .count-button, .online-launch {
+  transition: transform 160ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+.primary-button:hover:not(:disabled), .secondary-button:hover:not(:disabled), .count-button:hover {
+  transform: translateY(-2px);
+}
+.primary-button:active:not(:disabled), .secondary-button:active:not(:disabled), .count-button:active {
+  transform: translateY(0) scale(.98);
+}
+.draw-pile .back-card, .playing-card {
+  transition: transform 220ms cubic-bezier(.2, .75, .25, 1), box-shadow 220ms ease;
+}
+.playing-card.card-deal {
+  animation: card-deal 250ms cubic-bezier(.2, .75, .25, 1) backwards;
+}
+.playing-card.card-play {
+  animation: card-play 230ms cubic-bezier(.2, .75, .25, 1);
+}
+.modal-backdrop:not(.hidden) {
+  animation: overlay-enter 180ms ease-out;
+}
+.modal-backdrop:not(.hidden) .modal-card {
+  animation: dialog-enter 240ms cubic-bezier(.2, .75, .25, 1);
+}
+.chat-message-enter {
+  animation: chat-enter 180ms ease-out;
+}
+.turn-timer, .room-player-presence, .online-status {
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes card-deal {
+  from { opacity: 0; transform: translateY(18px) rotate(var(--tilt, 0deg)) scale(.96); }
+  to { opacity: 1; transform: translateY(var(--lift, 0)) rotate(var(--tilt, 0deg)) scale(1); }
+}
+@keyframes card-play {
+  from { opacity: .65; transform: translateY(-9px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes overlay-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dialog-enter {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes chat-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-screen:not(.hidden), .online-screen:not(.hidden), .game-screen:not(.hidden),
+  .playing-card.card-deal, .playing-card.card-play,
+  .modal-backdrop:not(.hidden), .modal-backdrop:not(.hidden) .modal-card,
+  .chat-message-enter {
+    animation: none;
+  }
+  .primary-button, .secondary-button, .icon-button, .count-button, .online-launch,
+  .draw-pile .back-card, .playing-card, .turn-timer, .room-player-presence, .online-status {
+    transition: none;
+  }
 }

@@ -25,10 +25,10 @@ If you see "Storage is not set up", step 3 or 4 was skipped.
 
 ## Sharing the game
 
-Your friend does not need a Vercel account. Send them the app's public URL and
-the invite link or four-character room code created in the game. Anyone who
-knows or guesses the short code can take an open seat, so share it only with
-your intended players. A Vercel Preview deployment may be protected
+Your friend does not need a Vercel account. Create a game and send the invite
+link using Copy invite link or WhatsApp. Joining is by invite link only; anyone
+with the link can take an open seat, so share it only with your intended
+players. A Vercel Preview deployment may be protected
 and ask visitors to sign in; use the public production URL instead. If the
 production URL also asks for a Vercel login, the project owner should check
 **Settings → Deployment Protection** to confirm public visitors are allowed.
@@ -58,10 +58,10 @@ To run the whole site locally with real Redis: `vercel link`, `vercel env pull`,
 
 ## Limits and privacy
 
-- Polling: every 2 s while waiting for your opponent, every 5 s on your own turn, every 3–4 s in the lobby and after the game ends.
+- Polling: every 2 s while waiting for your opponent, every 5 s on your own turn, every 3 s in the lobby, and every 1.5 s after a game ends to check for rematch requests.
   Hidden tabs stop polling. Check Vercel's and Upstash's current free-plan limits; they change.
 - Rooms are deleted after 24 hours without activity.
-- Room codes are four characters; anyone who knows or guesses one can join its open seat.
+- Joining is through invite links only. The link contains a short room identifier; anyone with the link can join an open seat.
 - Leaderboard results are retained for 28 days. Usernames are public; do not choose a username you want to keep private.
 - Username-only accounts have no password reset or recovery process.
 - This is not end-to-end encryption: the server must know the cards. Whoever owns the Vercel/Upstash account can technically read them.
