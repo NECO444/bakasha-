@@ -11,7 +11,7 @@ const req = (code, path, token) => ({
 test("full room flow: create, join, start, play, privacy, reconnect", async () => {
   const created = await handleCreate({ body: { name: "  Ann  " } });
   assert.equal(created.seat, 0);
-  assert.match(created.roomCode, /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{10}$/);
+  assert.match(created.roomCode, /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/);
   const code = created.roomCode;
 
   await assert.rejects(handleStart({ request: req(code, "start", created.token) }), (e) => e instanceof HttpError && e.status === 409);

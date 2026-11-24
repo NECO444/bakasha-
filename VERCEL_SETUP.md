@@ -26,7 +26,9 @@ If you see "Storage is not set up", step 3 or 4 was skipped.
 ## Sharing the game
 
 Your friend does not need a Vercel account. Send them the app's public URL and
-the invite link created in the game. A Vercel Preview deployment may be protected
+the invite link or four-character room code created in the game. Anyone who
+knows or guesses the short code can take an open seat, so share it only with
+your intended players. A Vercel Preview deployment may be protected
 and ask visitors to sign in; use the public production URL instead. If the
 production URL also asks for a Vercel login, the project owner should check
 **Settings → Deployment Protection** to confirm public visitors are allowed.
@@ -35,6 +37,7 @@ production URL also asks for a Vercel login, the project owner should check
 
 - The room creator starts the game once the friend has joined.
 - Players appear online while the room receives activity; after 30 seconds without it, they appear away. Their seat stays reserved so they can reconnect.
+- Players can chat during online games; messages are cleared when the game ends.
 - Guest games are not ranked. Both players must be signed in before the game starts; a completed online game then records one win or loss for each.
 - The public leaderboard is available to everyone and shows the rolling last 28 days, ranked by wins and then win rate.
 - Reloading the page or reopening the invite link reconnects you automatically on the same browser.
@@ -49,7 +52,7 @@ npm test
 ```
 
 The tests cover the rules (including a 300-game random-play check that no card is ever lost or duplicated),
-the room flow, account sessions, and four-week leaderboard scoring.
+the room flow and chat, account sessions, and four-week leaderboard scoring.
 
 To run the whole site locally with real Redis: `vercel link`, `vercel env pull`, `vercel dev`.
 
@@ -58,6 +61,7 @@ To run the whole site locally with real Redis: `vercel link`, `vercel env pull`,
 - Polling: every 2 s while waiting for your opponent, every 5 s on your own turn, every 3–4 s in the lobby and after the game ends.
   Hidden tabs stop polling. Check Vercel's and Upstash's current free-plan limits; they change.
 - Rooms are deleted after 24 hours without activity.
+- Room codes are four characters; anyone who knows or guesses one can join its open seat.
 - Leaderboard results are retained for 28 days. Usernames are public; do not choose a username you want to keep private.
 - Username-only accounts have no password reset or recovery process.
 - This is not end-to-end encryption: the server must know the cards. Whoever owns the Vercel/Upstash account can technically read them.

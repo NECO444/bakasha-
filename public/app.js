@@ -61,6 +61,7 @@ const online = {
   pollTimer: null,
   polling: false,
   movePending: false,
+  chatSending: false,
   timeoutSentAt: null,
   version: 0,
   clockOffset: 0,
@@ -150,6 +151,7 @@ function dealGame(names) {
   };
   elements.setup.classList.add("hidden");
   elements.game.classList.remove("hidden");
+  document.querySelector("#game-chat").classList.add("hidden");
   document.querySelector("#round-player-count").textContent = `${players.length} PLAYERS`;
   renderGame();
   startTurnTimer();
@@ -284,14 +286,6 @@ function updateMessage() {
     elements.handHelp.textContent = "Start a new game to deal again";
     return;
   }
-  if (counteringDrawTwo) {
-    game.pending = 0;
-    game.pendingType = null;
-    game.jokerReduced = false;
-    showToast(`${player.name} canceled the 2-card penalty.`);
-    advanceTurn();
-    return;
-  }
   if (onlineMode && game.current !== onlineSeat) {
     elements.message.textContent = `${player.name}’s turn`;
     elements.hint.textContent = "Waiting for your friend to play.";
@@ -415,6 +409,14 @@ function playCard(index, chosenSuit, aceAgreed) {
     game.jokerReduced = false;
     game.freeSuitPlay = true;
     showToast(`${player.name} canceled the Joker penalty.`);
+    advanceTurn();
+    return;
+  }
+  if (counteringDrawTwo) {
+    game.pending = 0;
+    game.pendingType = null;
+    game.jokerReduced = false;
+    showToast(`${player.name} canceled the 2-card penalty.`);
     advanceTurn();
     return;
   }
@@ -786,6 +788,51 @@ function makeInviteLink(roomCode) {
   return invite.href;
 }
 
+function updateRoomShareLinks(roomCode) {
+  const inviteLink = makeInviteLink(roomCode);
+  const message = `Join my Bakasha game: ${inviteLink} (Room code: ${roomCode})`;
+  const whatsappLink = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  document.querySelector("#lobby-whatsapp-invite").href = whatsappLink;
+  document.querySelector("#lobby-room-whatsapp").href = whatsappLink;
+  document.querySelector("#game-whatsapp-invite").href = whatsappLink;
+}
+
+const copyFeedbackTimers = new WeakMap();
+function showCopySuccess(button, copiedLabel) {
+  const originalLabel = button.dataset.originalLabel || button.textContent;
+  button.dataset.originalLabel = originalLabel;
+  button.textContent = copiedLabel;
+  button.classList.add("is-copied");
+  window.clearTimeout(copyFeedbackTimers.get(button));
+  copyFeedbackTimers.set(button, window.setTimeout(() => {
+    button.textContent = originalLabel;
+    button.classList.remove("is-copied");
+  }, 2200));
+}
+
+function announceCopyStatus(message) {
+  if (onlineMode && !elements.game.classList.contains("hidden")) showToast(message);
+  else setOnlineStatus(message);
+}
+
+async function copyTextToButton(value, button, copiedLabel, successMessage, errorMessage) {
+  if (!value) {
+    announceCopyStatus("Create a room before copying an invite.");
+    return;
+  }
+  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+    announceCopyStatus("Clipboard access is unavailable. Select and copy the invite manually.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(value);
+    showCopySuccess(button, copiedLabel);
+    announceCopyStatus(successMessage);
+  } catch (error) {
+    announceCopyStatus(errorMessage);
+  }
+}
+
 function disconnectOnlineRoom() {
   window.clearTimeout(online.pollTimer);
   Object.assign(online, {
@@ -1012,6 +1059,7 @@ function applyRoomSnapshot(snapshot) {
   if (!snapshot || !snapshot.publicData) throw new Error("The game server returned an invalid room state.");
   const data = snapshot.publicData;
   if (online.publicData && data.version < online.version) return; // an older response arrived late
+  const previousData = online.publicData;
   const first = !online.publicData;
   const changed = first || data.version !== online.version;
   online.clockOffset = data.serverNow - Date.now();
@@ -1022,7 +1070,7 @@ function applyRoomSnapshot(snapshot) {
   online.isHost = snapshot.seat === 0;
   updateRoomLobby(data);
   if (!changed) return;
-  if (!first && data.lastMessage) showToast(data.lastMessage);
+  if (!first && data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
   if (data.game) renderOnlineGame();
   else setOnlineStatus(online.isHost ? "Room ready. Share the invite link with your friend." : "Joined. Waiting for the host to start.");
 }
@@ -1058,6 +1106,49 @@ function updateRoomLobby(data) {
   message.textContent = "Game connected.";
 }
 
+function renderGameChat(data) {
+  const panel = document.querySelector("#game-chat");
+  const messages = document.querySelector("#chat-messages");
+  const input = document.querySelector("#chat-input");
+  const send = document.querySelector("#chat-send");
+  const status = document.querySelector("#chat-status");
+  const active = data.status === "playing" && !data.game.finished;
+  panel.classList.remove("hidden");
+  input.disabled = !active;
+  send.disabled = !active || online.chatSending;
+  status.textContent = active
+    ? "Messages are automatically deleted when the game ends."
+    : "The game has ended. Chat messages have been deleted.";
+  messages.replaceChildren();
+
+  const chatMessages = Array.isArray(data.chatMessages) ? data.chatMessages : [];
+  if (chatMessages.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "chat-empty";
+    empty.textContent = active ? "No messages yet. Say hello!" : "No messages remain.";
+    messages.append(empty);
+    return;
+  }
+
+  for (const chatMessage of chatMessages) {
+    const row = document.createElement("div");
+    row.className = `chat-message${chatMessage.seat === online.seat ? " is-own-message" : ""}`;
+    const meta = document.createElement("div");
+    meta.className = "chat-message-meta";
+    const author = document.createElement("strong");
+    author.textContent = chatMessage.seat === online.seat ? "You" : chatMessage.name;
+    const time = document.createElement("time");
+    time.dateTime = new Date(chatMessage.sentAt).toISOString();
+    time.textContent = new Date(chatMessage.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const text = document.createElement("p");
+    text.textContent = chatMessage.text;
+    meta.append(author, time);
+    row.append(meta, text);
+    messages.append(row);
+  }
+  messages.scrollTop = messages.scrollHeight;
+}
+
 function renderOnlineGame() {
   const data = online.publicData;
   if (!data || !data.game || online.seat < 0) return;
@@ -1090,6 +1181,7 @@ function renderOnlineGame() {
     game.stagedCardIndex = null;
   }
   renderGame();
+  renderGameChat(data);
   startTurnTimer();
   if (game.finished && !wasFinished) {
     window.clearInterval(turnTimer);
@@ -1111,6 +1203,7 @@ function beginRoomSession(snapshot, token) {
   window.history.replaceState(null, "", inviteLink); // reloading this page reconnects you
   document.querySelector("#generated-invite-link").value = inviteLink;
   document.querySelector("#current-room-code").textContent = snapshot.roomCode;
+  updateRoomShareLinks(snapshot.roomCode);
   applyRoomSnapshot(snapshot);
   if (online.isHost) document.querySelector("#invite-result").classList.remove("hidden");
   schedulePoll();
@@ -1136,7 +1229,7 @@ async function joinOnlineRoom() {
     inviteInput.focus();
     return;
   }
-  if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{10}$/.test(roomCode)) {
+  if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(roomCode)) {
     setOnlineStatus("That invite link or room code is not valid.");
     inviteInput.focus();
     return;
@@ -1161,6 +1254,29 @@ async function startOnlineGame() {
   } catch (error) {
     if (onlineMode) showToast(onlineErrorMessage(error));
     else setOnlineStatus(onlineErrorMessage(error));
+  }
+}
+
+async function sendChatMessage(event) {
+  event.preventDefault();
+  const input = document.querySelector("#chat-input");
+  const send = document.querySelector("#chat-send");
+  const text = input.value.trim();
+  if (!text || !online.roomCode || !onlineMode || online.chatSending) return;
+
+  online.chatSending = true;
+  send.disabled = true;
+  document.querySelector("#chat-status").textContent = "Sending…";
+  try {
+    const snapshot = await callGameApi(`/api/rooms/${online.roomCode}/chat`, "POST", { message: text });
+    applyRoomSnapshot(snapshot);
+    input.value = "";
+    document.querySelector("#chat-status").textContent = "Messages are automatically deleted when the game ends.";
+  } catch (error) {
+    document.querySelector("#chat-status").textContent = onlineErrorMessage(error);
+  } finally {
+    online.chatSending = false;
+    send.disabled = !game || game.finished;
   }
 }
 
@@ -1202,6 +1318,7 @@ document.querySelector("#online-launch-button").addEventListener("click", openOn
 document.querySelector("#create-room-button").addEventListener("click", createOnlineRoom);
 document.querySelector("#join-room-button").addEventListener("click", joinOnlineRoom);
 document.querySelector("#start-online-game").addEventListener("click", startOnlineGame);
+document.querySelector("#chat-form").addEventListener("submit", sendChatMessage);
 document.querySelector("#leave-online-room").addEventListener("click", () => {
   disconnectOnlineRoom();
   setOnlineStatus("You left this room view. Open its invite link to reconnect.");
@@ -1211,20 +1328,13 @@ document.addEventListener("visibilitychange", () => {
 });
 document.querySelector("#copy-invite-button").addEventListener("click", () => {
   const inviteLink = document.querySelector("#generated-invite-link").value;
-  const status = document.querySelector("#online-status");
-  if (!inviteLink) {
-    status.textContent = "Create a room before copying an invite link.";
-    return;
-  }
-  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
-    status.textContent = "Clipboard access is unavailable. Select and copy the invite link instead.";
-    return;
-  }
-  navigator.clipboard.writeText(inviteLink).then(
-    () => { status.textContent = "Invite link copied."; },
-    () => { status.textContent = "Could not copy the invite link. Select and copy it manually."; },
-  );
+  copyTextToButton(inviteLink, document.querySelector("#copy-invite-button"), "✓ Copied!", "Invite link copied.", "Could not copy the invite link. Select and copy it manually.");
 });
+for (const selector of ["#lobby-copy-code", "#game-copy-code"]) {
+  document.querySelector(selector).addEventListener("click", (event) => {
+    copyTextToButton(online.roomCode, event.currentTarget, "✓ Copied!", "Room code copied.", "Could not copy the room code. Please copy it manually.");
+  });
+}
 document.querySelector("#mode-label").textContent = "Online play";
 for (const button of document.querySelectorAll(".suit-option")) {
   button.addEventListener("click", () => {

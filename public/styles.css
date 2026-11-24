@@ -105,9 +105,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue-accent); o
 .invite-link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .invite-link-row .online-input { min-width: 0; margin-top: 0; }
 .invite-link-row .secondary-button { width: auto; min-height: 42px; padding: 0 13px; }
+.invite-whatsapp { margin-top: 8px; text-decoration: none; }
 .invite-result p { margin: 10px 0 0; color: #9cafc3; font-size: 9px; line-height: 1.5; }
 .room-wait { margin-top: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #1d2f43; }
 .room-code { display: block; margin-top: 5px; color: #e7f1fc; font-family: "Outfit", sans-serif; font-size: 22px; letter-spacing: 0.12em; }
+.room-invite-actions, .game-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.room-invite-actions .secondary-button, .game-invite-actions .secondary-button { width: auto; min-height: 36px; padding: 0 11px; text-decoration: none; font-size: 10px; }
+.copy-code-button.is-copied { border-color: #9ed66c; color: #296236; background: #e9f5dc; }
+.whatsapp-invite { border-color: #55b981; color: #f5fff8; background: #188c52; }
+.whatsapp-invite:hover { border-color: #75d99e; color: #fff; background: #147643; }
 .room-players { display: grid; gap: 7px; margin-top: 14px; }
 .room-player { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #d3deea; font-size: 10px; }
 .room-player-presence { display: inline-flex; align-items: center; gap: 6px; color: #9cafc3; }
@@ -189,6 +195,39 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue-accent); o
 .game-footer { display: flex; justify-content: space-between; padding: 11px 3px 0; color: #8d9fb3; font-size: 9px; }
 .footer-heart { color: var(--red); }
 .game-footer #turn-number { margin-left: 9px; color: #b1c0d0; letter-spacing: 1px; }
+.game-chat { width: min(680px, 100%); margin: 16px auto 0; padding: 15px; border: 1px solid #ffffff3b; border-radius: 12px; color: #f3f5ef; background: #103f2c; box-shadow: 0 10px 24px #071f153d; }
+.game-chat-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.game-chat-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+.game-chat-tools .game-invite-actions { margin-top: 0; }
+.game-chat-tools .whatsapp-invite { border-color: #55b981; color: #f5fff8; background: #188c52; }
+.game-chat-tools .whatsapp-invite:hover { border-color: #75d99e; color: #fff; background: #147643; }
+.game-chat-heading h2 { margin: 0; color: #fffaf0; font: 600 14px "Outfit", sans-serif; }
+.game-chat-heading p { margin: 4px 0 0; color: #c4d9cb; font-size: 10px; }
+.chat-live-label { display: inline-flex; align-items: center; gap: 6px; color: #c9e6d3; font-size: 8px; font-weight: 700; letter-spacing: 1px; }
+.chat-live-label span { width: 7px; height: 7px; border-radius: 50%; background: #56d68b; box-shadow: 0 0 8px #56d68b77; }
+.chat-messages { display: flex; max-height: 210px; min-height: 54px; flex-direction: column; gap: 8px; overflow-y: auto; padding: 3px 2px 9px; }
+.chat-empty { align-self: center; margin: auto; color: #c4d9cb; font-size: 10px; }
+.chat-message { max-width: 88%; align-self: flex-start; padding: 8px 10px; border: 1px solid #ffffff1b; border-radius: 9px 9px 9px 2px; background: #ffffff10; overflow-wrap: anywhere; }
+.chat-message.is-own-message { align-self: flex-end; border-color: #ffd52e44; border-radius: 9px 9px 2px 9px; background: #ffd52e18; }
+.chat-message-meta { display: flex; align-items: center; gap: 9px; margin-bottom: 3px; }
+.chat-message-meta strong { color: #ffe16a; font-size: 9px; }
+.chat-message-meta time { color: #bed0c4; font-size: 8px; }
+.chat-message > p { margin: 0; color: #fffaf0; font-size: 11px; line-height: 1.45; white-space: pre-wrap; }
+.chat-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; align-items: stretch; padding-top: 9px; border-top: 1px solid #ffffff26; }
+.chat-input { width: 100%; min-height: 42px; max-height: 100px; resize: vertical; padding: 10px 11px; border: 1px solid #ffffff40; border-radius: 8px; color: #fffaf0; background: #0c3524; font: inherit; font-size: 11px; }
+.chat-input::placeholder { color: #adc5b4; }
+.chat-input:focus { border-color: #ffd52e; outline: 2px solid #ffd52e33; }
+.chat-input:disabled { opacity: .6; }
+.chat-send { width: 82px; min-height: 42px; }
+.chat-status { min-height: 13px; margin: 7px 0 0; color: #bfd2c5; font-size: 9px; text-align: center; }
+@media (max-width: 520px) {
+  .game-chat { margin-top: 12px; padding: 12px; }
+  .game-chat-heading { align-items: flex-start; }
+  .game-chat-tools { align-items: flex-end; }
+  .game-invite-actions { justify-content: flex-end; }
+  .game-chat-tools .secondary-button { min-height: 32px; padding: 0 8px; font-size: 9px; }
+  .chat-send { width: 68px; }
+}
 
 .modal-backdrop { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(8, 15, 24, .65); backdrop-filter: blur(5px); }
 .modal-card { position: relative; width: min(420px, 100%); padding: 33px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 20px 60px #08131f77; text-align: center; }
@@ -304,6 +343,9 @@ body {
 .account-session p, .account-status { color: var(--muted); text-align: center; }
 .account-session .secondary-button { margin-bottom: 4px; }
 .account-status { min-height: 17px; margin: 13px 0 0; font-size: 11px; }
+.invite-whatsapp, .room-invite-actions .whatsapp-invite { border-color: #16854a; color: #fff; background: #16854a; text-decoration: none; }
+.invite-whatsapp:hover, .room-invite-actions .whatsapp-invite:hover { border-color: #126d3d; color: #fff; background: #126d3d; }
+.copy-code-button.is-copied { border-color: #16854a; color: #117843; background: #e8f4e9; }
 .leaderboard-card { width: min(560px, 100%); }
 .leaderboard-table-wrap { max-height: min(55vh, 440px); overflow: auto; border: 1px solid #e3d9c9; border-radius: 9px; }
 .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; }
