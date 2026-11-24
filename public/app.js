@@ -10,7 +10,6 @@ const SUIT_ORDER = ["hearts", "spades", "diamonds", "clubs"];
 const PLAYER_COLORS = ["#d3f36b", "#70a9f6", "#f17474", "#f0c95e", "#c39aef", "#6bcf9d"];
 
 const elements = {
-  home: document.querySelector("#home-screen"),
   setup: document.querySelector("#setup-screen"),
   online: document.querySelector("#online-screen"),
   game: document.querySelector("#game-screen"),
@@ -53,6 +52,8 @@ let onlineMode = false;
 let onlineSeat = -1;
 let accountUser = null;
 let accountMode = "login";
+let publicRoomsTimer = null;
+let publicRoomsLoading = false;
 const online = {
   roomCode: null,
   token: null,
@@ -66,6 +67,7 @@ const online = {
   pendingAction: null,
   chatSending: false,
   chatOpen: false,
+  optimisticCard: null,
   timeoutSentAt: null,
   version: 0,
   clockOffset: 0,
@@ -122,6 +124,7 @@ function dealGame(names) {
   onlineMode = false;
   onlineSeat = -1;
   online.chatOpen = false;
+  online.optimisticCard = null;
   elements.rematch.disabled = false;
   elements.rematch.innerHTML = 'Rematch <span aria-hidden="true">↻</span>';
   document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
@@ -158,7 +161,6 @@ function dealGame(names) {
     turnDeadline: 0,
   };
   elements.setup.classList.add("hidden");
-  elements.home.classList.add("hidden");
   elements.online.classList.add("hidden");
   elements.game.classList.remove("hidden");
   document.querySelector("#game-chat").classList.add("hidden");
@@ -285,7 +287,8 @@ function renderGame() {
   elements.drawPile.disabled = onlineMode && (game.current !== onlineSeat || online.movePending);
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
   const previousDiscard = elements.discard.firstElementChild;
-  const playedCard = createCardElement(topCard(), { interactive: false });
+  const visibleTopCard = online.optimisticCard || topCard();
+  const playedCard = createCardElement(visibleTopCard, { interactive: false });
   if (previousDiscard && previousDiscard.dataset.cardId !== playedCard.dataset.cardId) {
     playedCard.classList.add("card-play");
   }
@@ -359,57 +362,29 @@ function renderHand() {
 
 function updateMessage() {
   const player = game.players[game.current];
+  elements.hint.textContent = "";
+  elements.handHelp.textContent = "";
   if (game.finished) {
     elements.message.textContent = `${game.winner} wins!`;
-    elements.hint.textContent = "A lovely hand. Ready for another round?";
-    elements.handHelp.textContent = "Start a new game to deal again";
     return;
   }
   if (onlineMode && game.current !== onlineSeat) {
     elements.message.textContent = `${player.name}’s turn`;
-    elements.hint.textContent = "Waiting for your friend to play.";
-    elements.handHelp.textContent = `Waiting for ${player.name} to play`;
     return;
   }
   if (game.pending > 0) {
-    const count = game.pending;
-    elements.message.textContent = game.pendingType === "draw-four"
-      ? `${player.name}, draw ${count}, reduce it with a 2, or cancel it with a Joker.`
-      : `${player.name}, draw ${count} or cancel the penalty with a 2.`;
-    elements.hint.textContent = game.pendingType === "draw-four"
-      ? game.jokerReduced
-        ? "Each 2 cancels two cards. If you draw the remainder, the next play follows the last 2’s suit."
-        : "Each 2 cancels two cards; a Joker cancels the remainder. Drawing all 4 lets the next player play any suit."
-      : "Play a 2 to cancel the penalty—or take the cards.";
-    elements.handHelp.textContent = game.pendingType === "draw-four"
-      ? "Play a 2 to reduce the draw, or a Joker to cancel it"
-      : "Play a 2 to cancel the penalty or draw 2";
+    elements.message.textContent = `Draw ${game.pending}`;
     return;
   }
   if (game.freeSuitPlay) {
-    elements.message.textContent = `${player.name}, play any suit.`;
-    elements.hint.textContent = "The Joker penalty was resolved. Your card sets the next suit.";
-    elements.handHelp.textContent = "Any card can be played this turn";
+    elements.message.textContent = `${player.name}’s turn`;
     return;
   }
   if (game.combo) {
-    const count = game.combo.eightCount;
-    const countLabel = count === 0 ? "No 8s" : `${count} ${count === 1 ? "eight" : "eights"}`;
-    const direction = count % 2 === 1 ? "will reverse" : "will keep";
-    const jackRule = game.players.length > 2
-      ? "A Jack ends the chain and skips the next player. "
-      : "A Jack still needs support. ";
-    elements.message.textContent = `${player.name}, ${countLabel} in the chain.`;
-    elements.hint.textContent = `${direction} direction when the chain ends. ${jackRule}Chain an 8 by suit or rank, a Jack by suit (or another Jack after a Jack), add same-suit support (a 2 passes its penalty on), or draw one.`;
-    elements.handHelp.textContent = game.players.length > 2
-      ? "Support matches the last suit; a Jack skips the next player"
-      : "Support must match the last suit and cannot be a Jack";
+    elements.message.textContent = `${player.name} · Chain`;
     return;
   }
   elements.message.textContent = `${player.name}’s turn`;
-  const playable = player.hand.some((card) => card && isPlayable(card));
-  elements.hint.textContent = playable ? "Match the suit or number. A wild card can change everything." : "No match in hand? Draw a card to keep things moving.";
-  elements.handHelp.innerHTML = playable ? "Tap a card to play it <span>·</span> Draw if you’re stuck" : "No playable cards <span>·</span> Tap the deck to draw";
 }
 
 function selectCard(index) {
@@ -726,6 +701,16 @@ function hideModal(element) {
   element.classList.add("hidden");
 }
 
+function cancelSuitSelection() {
+  if (!game || game.stagedCardIndex === null) return;
+  const stagedCard = game.players[game.current].hand[game.stagedCardIndex];
+  game.stagedCardIndex = null;
+  hideModal(elements.suitModal);
+  const stagedButton = [...elements.hand.querySelectorAll("[data-card-id]")]
+    .find((button) => button.dataset.cardId === stagedCard.id);
+  if (stagedButton) stagedButton.focus();
+}
+
 function showToast(message) {
   window.clearTimeout(toastTimer);
   elements.toast.textContent = message;
@@ -740,7 +725,7 @@ function openRules() {
 
 function closeRules() {
   hideModal(elements.rulesModal);
-  document.querySelector("#rules-button").focus();
+  document.querySelector("#game-rules-button").focus();
 }
 
 document.querySelector("#count-picker").addEventListener("click", (event) => {
@@ -751,6 +736,14 @@ document.querySelector("#count-picker").addEventListener("click", (event) => {
   renderPlayerFields();
 });
 elements.start.addEventListener("click", startGame);
+document.querySelector("#one-v-one-button").addEventListener("click", openOnlineLobby);
+document.querySelector("#group-game-button").addEventListener("click", () => {
+  document.querySelector("#group-game-options").classList.remove("hidden");
+  document.querySelector("#group-game-button").classList.add("active");
+  document.querySelector("#one-v-one-button").classList.remove("active");
+  const firstPlayerInput = elements.playerFields.querySelector("input");
+  if (firstPlayerInput) firstPlayerInput.focus();
+});
 elements.drawPile.addEventListener("click", () => {
   drawCard();
 });
@@ -788,6 +781,7 @@ elements.agreeSuit.addEventListener("click", () => {
   }
   playLocalTurnCard(index, game.activeSuit, true);
 });
+document.querySelector("#close-suit").addEventListener("click", cancelSuitSelection);
 function returnToSetup() {
   window.clearInterval(turnTimer);
   turnTimer = null;
@@ -795,33 +789,24 @@ function returnToSetup() {
   onlineMode = false;
   onlineSeat = -1;
   online.chatOpen = false;
-  document.querySelector("#mode-label").textContent = "Online play";
+  online.optimisticCard = null;
+  document.querySelector("#mode-label").textContent = "Choose game";
   document.querySelector("#round-mode-label").textContent = "ONLINE GAME";
   game = null;
   hideModal(elements.suitModal);
   hideModal(elements.rematchModal);
   elements.game.classList.add("hidden");
-  elements.home.classList.add("hidden");
-  elements.setup.classList.add("hidden");
-  elements.online.classList.remove("hidden");
+  elements.online.classList.add("hidden");
+  elements.setup.classList.remove("hidden");
+  document.querySelector("#group-game-options").classList.add("hidden");
+  document.querySelector("#group-game-button").classList.remove("active");
+  document.querySelector("#one-v-one-button").classList.remove("active");
 }
 document.querySelector("#back-button").addEventListener("click", returnToSetup);
 document.querySelector("#new-table-button").addEventListener("click", returnToSetup);
-document.querySelector("#home-local-button").addEventListener("click", () => {
-  elements.home.classList.add("hidden");
-  elements.online.classList.add("hidden");
-  elements.setup.classList.remove("hidden");
-  const firstPlayerInput = elements.playerFields.querySelector("input");
-  if (firstPlayerInput) firstPlayerInput.focus();
-});
-document.querySelector("#home-online-button").addEventListener("click", openOnlineLobby);
-document.querySelector("#home-link").addEventListener("click", (event) => {
+document.querySelector("#brand-home-link").addEventListener("click", (event) => {
   event.preventDefault();
   returnToSetup();
-  elements.online.classList.add("hidden");
-  elements.setup.classList.add("hidden");
-  elements.home.classList.remove("hidden");
-  document.querySelector("#mode-label").textContent = "Welcome";
 });
 chatToggle.addEventListener("click", () => {
   const data = online.publicData;
@@ -854,13 +839,80 @@ function readSavedRoom(code) {
 }
 
 function openOnlineLobby() {
-  elements.home.classList.add("hidden");
   elements.setup.classList.add("hidden");
   elements.online.classList.remove("hidden");
   document.querySelector("#mode-label").textContent = "Online play";
+  refreshPublicRooms();
+  schedulePublicRoomsRefresh();
   const input = document.querySelector("#account-username");
   if (!input.value) input.value = readStored(NAME_KEY) || "";
   if (!input.value) input.focus();
+}
+
+function stopPublicRoomsRefresh() {
+  window.clearTimeout(publicRoomsTimer);
+  publicRoomsTimer = null;
+}
+
+function schedulePublicRoomsRefresh() {
+  stopPublicRoomsRefresh();
+  if (elements.online.classList.contains("hidden") || online.roomCode) return;
+  publicRoomsTimer = window.setTimeout(async () => {
+    await refreshPublicRooms();
+    schedulePublicRoomsRefresh();
+  }, 6000);
+}
+
+function renderPublicRooms(rooms) {
+  const list = document.querySelector("#public-room-list");
+  list.replaceChildren();
+  if (rooms.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "public-room-empty";
+    empty.textContent = "No open games.";
+    list.append(empty);
+    return;
+  }
+  for (const room of rooms) {
+    const item = document.createElement("article");
+    item.className = "public-room-item";
+    const details = document.createElement("div");
+    details.className = "public-room-details";
+    const host = document.createElement("strong");
+    host.textContent = room.hostName;
+    const state = document.createElement("span");
+    state.textContent = "Waiting for a player";
+    const join = document.createElement("button");
+    join.className = "secondary-button public-room-join";
+    join.type = "button";
+    join.dataset.publicRoomCode = room.roomCode;
+    join.textContent = "Join";
+    details.append(host, state);
+    item.append(details, join);
+    list.append(item);
+  }
+}
+
+async function refreshPublicRooms() {
+  if (publicRoomsLoading || online.roomCode || elements.online.classList.contains("hidden")) return;
+  publicRoomsLoading = true;
+  const refresh = document.querySelector("#refresh-public-rooms");
+  refresh.disabled = true;
+  try {
+    const result = await callGameApi("/api/rooms");
+    if (!Array.isArray(result.rooms)) throw new Error("The game server returned an invalid public game list.");
+    renderPublicRooms(result.rooms);
+  } catch (error) {
+    const list = document.querySelector("#public-room-list");
+    list.replaceChildren();
+    const failure = document.createElement("p");
+    failure.className = "public-room-empty";
+    failure.textContent = onlineErrorMessage(error);
+    list.append(failure);
+  } finally {
+    publicRoomsLoading = false;
+    refresh.disabled = false;
+  }
 }
 
 function setOnlineStatus(message) {
@@ -956,6 +1008,7 @@ async function copyTextToButton(value, button, copiedLabel, successMessage, erro
 
 function disconnectOnlineRoom() {
   window.clearTimeout(online.pollTimer);
+  stopPublicRoomsRefresh();
   Object.assign(online, {
     pollTimer: null,
     polling: false,
@@ -967,13 +1020,16 @@ function disconnectOnlineRoom() {
     isHost: false,
     movePending: false,
     pendingAction: null,
+    optimisticCard: null,
     timeoutSentAt: null,
     version: 0,
     clockOffset: 0,
   });
   document.querySelector("#room-wait-panel").classList.add("hidden");
   document.querySelector("#invite-result").classList.add("hidden");
-  document.querySelector("#create-room-button").classList.remove("hidden");
+  document.querySelector("#create-room-controls").classList.remove("hidden");
+  document.querySelector(".room-visibility").classList.remove("hidden");
+  document.querySelector(".public-rooms").classList.remove("hidden");
   document.querySelector("#join-room-panel").classList.remove("hidden");
   document.querySelector("#copy-invite-button").textContent = "Copy invite link";
 }
@@ -1373,7 +1429,9 @@ function beginRoomSession(snapshot, token) {
   const inviteLink = makeInviteLink(snapshot.roomCode);
   window.history.replaceState(null, "", inviteLink); // reloading this page reconnects you
   updateRoomShareLinks(snapshot.roomCode);
-  document.querySelector("#create-room-button").classList.add("hidden");
+  document.querySelector("#create-room-controls").classList.add("hidden");
+  document.querySelector(".room-visibility").classList.add("hidden");
+  document.querySelector(".public-rooms").classList.add("hidden");
   document.querySelector("#join-room-panel").classList.add("hidden");
   applyRoomSnapshot(snapshot);
   if (online.isHost) document.querySelector("#invite-result").classList.remove("hidden");
@@ -1383,16 +1441,17 @@ function beginRoomSession(snapshot, token) {
 async function createOnlineRoom() {
   try {
     const name = playerName();
+    const isPublic = document.querySelector("#public-room-checkbox").checked;
     setOnlineStatus("Creating your room…");
-    const snapshot = await callGameApi("/api/rooms", "POST", { name });
+    const snapshot = await callGameApi("/api/rooms", "POST", { name, isPublic });
     beginRoomSession(snapshot, snapshot.token);
-    setOnlineStatus("Room created. Share the invite link with your friend.");
+    setOnlineStatus(isPublic ? "Public room created." : "Private room created.");
   } catch (error) {
     setOnlineStatus(onlineErrorMessage(error));
   }
 }
 
-async function joinOnlineRoom() {
+async function joinOnlineRoom(publicJoin = false) {
   const inviteInput = document.querySelector("#invite-link-input");
   const roomCode = extractInviteRoomCode(inviteInput.value);
   if (!roomCode) {
@@ -1407,10 +1466,10 @@ async function joinOnlineRoom() {
   }
   try {
     const saved = readSavedRoom(roomCode);
-    const body = {};
+    const body = publicJoin ? { publicJoin: true } : {};
     if (saved) body.token = saved.token; // you were already in this room: just reconnect
     if (document.querySelector("#account-username").value.trim() || !saved) body.name = playerName();
-    setOnlineStatus(saved ? "Reconnecting to your room…" : "Joining your friend’s room…");
+    setOnlineStatus(saved ? "Reconnecting…" : publicJoin ? "Joining public game…" : "Joining your friend’s room…");
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
   } catch (error) {
@@ -1460,6 +1519,9 @@ function retryTimeoutSoon() {
 async function submitOnlineMove(action) {
   if (!onlineMode || !online.roomCode || online.movePending) return;
   if (action.type !== "timeout" && game.current !== onlineSeat) return;
+  online.optimisticCard = action.type === "play"
+    ? online.ownHand.find((card) => card.id === action.cardId) || null
+    : null;
   online.movePending = true;
   online.pendingAction = action.type;
   const actionId = window.crypto && window.crypto.randomUUID
@@ -1470,6 +1532,7 @@ async function submitOnlineMove(action) {
     const snapshot = await callGameApi(`/api/rooms/${online.roomCode}/action`, "POST", { ...action, actionId });
     online.movePending = false;
     online.pendingAction = null;
+    online.optimisticCard = null;
     applyRoomSnapshot(snapshot);
     if (game) renderGame();
     if (snapshot.ignored) {
@@ -1479,6 +1542,7 @@ async function submitOnlineMove(action) {
   } catch (error) {
     online.movePending = false;
     online.pendingAction = null;
+    online.optimisticCard = null;
     showToast(onlineErrorMessage(error));
     if (game) renderGame();
     if (action.type === "timeout") {
@@ -1488,14 +1552,22 @@ async function submitOnlineMove(action) {
   }
 }
 
-document.querySelector("#online-launch-button").addEventListener("click", openOnlineLobby);
 document.querySelector("#create-room-button").addEventListener("click", createOnlineRoom);
 document.querySelector("#join-room-button").addEventListener("click", joinOnlineRoom);
+document.querySelector("#refresh-public-rooms").addEventListener("click", refreshPublicRooms);
+document.querySelector("#public-room-list").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-public-room-code]");
+  if (!button) return;
+  document.querySelector("#invite-link-input").value = makeInviteLink(button.dataset.publicRoomCode);
+  joinOnlineRoom(true);
+});
 document.querySelector("#start-online-game").addEventListener("click", startOnlineGame);
 document.querySelector("#chat-form").addEventListener("submit", sendChatMessage);
 document.querySelector("#leave-online-room").addEventListener("click", () => {
   disconnectOnlineRoom();
   setOnlineStatus("You left this room view. Open its invite link to reconnect.");
+  refreshPublicRooms();
+  schedulePublicRoomsRefresh();
 });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && online.roomCode) refreshRoomState(); // catch up right away when the tab returns
@@ -1504,7 +1576,7 @@ document.querySelector("#copy-invite-button").addEventListener("click", () => {
   const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
   copyTextToButton(inviteLink, document.querySelector("#copy-invite-button"), "✓ Copied!", "Invite link copied.", "Could not copy the invite link. Select and copy it manually.");
 });
-document.querySelector("#mode-label").textContent = "Welcome";
+document.querySelector("#mode-label").textContent = "Choose game";
 window.setTimeout(() => document.querySelector("#loading-screen").classList.add("loading-screen-done"), 850);
 for (const button of document.querySelectorAll(".suit-option")) {
   button.addEventListener("click", () => {
@@ -1524,18 +1596,19 @@ for (const button of document.querySelectorAll(".suit-option")) {
     playLocalTurnCard(index, button.dataset.suit);
   });
 }
-document.querySelector("#rules-button").addEventListener("click", openRules);
 document.querySelector("#game-rules-button").addEventListener("click", openRules);
 document.querySelector("#close-rules").addEventListener("click", closeRules);
 for (const modal of [elements.rulesModal, elements.suitModal]) {
   modal.addEventListener("click", (event) => {
     if (event.target !== modal) return;
     if (modal === elements.rulesModal) closeRules();
+    else cancelSuitSelection();
   });
 }
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!elements.rulesModal.classList.contains("hidden")) closeRules();
+  if (!elements.suitModal.classList.contains("hidden")) cancelSuitSelection();
   for (const modalId of ["account-modal", "leaderboard-modal"]) {
     document.querySelector(`#${modalId}`).classList.add("hidden");
   }
