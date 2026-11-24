@@ -4,17 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#e94339">
-    <meta name="description" content="Play BAKASHA online with a friend from separate devices.">
-    <title>BAKASHA — Online card game</title>
+    <meta name="description" content="Play BAKASHA with friends around one table or online.">
+    <title>BAKASHA — Play together</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <div class="loading-screen" id="loading-screen" role="status" aria-label="Loading BAKASHA">
+      <div class="loading-mark" aria-hidden="true">
+        <span class="loading-suits"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></span>
+      </div>
+      <span class="loading-wordmark">BAKA<span>SHA</span></span>
+      <span class="loading-caption">SHUFFLING THE DECK</span>
+    </div>
     <div class="app-shell">
       <header class="topbar">
-        <a class="brand" href="#" aria-label="BAKASHA home">
+        <a class="brand" id="home-link" href="#" aria-label="BAKASHA home">
           <span class="brand-mark" aria-hidden="true"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></span>
           <span>BAKA<span class="brand-accent">SHA</span></span>
         </a>
@@ -27,6 +34,30 @@
       </header>
 
       <main>
+        <section class="home-screen" id="home-screen" aria-label="Welcome to BAKASHA">
+          <div class="home-panel">
+            <div class="home-hero-mark" aria-hidden="true">
+              <span class="brand-mark"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></span>
+            </div>
+            <div class="eyebrow">A TABLE GAME FOR EVERYONE</div>
+            <h1>Cards down.<br><span>Good times up.</span></h1>
+            <p class="home-description">Bring your people together for a quick, clever game of BAKASHA.</p>
+            <div class="home-actions">
+              <button class="home-mode-card home-local-card" id="home-local-button" type="button">
+                <span class="home-mode-icon" aria-hidden="true">♣</span>
+                <span class="home-mode-copy"><strong>Pass &amp; play</strong><small>Play together around one table</small></span>
+                <span class="home-mode-arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="home-mode-card home-online-card" id="home-online-button" type="button">
+                <span class="home-mode-icon" aria-hidden="true">↗</span>
+                <span class="home-mode-copy"><strong>Play online</strong><small>Invite a friend to your game</small></span>
+                <span class="home-mode-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+            <p class="home-footnote"><span aria-hidden="true">✦</span> 4 cards each · About 10 minutes · Ages 8+</p>
+          </div>
+        </section>
+
         <section class="setup-screen hidden" id="setup-screen" aria-label="Game setup">
           <section class="setup-card" aria-labelledby="setup-title">
             <div class="setup-card-head">
@@ -57,7 +88,7 @@
           </section>
         </section>
 
-        <section class="online-screen" id="online-screen" aria-label="Online play">
+        <section class="online-screen hidden" id="online-screen" aria-label="Online play">
           <section class="setup-card online-card" aria-labelledby="online-title">
             <div class="setup-card-head">
               <div class="setup-icon" aria-hidden="true">↗</div>
@@ -105,7 +136,12 @@
           <div class="game-heading">
             <button class="back-button" id="back-button" type="button"><span aria-hidden="true">←</span> Back to lobby</button>
             <div class="round-label"><span class="round-dot"></span> <span id="round-mode-label">PASS &amp; PLAY</span> <span class="round-divider">/</span> <span id="round-player-count">4 PLAYERS</span></div>
-            <button class="icon-button" id="game-rules-button" type="button" aria-label="How to play">?</button>
+            <div class="game-heading-actions">
+              <button class="icon-button chat-toggle hidden" id="game-chat-toggle" type="button" aria-label="Open table chat" aria-controls="game-chat" aria-expanded="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5 7.4 7.4 0 0 1-3.5-.9L4 20l1.2-4.3A7.5 7.5 0 1 1 20 11.5Z"></path><path d="M8 11.5h.01M12.5 11.5h.01M17 11.5h.01"></path></svg>
+              </button>
+              <button class="icon-button" id="game-rules-button" type="button" aria-label="How to play">?</button>
+            </div>
           </div>
           <div class="table-surface">
             <div class="opponents" id="opponents"></div>
@@ -167,26 +203,31 @@
       </main>
     </div>
 
-    <div class="modal-backdrop hidden" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
-      <div class="modal-card account-card">
-        <button class="modal-close" id="close-account" type="button" aria-label="Close account">×</button>
-        <div class="eyebrow">PLAYER PROFILE</div>
-        <h2 id="account-title">Sign in</h2>
-        <p id="account-description">Use a Bakasha username and password. No Vercel account or email is needed.</p>
-        <form id="account-form-panel">
-          <label class="field-label" for="auth-username">USERNAME</label>
-          <input class="online-input" id="auth-username" type="text" minlength="3" maxlength="16" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="3–16 letters, numbers, or _">
-          <label class="field-label account-password-label" for="auth-password">PASSWORD</label>
-          <input class="online-input" id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="At least 8 characters">
-          <button class="primary-button account-submit" id="account-submit" type="submit">Sign in</button>
-          <button class="account-switch" id="account-mode-toggle" type="button">Create an account</button>
-        </form>
-        <section class="account-session hidden" id="account-session-panel">
-          <strong id="account-current-name"></strong>
-          <p>Win or lose, every finished match with two signed-in players updates your record.</p>
-          <button class="secondary-button" id="account-signout" type="button">Sign out</button>
-        </section>
-        <p class="account-status" id="account-status" role="status" aria-live="polite"></p>
+    <div class="modal-backdrop account-backdrop hidden" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
+      <div class="account-dialog">
+        <p class="account-prompt">Challenge your friends.<br>Winner takes the pot.</p>
+        <div class="modal-card account-card">
+          <button class="modal-close" id="close-account" type="button" aria-label="Close account">×</button>
+          <div class="account-tabs" id="account-tabs" role="group" aria-label="Account type">
+            <button class="account-tab active" id="account-login-tab" type="button" aria-pressed="true">Sign in</button>
+            <button class="account-tab" id="account-register-tab" type="button" aria-pressed="false">New player</button>
+          </div>
+          <h2 class="sr-only" id="account-title">Sign in</h2>
+          <p class="sr-only" id="account-description">Use a Bakasha username and password. No Vercel account or email is needed.</p>
+          <form id="account-form-panel">
+            <label class="field-label" for="auth-username">Username</label>
+            <input class="online-input" id="auth-username" type="text" minlength="3" maxlength="16" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username">
+            <label class="field-label account-password-label" for="auth-password">Password</label>
+            <input class="online-input" id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="At least 8 characters">
+            <button class="primary-button account-submit" id="account-submit" type="submit">Sign in</button>
+          </form>
+          <section class="account-session hidden" id="account-session-panel">
+            <strong id="account-current-name"></strong>
+            <p>Win or lose, every finished match with two signed-in players updates your record.</p>
+            <button class="secondary-button" id="account-signout" type="button">Sign out</button>
+          </section>
+          <p class="account-status" id="account-status" role="status" aria-live="polite"></p>
+        </div>
       </div>
     </div>
 

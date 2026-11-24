@@ -533,3 +533,215 @@ body {
     transition: none;
   }
 }
+
+.loading-screen {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #fffaf0;
+  background:
+    radial-gradient(ellipse at 50% 40%, #24794e, transparent 46%),
+    #103f2c;
+  transition: opacity 280ms ease, visibility 0s linear 280ms;
+}
+.loading-screen-done { visibility: hidden; opacity: 0; pointer-events: none; }
+.loading-mark, .home-hero-mark {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border: 1px solid #ffffff50;
+  border-radius: 22px;
+  background: #ffffff12;
+  box-shadow: 0 12px 36px #071f1566;
+}
+.loading-mark { animation: loading-bounce 750ms ease-in-out infinite alternate; }
+.loading-suits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 5px; transform: rotate(-8deg); color: var(--yellow); font-size: 19px; line-height: 20px; }
+.loading-suits span:nth-child(2) { color: var(--red); }
+.loading-suits span:nth-child(3) { color: var(--yellow); }
+.loading-suits span:nth-child(4) { color: #63a1ff; }
+.loading-wordmark { font: 800 24px "Outfit", sans-serif; letter-spacing: -.7px; }
+.loading-wordmark span { color: var(--yellow); }
+.loading-caption { margin-top: 6px; color: #c4d9cb; font-size: 8px; font-weight: 700; letter-spacing: 2px; }
+.home-screen {
+  min-height: calc(100vh - 79px);
+  display: grid;
+  place-items: center;
+  padding: 46px 8px 70px;
+  animation: screen-enter 280ms cubic-bezier(.2, .75, .25, 1);
+}
+.home-panel {
+  width: min(660px, 100%);
+  padding: 44px 48px 27px;
+  border: 1px solid #ffffff2b;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #ffffff10, #ffffff08);
+  box-shadow: 0 22px 60px #071f1555;
+  text-align: center;
+}
+.home-hero-mark { width: 62px; height: 62px; margin: 0 auto 22px; border-color: #ffffff3b; border-radius: 18px; }
+.home-hero-mark .brand-mark { width: 34px; height: 34px; font-size: 13px; line-height: 14px; }
+.home-panel .eyebrow { color: #f0c95e; }
+.home-panel h1 { margin: 14px 0 10px; color: #fffaf0; font: 700 clamp(36px, 7vw, 55px)/1.02 "Outfit", sans-serif; letter-spacing: -1.7px; }
+.home-panel h1 span { color: var(--yellow); }
+.home-description { max-width: 410px; margin: 0 auto; color: #d3deea; font-size: 13px; line-height: 1.65; }
+.home-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 31px; }
+.home-mode-card {
+  display: flex;
+  min-width: 0;
+  min-height: 84px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #ffffff2e;
+  border-radius: 13px;
+  color: #fffaf0;
+  background: #ffffff0d;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 160ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+.home-mode-card:hover { transform: translateY(-3px); border-color: #ffd52e99; background: #ffffff17; }
+.home-mode-icon { display: grid; width: 39px; height: 39px; flex: 0 0 auto; place-items: center; border-radius: 11px; color: #172530; background: var(--yellow); font-size: 20px; }
+.home-online-card .home-mode-icon { color: #fff; background: var(--blue); }
+.home-mode-copy { display: grid; min-width: 0; gap: 4px; }
+.home-mode-copy strong { font: 600 14px "Outfit", sans-serif; }
+.home-mode-copy small { color: #c5d1df; font-size: 9px; line-height: 1.45; }
+.home-mode-arrow { margin-left: auto; color: var(--yellow); font-size: 18px; }
+.home-footnote { margin: 22px 0 0; color: #bacabd; font-size: 9px; }
+.home-footnote span { margin-right: 4px; color: var(--yellow); }
+
+.game-heading-actions { display: flex; align-items: center; gap: 8px; }
+.icon-button { display: grid; width: 32px; height: 32px; place-items: center; }
+.chat-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.chat-toggle[aria-expanded="true"] { border-color: var(--yellow); color: var(--yellow); background: #ffffff16; }
+.discard-pile { position: relative; isolation: isolate; }
+.discard-pile::before, .discard-pile::after {
+  position: absolute;
+  z-index: -1;
+  width: 70px;
+  height: 100px;
+  border: 2px solid #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px #071f1540;
+  content: "";
+}
+.discard-pile::before { transform: rotate(-10deg) translate(-3px, 2px); background: var(--blue); }
+.discard-pile::after { transform: rotate(8deg) translate(3px, 1px); background: var(--green); }
+.discard-pile > .playing-card { z-index: 1; margin: 0; }
+.card-flight { filter: drop-shadow(0 10px 12px #071f1577); }
+
+@keyframes loading-bounce {
+  from { transform: translateY(0) rotate(-4deg); }
+  to { transform: translateY(-7px) rotate(4deg); }
+}
+
+@media (max-width: 600px) {
+  .home-screen { min-height: calc(100vh - 66px); padding: 28px 4px 42px; }
+  .home-panel { padding: 33px 19px 22px; }
+  .home-actions { grid-template-columns: 1fr; gap: 9px; margin-top: 24px; }
+  .home-mode-card { min-height: 72px; }
+  .game-heading-actions { gap: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark { animation: none; }
+  .home-screen { animation: none; }
+  .home-mode-card { transition: none; }
+}
+
+.account-backdrop {
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 50% 40%, #24794e, transparent 46%),
+    var(--forest);
+  backdrop-filter: none;
+}
+.account-dialog { width: min(520px, 100%); }
+.account-prompt {
+  margin: 0 auto 30px;
+  color: #fff;
+  font: 800 clamp(20px, 4vw, 25px)/1.2 "Outfit", sans-serif;
+  text-align: center;
+  text-shadow: 2px 2px 0 #071f15;
+}
+.account-card {
+  width: 100%;
+  padding: 28px 30px 26px;
+  border: 3px solid #32414b;
+  border-radius: 27px;
+  background: var(--surface);
+  box-shadow: 0 7px 0 #071f15;
+}
+.account-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 22px;
+  overflow: hidden;
+  border: 3px solid #32414b;
+  border-radius: 20px;
+}
+.account-tab {
+  min-height: 62px;
+  border: 0;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+  font: 700 19px "Outfit", sans-serif;
+}
+.account-tab + .account-tab { border-left: 3px solid #32414b; }
+.account-tab.active { background: #ffd83e; }
+.account-tab:focus-visible { position: relative; z-index: 1; outline: 3px solid var(--blue); outline-offset: -6px; }
+.account-card .field-label {
+  margin: 0 0 8px;
+  color: #171717;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.account-card .online-input {
+  height: 68px;
+  margin: 0;
+  padding: 0 17px;
+  border: 3px solid #d7cebe;
+  border-radius: 18px;
+  color: var(--ink);
+  background: #fffdf8;
+  font-size: 17px;
+  font-weight: 700;
+}
+.account-card .online-input::placeholder { color: #767676; font-weight: 500; }
+.account-card .online-input:focus { border-color: var(--blue); outline: 3px solid #2672e833; }
+.account-card .account-password-label { margin-top: 20px; }
+.account-card .account-submit {
+  min-height: 76px;
+  margin-top: 28px;
+  border: 3px solid #32414b;
+  border-radius: 19px;
+  color: var(--ink);
+  background: #ffd83e;
+  box-shadow: 0 6px 0 #071f15;
+  font: 800 20px "Outfit", sans-serif;
+}
+.account-card .account-submit:hover:not(:disabled) { background: #ffe15a; box-shadow: 0 7px 0 #071f15; }
+.account-card .account-submit:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 3px 0 #071f15; }
+.account-card .account-submit:disabled { box-shadow: none; }
+.account-card .account-status { min-height: 17px; margin: 15px 0 0; color: #8d2929; font-size: 11px; }
+.account-card .account-session { margin-top: 12px; }
+.account-card .account-session .secondary-button { border-color: #d7cebe; color: var(--ink); background: #f5ecdc; }
+
+@media (max-width: 480px) {
+  .account-backdrop { padding: 18px; }
+  .account-prompt { margin-bottom: 22px; }
+  .account-card { padding: 24px 20px 21px; border-radius: 23px; }
+  .account-tabs { margin-bottom: 20px; border-radius: 16px; }
+  .account-tab { min-height: 56px; font-size: 17px; }
+  .account-card .online-input { height: 62px; }
+  .account-card .account-submit { min-height: 68px; font-size: 18px; }
+}

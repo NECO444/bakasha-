@@ -10,6 +10,7 @@ const SUIT_ORDER = ["hearts", "spades", "diamonds", "clubs"];
 const PLAYER_COLORS = ["#d3f36b", "#70a9f6", "#f17474", "#f0c95e", "#c39aef", "#6bcf9d"];
 
 const elements = {
+  home: document.querySelector("#home-screen"),
   setup: document.querySelector("#setup-screen"),
   online: document.querySelector("#online-screen"),
   game: document.querySelector("#game-screen"),
@@ -42,6 +43,7 @@ const elements = {
   rulesModal: document.querySelector("#rules-modal"),
   toast: document.querySelector("#toast"),
 };
+const chatToggle = document.querySelector("#game-chat-toggle");
 
 let selectedCount = 4;
 let game = null;
@@ -63,6 +65,7 @@ const online = {
   movePending: false,
   pendingAction: null,
   chatSending: false,
+  chatOpen: false,
   timeoutSentAt: null,
   version: 0,
   clockOffset: 0,
@@ -118,6 +121,7 @@ function startGame() {
 function dealGame(names) {
   onlineMode = false;
   onlineSeat = -1;
+  online.chatOpen = false;
   elements.rematch.disabled = false;
   elements.rematch.innerHTML = 'Rematch <span aria-hidden="true">↻</span>';
   document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
@@ -154,6 +158,8 @@ function dealGame(names) {
     turnDeadline: 0,
   };
   elements.setup.classList.add("hidden");
+  elements.home.classList.add("hidden");
+  elements.online.classList.add("hidden");
   elements.game.classList.remove("hidden");
   document.querySelector("#game-chat").classList.add("hidden");
   document.querySelector("#round-player-count").textContent = `${players.length} PLAYERS`;
@@ -216,8 +222,52 @@ function createCardElement(card, options) {
   return button;
 }
 
+function animatePlayedCard(index) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const card = game.players[game.current].hand[index];
+  if (!card) return;
+  const source = [...elements.hand.querySelectorAll("[data-card-id]")].find((item) => item.dataset.cardId === card.id);
+  if (!source) return;
+  const sourceRect = source.getBoundingClientRect();
+  const targetRect = elements.discard.getBoundingClientRect();
+  const flight = source.cloneNode(true);
+  flight.className = "playing-card card-flight";
+  flight.setAttribute("aria-hidden", "true");
+  flight.removeAttribute("tabindex");
+  flight.disabled = true;
+  flight.style.position = "fixed";
+  flight.style.left = `${sourceRect.left}px`;
+  flight.style.top = `${sourceRect.top}px`;
+  flight.style.width = `${sourceRect.width}px`;
+  flight.style.height = `${sourceRect.height}px`;
+  flight.style.margin = "0";
+  flight.style.zIndex = "20";
+  flight.style.pointerEvents = "none";
+  flight.style.setProperty("--tilt", "0deg");
+  document.body.append(flight);
+  const moveX = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
+  const moveY = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
+  if (typeof flight.animate !== "function") {
+    flight.remove();
+    return;
+  }
+  const animation = flight.animate([
+    { transform: "translate(0, 0) rotate(0deg) scale(1)" },
+    { transform: `translate(${moveX}px, ${moveY}px) rotate(220deg) scale(.86)` },
+  ], { duration: 420, easing: "cubic-bezier(.2, .75, .25, 1)", fill: "forwards" });
+  animation.onfinish = () => flight.remove();
+  animation.oncancel = () => flight.remove();
+}
+
 function renderGame() {
   if (!game) return;
+  chatToggle.classList.toggle("hidden", !onlineMode);
+  if (!onlineMode) {
+    online.chatOpen = false;
+    document.querySelector("#game-chat").classList.add("hidden");
+    chatToggle.setAttribute("aria-expanded", "false");
+    chatToggle.setAttribute("aria-label", "Open table chat");
+  }
   const viewIndex = onlineMode ? onlineSeat : game.current;
   const player = game.players[viewIndex];
   elements.currentName.textContent = player.name;
@@ -389,9 +439,11 @@ function selectCard(index) {
     return;
   }
   if (onlineMode) {
+    animatePlayedCard(index);
     submitOnlineMove({ type: "play", cardId: card.id });
     return;
   }
+  animatePlayedCard(index);
   playLocalTurnCard(index);
 }
 
@@ -722,6 +774,7 @@ elements.rematch.addEventListener("click", async () => {
 elements.agreeSuit.addEventListener("click", () => {
   if (!game || game.stagedCardIndex === null) return;
   const index = game.stagedCardIndex;
+  animatePlayedCard(index);
   game.stagedCardIndex = null;
   hideModal(elements.suitModal);
   if (onlineMode) {
@@ -741,17 +794,42 @@ function returnToSetup() {
   disconnectOnlineRoom();
   onlineMode = false;
   onlineSeat = -1;
+  online.chatOpen = false;
   document.querySelector("#mode-label").textContent = "Online play";
   document.querySelector("#round-mode-label").textContent = "ONLINE GAME";
   game = null;
   hideModal(elements.suitModal);
   hideModal(elements.rematchModal);
   elements.game.classList.add("hidden");
+  elements.home.classList.add("hidden");
   elements.setup.classList.add("hidden");
   elements.online.classList.remove("hidden");
 }
 document.querySelector("#back-button").addEventListener("click", returnToSetup);
 document.querySelector("#new-table-button").addEventListener("click", returnToSetup);
+document.querySelector("#home-local-button").addEventListener("click", () => {
+  elements.home.classList.add("hidden");
+  elements.online.classList.add("hidden");
+  elements.setup.classList.remove("hidden");
+  const firstPlayerInput = elements.playerFields.querySelector("input");
+  if (firstPlayerInput) firstPlayerInput.focus();
+});
+document.querySelector("#home-online-button").addEventListener("click", openOnlineLobby);
+document.querySelector("#home-link").addEventListener("click", (event) => {
+  event.preventDefault();
+  returnToSetup();
+  elements.online.classList.add("hidden");
+  elements.setup.classList.add("hidden");
+  elements.home.classList.remove("hidden");
+  document.querySelector("#mode-label").textContent = "Welcome";
+});
+chatToggle.addEventListener("click", () => {
+  const data = online.publicData;
+  if (!data || data.status !== "playing" || !data.game || data.game.finished) return;
+  online.chatOpen = !online.chatOpen;
+  renderGameChat(data);
+  if (online.chatOpen) document.querySelector("#chat-input").focus();
+});
 
 // ---------- Online play (Vercel API) ----------
 const NAME_KEY = "bakasha:name";
@@ -776,8 +854,10 @@ function readSavedRoom(code) {
 }
 
 function openOnlineLobby() {
+  elements.home.classList.add("hidden");
   elements.setup.classList.add("hidden");
   elements.online.classList.remove("hidden");
+  document.querySelector("#mode-label").textContent = "Online play";
   const input = document.querySelector("#account-username");
   if (!input.value) input.value = readStored(NAME_KEY) || "";
   if (!input.value) input.focus();
@@ -934,6 +1014,9 @@ function setAccountStatus(message) {
 function renderAccountMode() {
   const registering = accountMode === "register";
   const signedIn = Boolean(accountUser);
+  const tabs = document.querySelector("#account-tabs");
+  const loginTab = document.querySelector("#account-login-tab");
+  const registerTab = document.querySelector("#account-register-tab");
   document.querySelector("#account-title").textContent = signedIn ? "Your account" : registering ? "Create account" : "Sign in";
   document.querySelector("#account-description").textContent = signedIn
     ? "Your public leaderboard name and match history."
@@ -941,8 +1024,11 @@ function renderAccountMode() {
       ? "Choose a unique username and password. There is no email or password recovery."
       : "Use your Bakasha username and password. No Vercel account or email is needed.";
   document.querySelector("#account-submit").textContent = registering ? "Create account" : "Sign in";
-  document.querySelector("#account-mode-toggle").textContent = registering ? "Already have an account? Sign in" : "Create an account";
-  document.querySelector("#account-mode-toggle").classList.toggle("hidden", signedIn);
+  tabs.classList.toggle("hidden", signedIn);
+  loginTab.classList.toggle("active", !registering);
+  registerTab.classList.toggle("active", registering);
+  loginTab.setAttribute("aria-pressed", String(!registering));
+  registerTab.setAttribute("aria-pressed", String(registering));
   document.querySelector("#auth-password").autocomplete = registering ? "new-password" : "current-password";
 }
 
@@ -1047,8 +1133,13 @@ document.querySelector("#account-button").addEventListener("click", () => {
   document.querySelector("#account-status").textContent = "";
   document.querySelector("#account-modal").classList.remove("hidden");
 });
-document.querySelector("#account-mode-toggle").addEventListener("click", () => {
-  accountMode = accountMode === "login" ? "register" : "login";
+document.querySelector("#account-login-tab").addEventListener("click", () => {
+  accountMode = "login";
+  renderAccountMode();
+  setAccountStatus("");
+});
+document.querySelector("#account-register-tab").addEventListener("click", () => {
+  accountMode = "register";
   renderAccountMode();
   setAccountStatus("");
 });
@@ -1160,7 +1251,12 @@ function renderGameChat(data) {
   const send = document.querySelector("#chat-send");
   const status = document.querySelector("#chat-status");
   const active = data.status === "playing" && !data.game.finished;
-  panel.classList.remove("hidden");
+  if (!active) online.chatOpen = false;
+  panel.classList.toggle("hidden", !active || !online.chatOpen);
+  chatToggle.classList.toggle("hidden", !active);
+  chatToggle.disabled = !active;
+  chatToggle.setAttribute("aria-expanded", String(active && online.chatOpen));
+  chatToggle.setAttribute("aria-label", online.chatOpen ? "Close table chat" : "Open table chat");
   input.disabled = !active;
   send.disabled = !active || online.chatSending;
   status.textContent = active
@@ -1408,11 +1504,13 @@ document.querySelector("#copy-invite-button").addEventListener("click", () => {
   const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
   copyTextToButton(inviteLink, document.querySelector("#copy-invite-button"), "✓ Copied!", "Invite link copied.", "Could not copy the invite link. Select and copy it manually.");
 });
-document.querySelector("#mode-label").textContent = "Online play";
+document.querySelector("#mode-label").textContent = "Welcome";
+window.setTimeout(() => document.querySelector("#loading-screen").classList.add("loading-screen-done"), 850);
 for (const button of document.querySelectorAll(".suit-option")) {
   button.addEventListener("click", () => {
     if (!game || game.stagedCardIndex === null) return;
     const index = game.stagedCardIndex;
+    animatePlayedCard(index);
     game.stagedCardIndex = null;
     hideModal(elements.suitModal);
     if (onlineMode) {
