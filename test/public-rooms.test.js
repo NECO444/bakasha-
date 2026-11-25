@@ -109,6 +109,64 @@ test("public group rooms stay listed until their selected seats are filled", asy
   assert.equal((await handleListPublicRooms()).rooms[0].playerCount, 3);
 });
 
+test("a two-player game starts automatically when the invited player joins", async () => {
+  const host = await createTestAccount("duelhost");
+  const friend = await createTestAccount("duelfriend");
+  const game = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { maxPlayers: 2 },
+  });
+
+  const joined = await handleJoin({
+    request: request(game.roomCode, friend),
+    body: {},
+  });
+  assert.equal(joined.publicData.status, "playing");
+  assert.ok(joined.publicData.game);
+  assert.equal(joined.publicData.players.length, 2);
+  assert.equal(joined.publicData.players[0].handCount, 4);
+  assert.equal(joined.publicData.players[1].handCount, 4);
+
+  const hostState = await handleState({
+    request: request(game.roomCode, host, game.token, "state"),
+  });
+  assert.equal(hostState.publicData.status, "playing");
+  assert.deepEqual(hostState.publicData.game, joined.publicData.game);
+});
+
+test("late public-game joiners queue for the next match instead of getting an unavailable error", async () => {
+  const host = await createTestAccount("publichost");
+  const firstGuest = await createTestAccount("publicone");
+  const lateGuest = await createTestAccount("publiclate");
+  const room = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { isPublic: true, maxPlayers: 2 },
+  });
+  const firstJoin = await handleJoin({
+    request: request(room.roomCode, firstGuest),
+    body: { publicJoin: true },
+  });
+  await handleStart({
+    request: request(room.roomCode, host, room.token, "start"),
+  });
+
+  const lateJoin = await handleJoin({
+    request: request(room.roomCode, lateGuest),
+    body: { publicJoin: true },
+  });
+  assert.equal(lateJoin.seat, -2);
+  assert.equal(lateJoin.publicData.queuedForNextMatch, true);
+  assert.equal(lateJoin.publicData.status, "waiting");
+  assert.equal(lateJoin.publicData.game, null);
+  assert.equal(lateJoin.publicData.players.length, 2);
+
+  const queuedState = await handleState({
+    request: request(room.roomCode, lateGuest, lateJoin.token, "state"),
+  });
+  assert.equal(queuedState.publicData.queuedName, lateGuest.username);
+  assert.equal(firstJoin.seat, 1);
+});
+
 test("private rooms queue late joiners for the next match and can be ended by the creator", async () => {
   const host = await createTestAccount("roomhost");
   const guest = await createTestAccount("roomguest");

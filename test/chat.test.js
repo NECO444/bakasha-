@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleAction, handleChat, handleCreate, handleJoin, handleStart, handleState } from "../lib/rooms.js";
+import { handleAction, handleChat, handleCreate, handleJoin, handleState } from "../lib/rooms.js";
 import { loadRoom, saveRoom } from "../lib/store.js";
 import { accountRequest, createTestAccount } from "../test-helpers/auth.js";
 
@@ -15,16 +15,14 @@ test("room chat is private to players, bounded, and cleared when the game ends",
   const guest = await createTestAccount("ben");
   const created = await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
   const code = created.roomCode;
+  await assert.rejects(handleChat({ request: req(code, created.token, host), body: { message: "Too early" } }), (error) => error.status === 409);
+
   const joined = await handleJoin({
     request: req(code, null, guest, "join"),
     body: {},
   });
 
-  await assert.rejects(handleChat({ request: req(code, created.token, host), body: { message: "Too early" } }), (error) => error.status === 409);
-
-  await handleStart({
-    request: req(code, created.token, host, "start"),
-  });
+  assert.equal(joined.publicData.status, "playing");
   const sent = await handleChat({ request: req(code, created.token, host), body: { message: "  hello\u0007 friend  " } });
   assert.equal(sent.publicData.chatMessages.length, 1);
   assert.equal(sent.publicData.chatMessages[0].text, "hello friend");

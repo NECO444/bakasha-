@@ -934,6 +934,7 @@ function returnToSetup() {
 }
 document.querySelector("#back-button").addEventListener("click", returnToSetup);
 document.querySelector("#new-table-button").addEventListener("click", returnToSetup);
+document.querySelector("#nav-play-button").addEventListener("click", returnToSetup);
 document.querySelector("#brand-home-link").addEventListener("click", (event) => {
   event.preventDefault();
   returnToSetup();
@@ -977,12 +978,10 @@ function openOnlineLobby(mode = "duel") {
   elements.online.classList.remove("hidden");
   document.querySelector("#mode-label").textContent = onlineRoomSize > 2 ? "Group quest" : "Quick duel";
   document.querySelector("#online-title").textContent = onlineRoomSize > 2 ? `${onlineRoomSize}-player group` : "Quick duel";
-  document.querySelector("#online-subtitle").textContent = snapshot.publicData.queuedForNextMatch
-    ? "You joined the room and are queued for the next match."
-    : onlineRoomSize > 2
-    ? `Create a room for ${onlineRoomSize} players, then invite your crew.`
+  document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
+    ? `Create a game for ${onlineRoomSize} players, then invite your crew.`
     : "Create a table and send your friend a link.";
-  document.querySelector("#create-room-button").innerHTML = `Create ${onlineRoomSize === 2 ? "duel" : `${onlineRoomSize}-player room`} <span aria-hidden="true">→</span>`;
+  document.querySelector("#create-room-button").innerHTML = `Create ${onlineRoomSize === 2 ? "duel" : `${onlineRoomSize}-player game`} <span aria-hidden="true">→</span>`;
   refreshPublicRooms();
   schedulePublicRoomsRefresh();
 }
@@ -1067,7 +1066,8 @@ function extractRoomCode(value) {
   if (!input) return "";
   if (input.includes("://") || input.startsWith("file:")) {
     try {
-      const codeFromLink = new URL(input).searchParams.get("room");
+      const params = new URL(input).searchParams;
+      const codeFromLink = params.get("game") || params.get("room");
       if (codeFromLink) return codeFromLink.trim().toUpperCase();
     } catch (error) {
       return "";
@@ -1079,7 +1079,7 @@ function extractRoomCode(value) {
 function extractInviteRoomCode(value) {
   try {
     const invite = new URL(value.trim());
-    const code = invite.searchParams.get("room");
+    const code = invite.searchParams.get("game") || invite.searchParams.get("room");
     return code ? extractRoomCode(code) : "";
   } catch (error) {
     return "";
@@ -1090,7 +1090,7 @@ function makeInviteLink(roomCode) {
   const invite = new URL(window.location.href);
   invite.search = "";
   invite.hash = "";
-  invite.searchParams.set("room", roomCode);
+  invite.searchParams.set("game", roomCode);
   return invite.href;
 }
 
@@ -1122,7 +1122,7 @@ function announceCopyStatus(message) {
 
 async function copyTextToButton(value, button, copiedLabel, successMessage, errorMessage) {
   if (!value) {
-    announceCopyStatus("Create a room before copying an invite.");
+    announceCopyStatus("Create a game before copying an invite.");
     return;
   }
   if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
@@ -1541,7 +1541,7 @@ async function refreshRoomState() {
     if (error.status === 404 || error.status === 403) {
       removeStored(roomStorageKey(code));
       returnToSetup();
-      setOnlineStatus("That room has expired or no longer exists. Create a new one.");
+      setOnlineStatus("That game has expired or no longer exists. Create another game.");
     } else {
       setOnlineStatus(onlineErrorMessage(error));
     }
@@ -1551,13 +1551,13 @@ async function refreshRoomState() {
 }
 
 function applyRoomSnapshot(snapshot) {
-  if (!snapshot || !snapshot.publicData) throw new Error("The game server returned an invalid room state.");
+  if (!snapshot || !snapshot.publicData) throw new Error("The game server returned an invalid game state.");
   const data = snapshot.publicData;
   if (data.status === "closed") {
     removeStored(roomStorageKey(snapshot.roomCode));
     returnToSetup();
     window.history.replaceState(null, "", window.location.pathname);
-    showToast("The room creator ended this room.");
+    showToast("The game host ended this game.");
     return;
   }
   if (online.publicData && data.version < online.version) return; // an older response arrived late
@@ -1575,9 +1575,9 @@ function applyRoomSnapshot(snapshot) {
   if (!first && data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
   if (data.game) renderOnlineGame();
   else setOnlineStatus(data.queuedForNextMatch
-    ? "You joined the room and are queued for the next match."
+    ? "You joined the game and are queued for the next match."
     : online.isHost
-      ? `Room ready. Share the invite with ${data.maxPlayers > 2 ? "your group" : "your friend"}.`
+      ? `Game ready. Share the invite with ${data.maxPlayers > 2 ? "your group" : "your friend"}.`
       : "Joined. Waiting for the host to start.");
 }
 
@@ -1617,7 +1617,7 @@ function updateRoomLobby(data) {
   startButton.classList.toggle("hidden", !online.isHost || !isFull || data.status !== "waiting");
   document.querySelector("#end-room-from-game").classList.toggle("hidden", !online.isHost || data.status === "closed");
   if (data.queuedForNextMatch) {
-    message.textContent = "You’re in the room and queued for the next match.";
+    message.textContent = "You’re in the game and queued for the next match.";
     return;
   }
   if (data.status === "waiting") {
@@ -1627,10 +1627,10 @@ function updateRoomLobby(data) {
           ? `This match is ready. ${waitingNext.length} more player${waitingNext.length === 1 ? "" : "s"} queued for the next match.`
           : "Everyone is here! Start when you’re ready."
         : `Waiting for ${maxPlayers - data.players.length} more player${maxPlayers - data.players.length === 1 ? "" : "s"}…`
-      : `Connected to ${data.players[0].name}’s room. Waiting for the host to start.`;
+      : `Connected to ${data.players[0].name}’s game. Waiting for the host to start.`;
     return;
   }
-  message.textContent = data.status === "closed" ? "The room creator ended this room." : "Game connected.";
+  message.textContent = data.status === "closed" ? "The game host ended this game." : "Game connected.";
 }
 
 function renderGameChat(data) {
@@ -1791,8 +1791,8 @@ function beginRoomSession(snapshot, token) {
   document.querySelector("#join-room-panel").classList.add("hidden");
   applyRoomSnapshot(snapshot);
   document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
-    ? online.isHost ? "Invite your crew to join the room." : `You joined a ${onlineRoomSize}-player group room.`
-    : online.isHost ? "Send your friend the invite link." : `You joined ${snapshot.publicData.players[0].name}’s room.`;
+    ? online.isHost ? "Invite your crew to join the game." : `You joined a ${onlineRoomSize}-player group game.`
+    : online.isHost ? "Send your friend the invite link." : `You joined ${snapshot.publicData.players[0].name}’s game.`;
   if (online.isHost) {
     document.querySelector("#invite-result").classList.remove("hidden");
     const headline = document.querySelector(".invite-ready-heading div > span");
@@ -1805,15 +1805,15 @@ async function createOnlineRoom() {
   try {
     const isPublic = document.querySelector("#public-room-checkbox").checked;
     document.querySelector("#invite-room-note").textContent = isPublic
-      ? "Public rooms are listed while they have open seats. Use a private room for links that stay available between matches."
-      : "This private link stays open until the host ends the room or it has been inactive for 24 hours. Mid-game joins wait for the next match.";
-    setOnlineStatus("Creating your room…");
+      ? "Public games are listed while seats are open. Late arrivals wait for the next match."
+      : "This private game link stays open until the host ends the game or it has been inactive for 24 hours. Late arrivals wait for the next match.";
+    setOnlineStatus("Creating your game…");
     const snapshot = await callGameApi("/api/rooms", "POST", {
       maxPlayers: onlineRoomSize,
       isPublic,
     });
     beginRoomSession(snapshot, snapshot.token);
-    setOnlineStatus(isPublic ? "Public room created." : "Private room created.");
+    setOnlineStatus(isPublic ? "Public game created." : "Private game created.");
   } catch (error) {
     setOnlineStatus(onlineErrorMessage(error));
   }
@@ -1836,12 +1836,12 @@ async function joinOnlineRoom(publicJoin = false) {
     const saved = readSavedRoom(roomCode);
     const body = publicJoin ? { publicJoin: true } : {};
     if (saved) body.token = saved.token; // you were already in this room: just reconnect
-    setOnlineStatus(saved ? "Reconnecting…" : publicJoin ? "Joining public game…" : "Joining your friend’s room…");
+    setOnlineStatus(saved ? "Reconnecting…" : publicJoin ? "Joining public game…" : "Joining your friend’s game…");
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
   } catch (error) {
     if (publicJoin && error.status === 404) {
-      setOnlineStatus("That public room filled or started. Open games have been refreshed.");
+      setOnlineStatus("That game isn’t open for public play. Open games have been refreshed.");
       await refreshPublicRooms();
       schedulePublicRoomsRefresh();
       return;
@@ -1862,14 +1862,14 @@ async function startOnlineGame() {
 
 async function endOnlineRoom() {
   if (!online.roomCode || !online.isHost) return;
-  if (!window.confirm("End this room for everyone? Its invite link will stop working.")) return;
+  if (!window.confirm("End this game for everyone? Its invite link will stop working.")) return;
   const code = online.roomCode;
   try {
     await callGameApi(`/api/rooms/${code}/end`, "POST", {});
     removeStored(roomStorageKey(code));
     returnToSetup();
     window.history.replaceState(null, "", window.location.pathname);
-    showToast("Room ended. The invite link is closed.");
+    showToast("Game ended. The invite link is closed.");
   } catch (error) {
     showToast(onlineErrorMessage(error));
   }
@@ -1970,7 +1970,7 @@ document.querySelector("#start-online-game").addEventListener("click", startOnli
 document.querySelector("#chat-form").addEventListener("submit", sendChatMessage);
 document.querySelector("#leave-online-room").addEventListener("click", () => {
   disconnectOnlineRoom();
-  setOnlineStatus("You left this room view. Open its invite link to reconnect.");
+  setOnlineStatus("You left this game. Open its invite link to reconnect.");
   refreshPublicRooms();
   schedulePublicRoomsRefresh();
 });
@@ -2021,5 +2021,6 @@ document.addEventListener("keydown", (event) => {
 });
 
 renderAccountMode();
-pendingInviteRoom = new URLSearchParams(window.location.search).get("room");
+const inviteParams = new URLSearchParams(window.location.search);
+pendingInviteRoom = inviteParams.get("game") || inviteParams.get("room");
 loadAccount();
