@@ -2757,96 +2757,40 @@ button { min-height: 44px; }
 .hand {
   display: flex;
   flex-wrap: nowrap;
-  justify-content: flex-start;
   justify-content: safe center;
-  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
+}
+.player-area,
+.table-surface {
+  min-width: 0;
 }
 .hand .playing-card {
   flex: 0 0 auto;
+  margin-left: clamp(-22px, -1.6vw, -10px);
+  transform: translateY(var(--lift, 0)) rotate(var(--tilt, 0deg));
+}
+.hand .playing-card:first-child {
   margin-left: 0;
-  transform: translateY(var(--lift, 0));
+}
+.hand .playing-card:hover:not(:disabled),
+.hand .playing-card:focus-visible:not(:disabled) {
+  transform: translateY(-18px) rotate(0) scale(1.055);
+}
+@media (max-width: 760px) {
+  .hand .playing-card {
+    margin-left: clamp(-18px, -4vw, -9px);
+  }
 }
 .hand-help:not(.hidden) {
   min-height: 20px;
   margin-top: 3px;
   color: #c3d2c4;
   font-size: 12px;
-}
-html,
-body {
-  max-width: 100%;
-  overflow-x: hidden;
-}
-.table-surface,
-.hand,
-.opponents,
-.opponent {
-  box-sizing: border-box;
-  max-width: 100%;
-  min-width: 0;
-}
-.opponents {
-  width: 100%;
-}
-.opponent {
-  flex: 0 1 auto;
-  overflow: hidden;
-}
-.opponent-name {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 100%;
-}
-.opponent-cards {
-  flex: 0 1 auto;
-  max-width: 45%;
-  overflow: hidden;
-}
-.opponent-count {
-  flex: 0 0 auto;
-}
-.hand {
-  width: 100%;
-  height: 170px;
-  min-height: 170px;
-  max-height: 170px;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 8px;
-  padding: 18px 12px 10px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  touch-action: pan-x;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.hand::-webkit-scrollbar {
-  display: none;
-}
-.hand .playing-card {
-  box-sizing: border-box;
-  width: 70px;
-  min-width: 70px;
-  max-width: 70px;
-  height: 108px;
-  flex: 0 0 70px;
-  margin: 0;
-  scroll-snap-align: center;
-  transform: translateY(var(--lift, 0));
-}
-.hand .playing-card:first-child {
-  margin-inline-start: auto;
-}
-.hand .playing-card:last-child {
-  margin-inline-end: auto;
-}
-.hand .playing-card:hover:not(:disabled),
-.hand .playing-card:focus-visible:not(:disabled) {
-  transform: translateY(-14px);
-  transition: transform 160ms ease, box-shadow 160ms ease;
 }

@@ -553,7 +553,7 @@ function renderGame() {
   renderOpponents();
   renderHand();
   updateMessage();
-  scheduleNicoleTurn();
+  scheduleFundoTurn();
 }
 
 function renderOpponents() {
@@ -630,7 +630,8 @@ function renderHand() {
     const cardElement = createCardElement(card, { interactive: true, index });
     cardElement.style.zIndex = String(position + 1);
     if (hand.length === 1 && !game.knocked?.[seat]) cardElement.disabled = true;
-    cardElement.style.setProperty("--tilt", "0deg");
+    const spread = hand.length > 9 ? 0 : (index - (hand.length - 1) / 2) * 1.4;
+    cardElement.style.setProperty("--tilt", `${spread}deg`);
     if (!previousCards.has(card.id)) {
       if (sameSeat) {
         cardElement.classList.add("card-draw-arrival");
@@ -725,13 +726,6 @@ function selectCard(index) {
     showToast("Not quite! Pick a card that matches the suit or number.");
     return;
   }
-  const selectedCard = [...elements.hand.querySelectorAll("[data-card-id]")]
-    .find((item) => item.dataset.cardId === card.id);
-  selectedCard?.scrollIntoView({
-    inline: "center",
-    block: "nearest",
-    behavior: "smooth",
-  });
   if (card.rank === "A") {
     game.stagedCardIndex = index;
     elements.suitTitle.textContent = "Name a suit";
@@ -980,15 +974,15 @@ function startTurnTimer() {
   turnTimer = window.setInterval(updateTurnTimer, 250);
 }
 
-function scheduleNicoleTurn() {
+function scheduleFundoTurn() {
   if (!trainingMode || !game || game.finished || game.current !== 1 || trainingTurnTimer !== null) return;
   trainingTurnTimer = window.setTimeout(() => {
     trainingTurnTimer = null;
-    playNicoleTurn();
-  }, 900 + Math.random() * 6100);
+    playFundoTurn();
+  }, 900 + Math.random() * 1600);
 }
 
-function playNicoleTurn() {
+function playFundoTurn() {
   if (!trainingMode || !game || game.finished || game.current !== 1) return;
   const hand = game.players[1].hand;
   if (hand.length === 1 && !game.knocked[1]) {
