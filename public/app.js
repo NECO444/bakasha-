@@ -137,7 +137,7 @@ function startTrainingGame() {
     showAccountGate();
     return;
   }
-  dealGame([accountUser.username, "Fundo"], { training: true });
+  dealGame([accountUser.username, "Nicole"], { training: true });
 }
 
 function dealGame(names, options = {}) {
@@ -155,7 +155,7 @@ function dealGame(names, options = {}) {
   elements.rematch.disabled = false;
   elements.rematch.innerHTML = 'Play again <span aria-hidden="true">↻</span>';
   document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
-  document.querySelector("#mode-label").textContent = trainingMode ? "Training with Fundo" : "Local game";
+  document.querySelector("#mode-label").textContent = trainingMode ? "Training with Nicole" : "Local game";
   document.querySelector("#round-mode-label").textContent = trainingMode ? "TRAINING" : "PASS & PLAY";
   window.clearInterval(turnTimer);
   turnTimer = null;
@@ -553,7 +553,7 @@ function renderGame() {
   renderOpponents();
   renderHand();
   updateMessage();
-  scheduleFundoTurn();
+  scheduleNicoleTurn();
 }
 
 function renderOpponents() {
@@ -613,6 +613,9 @@ function showQuickReaction(seat, emoji) {
 }
 
 function renderHand() {
+  const previousScrollLeft = elements.hand.scrollLeft;
+  const wasScrolledToEnd = previousScrollLeft + elements.hand.clientWidth
+    >= elements.hand.scrollWidth - 2;
   const previousCards = new Set(
     [...elements.hand.querySelectorAll("[data-card-id]")].map((card) => card.dataset.cardId),
   );
@@ -627,8 +630,7 @@ function renderHand() {
     const cardElement = createCardElement(card, { interactive: true, index });
     cardElement.style.zIndex = String(position + 1);
     if (hand.length === 1 && !game.knocked?.[seat]) cardElement.disabled = true;
-    const spread = hand.length > 9 ? 0 : (index - (hand.length - 1) / 2) * 1.4;
-    cardElement.style.setProperty("--tilt", `${spread}deg`);
+    cardElement.style.setProperty("--tilt", "0deg");
     if (!previousCards.has(card.id)) {
       if (sameSeat) {
         cardElement.classList.add("card-draw-arrival");
@@ -648,6 +650,15 @@ function renderHand() {
     pendingCard.textContent = "DRAWING";
     elements.hand.append(pendingCard);
   }
+  elements.hand.scrollLeft = wasScrolledToEnd
+    ? elements.hand.scrollWidth
+    : previousScrollLeft;
+  const handOverflows = elements.hand.scrollWidth > elements.hand.clientWidth + 2;
+  elements.handHelp.textContent = handOverflows ? "Swipe or scroll sideways to see all your cards." : "";
+  elements.handHelp.classList.toggle("hidden", !handOverflows);
+  elements.hand.setAttribute("aria-label", handOverflows
+    ? "Your cards. Swipe or scroll horizontally to see your full hand."
+    : "Your cards.");
 }
 
 function updateMessage() {
@@ -656,7 +667,6 @@ function updateMessage() {
     || (trainingMode && game.current === 0);
   const turnLabel = isViewerTurn ? "Your turn" : `${player.name}’s turn`;
   elements.hint.textContent = "";
-  elements.handHelp.textContent = "";
   if (game.finished) {
     elements.message.textContent = `${game.winner} wins!`;
     return;
@@ -666,7 +676,7 @@ function updateMessage() {
     return;
   }
   if (trainingMode && game.current !== 0) {
-    elements.message.textContent = "Fundo is thinking…";
+    elements.message.textContent = "Nicole is thinking…";
     return;
   }
   if (game.pending > 0) {
@@ -963,15 +973,15 @@ function startTurnTimer() {
   turnTimer = window.setInterval(updateTurnTimer, 250);
 }
 
-function scheduleFundoTurn() {
+function scheduleNicoleTurn() {
   if (!trainingMode || !game || game.finished || game.current !== 1 || trainingTurnTimer !== null) return;
   trainingTurnTimer = window.setTimeout(() => {
     trainingTurnTimer = null;
-    playFundoTurn();
-  }, 650);
+    playNicoleTurn();
+  }, 900 + Math.random() * 6100);
 }
 
-function playFundoTurn() {
+function playNicoleTurn() {
   if (!trainingMode || !game || game.finished || game.current !== 1) return;
   const hand = game.players[1].hand;
   if (hand.length === 1 && !game.knocked[1]) {
@@ -980,20 +990,38 @@ function playFundoTurn() {
     return;
   }
 
-  const playableIndex = hand.findIndex(isPlayable);
-  if (playableIndex < 0) {
+  const playableIndices = hand
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => isPlayable(card));
+  if (!playableIndices.length) {
     drawCard();
     return;
   }
 
-  const card = hand[playableIndex];
+  const opponentCardsLeft = game.players[0].hand.length;
+  const choices = playableIndices.map(({ card, index }) => {
+    const remaining = hand.filter((_, cardIndex) => cardIndex !== index);
+    const followUpOptions = remaining.filter((nextCard) =>
+      nextCard.suit === card.suit || nextCard.rank === card.rank
+    ).length;
+    let score = followUpOptions + Math.random() * 2;
+    if (card.rank === "A") score -= 2;
+    if (card.rank === "2" || card.rank === "JOKER") {
+      score += opponentCardsLeft <= 2 ? 3 : -1;
+    }
+    return { card, index, score };
+  });
+  choices.sort((left, right) => right.score - left.score);
+  const { card, index: playableIndex } = choices[0];
   if (card.rank === "A") {
     const counts = SUIT_ORDER.map((suit) => ({
       suit,
       count: hand.filter((candidate) => candidate !== card && candidate.suit === suit).length,
     }));
     counts.sort((left, right) => right.count - left.count);
-    playCard(playableIndex, counts[0].suit);
+    const bestSuitCount = counts[0].count;
+    const bestSuits = counts.filter(({ count }) => count === bestSuitCount);
+    playCard(playableIndex, bestSuits[Math.floor(Math.random() * bestSuits.length)].suit);
     return;
   }
   playCard(playableIndex);
