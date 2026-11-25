@@ -1954,7 +1954,7 @@ async function submitOnlineMove(action) {
 }
 
 document.querySelector("#create-room-button").addEventListener("click", createOnlineRoom);
-document.querySelector("#join-room-button").addEventListener("click", joinOnlineRoom);
+document.querySelector("#join-room-button").addEventListener("click", () => joinOnlineRoom(false));
 document.querySelector("#end-online-room").addEventListener("click", endOnlineRoom);
 document.querySelector("#end-room-from-game").addEventListener("click", endOnlineRoom);
 document.querySelector("#end-room-from-result").addEventListener("click", endOnlineRoom);

@@ -1178,7 +1178,7 @@ body {
 
 .chat-toggle[aria-expanded="true"] { border-color: var(--blue-accent); color: var(--blue-accent); }
 .game-mode-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.training-mode-option { border-color: #78602d; background: #30291a; }
+.training-mode-option { grid-column: 1 / -1; border-color: #78602d; background: #30291a; }
 .training-mode-option:hover, .training-mode-option.active {
   border-color: var(--yellow);
   background: #3a311b;
