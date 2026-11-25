@@ -95,8 +95,9 @@
 
             <section class="active-games" aria-label="Your active games">
               <div class="public-rooms-heading">
-                <h3>Your active game</h3>
+                <h3>Your active games <span class="active-game-count" id="active-game-count">0/2</span></h3>
               </div>
+              <p class="active-game-limit">Keep up to two online games open. Rejoin to switch between them.</p>
               <div class="active-game-list" id="active-game-list" aria-live="polite">
                 <p class="public-room-empty">Checking for an active game…</p>
               </div>
@@ -157,6 +158,7 @@
             <div class="game-heading-actions">
               <button class="icon-button chat-toggle hidden" id="game-chat-toggle" type="button" aria-label="Open table chat" aria-controls="game-chat" aria-expanded="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5 7.4 7.4 0 0 1-3.5-.9L4 20l1.2-4.3A7.5 7.5 0 1 1 20 11.5Z"></path><path d="M8 11.5h.01M12.5 11.5h.01M17 11.5h.01"></path></svg>
+                <span class="chat-unread-badge hidden" id="chat-unread-badge" aria-hidden="true"></span>
               </button>
               <button class="secondary-button end-room-button game-end-room hidden" id="end-room-from-game" type="button">End game</button>
               <button class="icon-button" id="game-rules-button" type="button" aria-label="How to play">?</button>

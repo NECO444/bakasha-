@@ -65,3 +65,33 @@ test("rematch requests require a finished game and a room player", async () => {
   await assert.rejects(handleRematch({ request: request(created.roomCode, "rematch", created.token, host) }), (error) => error.status === 409);
   await assert.rejects(handleRematch({ request: request(created.roomCode, "rematch", "not-a-player", host) }), (error) => error.status === 403);
 });
+
+
+test("a rematch cannot exceed the two-active-room limit", async () => {
+  const host = await createTestAccount("rematch_limit_host");
+  const guest = await createTestAccount("rematch_limit_guest");
+  const finishedRoom = await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
+  await handleJoin({
+    request: request(finishedRoom.roomCode, "join", finishedRoom.token, guest),
+    body: {},
+  });
+  const storedFinishedRoom = await loadRoom(finishedRoom.roomCode);
+  storedFinishedRoom.status = "finished";
+  storedFinishedRoom.game.finished = true;
+  storedFinishedRoom.rematchRequests = [false, false];
+  await saveRoom(finishedRoom.roomCode, storedFinishedRoom);
+
+  await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
+  await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
+
+  const rejoined = await handleJoin({
+    request: request(finishedRoom.roomCode, "join", finishedRoom.token, host),
+    body: { token: finishedRoom.token },
+  });
+  assert.equal(rejoined.publicData.status, "finished");
+  await assert.rejects(
+    handleRematch({ request: request(finishedRoom.roomCode, "rematch", finishedRoom.token, host) }),
+    (error) => error.status === 409 && error.message.includes("maximum of 2"),
+  );
+  assert.deepEqual((await loadRoom(finishedRoom.roomCode)).rematchRequests, [false, false]);
+});

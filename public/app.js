@@ -88,6 +88,7 @@ const online = {
   soundVersion: null,
   version: 0,
   clockOffset: 0,
+  chatUnreadCount: 0,
 };
 
 function createDeck() {
@@ -1186,11 +1187,12 @@ function renderPublicRooms(rooms) {
 
 function renderActiveRooms(rooms) {
   const list = document.querySelector("#active-game-list");
+  document.querySelector("#active-game-count").textContent = `${rooms.length}/2`;
   list.replaceChildren();
   if (rooms.length === 0) {
     const empty = document.createElement("p");
     empty.className = "public-room-empty active-game-empty";
-    empty.textContent = "You don’t have an active game. Rejoin one or create a challenge below.";
+    empty.textContent = "No active games yet. Create a game or join one below.";
     list.append(empty);
     return;
   }
@@ -1224,6 +1226,7 @@ function renderActiveRooms(rooms) {
       finish.className = "secondary-button";
       finish.type = "button";
       finish.dataset.activeRoomAction = room.canEnd ? "end" : "leave";
+      finish.dataset.activeRoomCode = room.roomCode;
       finish.textContent = room.canEnd ? "End game" : "Leave";
       actions.append(finish);
     }
@@ -1374,7 +1377,10 @@ function disconnectOnlineRoom() {
     timeoutSentAt: null,
     version: 0,
     clockOffset: 0,
+    chatUnreadCount: 0,
+    chatOpen: false,
   });
+  updateChatUnreadBadge();
   document.querySelector("#room-wait-panel").classList.add("hidden");
   document.querySelector("#invite-result").classList.add("hidden");
   document.querySelector("#create-room-controls").classList.remove("hidden");
@@ -1781,7 +1787,7 @@ function renderFriendEntries(container, entries, section) {
       challenge.dataset.friendChallenge = entry.username;
       challenge.textContent = "Challenge";
       challenge.disabled = hasActiveOnlineRoom();
-      challenge.title = challenge.disabled ? "Finish or leave your current game first." : `Start a private duel with ${entry.username}`;
+      challenge.title = challenge.disabled ? "Return to games before starting another duel." : `Start a private duel with ${entry.username}`;
       row.append(challenge);
 
       const remove = document.createElement("button");
@@ -1805,7 +1811,7 @@ function renderFriendEntries(container, entries, section) {
         button.dataset.roomCode = entry.roomCode;
         button.textContent = label;
         button.disabled = action === "accept" && hasActiveOnlineRoom();
-        if (button.disabled) button.title = "Finish or leave your current game first.";
+        if (button.disabled) button.title = "Return to games before joining another duel.";
         row.append(button);
       }
     } else if (section === "incoming") {
@@ -1902,7 +1908,7 @@ function hasActiveOnlineRoom() {
 
 async function challengeFriend(username, button) {
   if (hasActiveOnlineRoom()) {
-    setFriendsStatus("Finish or leave your current game before starting another duel.");
+    setFriendsStatus("Return to games before starting another duel.");
     return;
   }
   button.disabled = true;
@@ -1929,7 +1935,7 @@ async function challengeFriend(username, button) {
 
 async function respondToFriendChallenge(button) {
   if (button.dataset.challengeAction === "accept" && hasActiveOnlineRoom()) {
-    setFriendsStatus("Finish or leave your current game before joining this duel.");
+    setFriendsStatus("Return to games before joining this duel.");
     return;
   }
   button.disabled = true;
@@ -2170,6 +2176,11 @@ function applyRoomSnapshot(snapshot) {
   const previousData = online.publicData;
   const first = !online.publicData;
   const changed = first || data.version !== online.version;
+  const previousChatIds = new Set((previousData?.chatMessages || []).map((message) => message.id));
+  const newChatMessages = first
+    ? []
+    : (data.chatMessages || []).filter((message) => !previousChatIds.has(message.id));
+  const incomingMessages = newChatMessages.filter((message) => message.seat !== snapshot.seat);
   const challengeJoiner = !first
     && online.isHost
     && previousData.isPublic
@@ -2194,11 +2205,28 @@ function applyRoomSnapshot(snapshot) {
     void startOnlineGame();
   }
   if (!changed) return;
+  if (incomingMessages.length && !online.chatOpen) {
+    online.chatUnreadCount += incomingMessages.length;
+    updateChatUnreadBadge();
+    const latestMessage = incomingMessages[incomingMessages.length - 1];
+    const preview = latestMessage.text.length > 72
+      ? `${latestMessage.text.slice(0, 69)}…`
+      : latestMessage.text;
+    showToast(`${latestMessage.name}: ${preview}`);
+    playSound("click");
+  }
   if (!first && data.version !== previousData.version) {
-    if (challengeJoiner) showToast(`${challengeJoiner.name} answered your public challenge!`);
-    else if (data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
+    if (!newChatMessages.length && challengeJoiner) {
+      showToast(`${challengeJoiner.name} answered your public challenge!`);
+    } else if (
+      !newChatMessages.length
+      && data.lastMessage
+      && data.lastMessage !== previousData.lastMessage
+    ) {
+      showToast(data.lastMessage);
+    }
     if (online.soundVersion !== data.version) {
-      if (!data.game?.finished) {
+      if (!newChatMessages.length && !data.game?.finished) {
         if (/joker|draw two|skipped|jack/i.test(data.lastMessage || "")) playSound("penalty");
         else if (/draw(?:s|ing)?|pick/i.test(data.lastMessage || "")) playSound("draw");
         else playSound("play");
@@ -2284,12 +2312,21 @@ function renderGameChat(data) {
   const send = document.querySelector("#chat-send");
   const status = document.querySelector("#chat-status");
   const active = data.status === "playing" && !data.game.finished;
-  if (!active) online.chatOpen = false;
+  if (!active) {
+    online.chatOpen = false;
+    online.chatUnreadCount = 0;
+  }
+  if (online.chatOpen) online.chatUnreadCount = 0;
+  updateChatUnreadBadge();
   panel.classList.toggle("hidden", !active || !online.chatOpen);
   chatToggle.classList.toggle("hidden", !active);
   chatToggle.disabled = !active;
   chatToggle.setAttribute("aria-expanded", String(active && online.chatOpen));
-  chatToggle.setAttribute("aria-label", online.chatOpen ? "Close table chat" : "Open table chat");
+  chatToggle.setAttribute("aria-label", online.chatOpen
+    ? "Close table chat"
+    : online.chatUnreadCount
+      ? `Open table chat, ${online.chatUnreadCount} unread message${online.chatUnreadCount === 1 ? "" : "s"}`
+      : "Open table chat");
   input.disabled = !active;
   send.disabled = !active || online.chatSending;
   status.textContent = active
@@ -2325,6 +2362,19 @@ function renderGameChat(data) {
     messages.append(row);
   }
   messages.scrollTop = messages.scrollHeight;
+}
+
+function updateChatUnreadBadge() {
+  const badge = document.querySelector("#chat-unread-badge");
+  if (!badge) return;
+  const unread = online.chatUnreadCount;
+  badge.textContent = unread > 9 ? "9+" : String(unread);
+  badge.classList.toggle("hidden", unread === 0);
+  chatToggle.setAttribute("aria-label", online.chatOpen
+    ? "Close table chat"
+    : unread
+      ? `Open table chat, ${unread} unread message${unread === 1 ? "" : "s"}`
+      : "Open table chat");
 }
 
 function renderOnlineGame() {
@@ -2563,15 +2613,17 @@ async function endOnlineRoom() {
   }
 }
 
-async function finishActiveRoom(action) {
+async function finishActiveRoom(action, roomCode) {
   const prompt = action === "end"
     ? "End this game for everyone? Its invite link will stop working."
     : "Leave this waiting game? You can start or join another one afterward.";
   if (!window.confirm(prompt)) return;
   try {
-    const result = await callGameApi("/api/rooms/active", "POST", { action });
+    const result = await callGameApi("/api/rooms/active", "POST", { action, roomCode });
     await Promise.all([refreshActiveRooms(), refreshPublicRooms()]);
-    setOnlineStatus(result.ended ? "Game ended. You can start or join another game." : "You left the game. You can start or join another game.");
+    setOnlineStatus(result.ended
+      ? "Game ended. Your other active games are still available to rejoin."
+      : "You left this game. Your other active games are still available to rejoin.");
   } catch (error) {
     setOnlineStatus(onlineErrorMessage(error));
   }
@@ -2670,14 +2722,16 @@ document.querySelector("#end-room-from-result").addEventListener("click", endOnl
 document.querySelector("#start-queued-match").addEventListener("click", startQueuedMatch);
 document.querySelector("#refresh-public-rooms").addEventListener("click", refreshPublicRooms);
 document.querySelector("#active-game-list").addEventListener("click", (event) => {
+  const action = event.target.closest("[data-active-room-action]");
+  if (action) {
+    finishActiveRoom(action.dataset.activeRoomAction, action.dataset.activeRoomCode);
+    return;
+  }
   const rejoin = event.target.closest("[data-active-room-code]");
   if (rejoin) {
     document.querySelector("#invite-link-input").value = makeInviteLink(rejoin.dataset.activeRoomCode);
     joinOnlineRoom(false);
-    return;
   }
-  const action = event.target.closest("[data-active-room-action]");
-  if (action) finishActiveRoom(action.dataset.activeRoomAction);
 });
 document.querySelector("#public-room-list").addEventListener("click", (event) => {
   const button = event.target.closest("[data-public-room-code]");
