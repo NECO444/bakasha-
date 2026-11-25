@@ -168,7 +168,7 @@
                   <span class="timer-unit">SEC</span>
                 </div>
                 <div class="hand-count" id="hand-count">4 cards</div>
-                <button class="secondary-button knock-button hidden" id="knock-button" type="button">KNOCK</button>
+                <button class="secondary-button knock-button hidden" id="knock-button" type="button" aria-label="Knock to call your last card">KNOCK!</button>
               </div>
               <div class="hand" id="hand" aria-label="Your cards"></div>
               <div class="hand-help hidden" id="hand-help"></div>
@@ -308,9 +308,9 @@
         <ul class="rules-list">
           <li><span class="rule-icon hearts">A</span><span><strong>Ace — “I want”</strong> — Play on the same suit or another Ace, then name a suit. The next player must play that suit or an Ace. If they cannot, they draw 1 and the next player must answer the demand. A Joker clears the demand.</span></li>
           <li><span class="rule-icon diamonds">2</span><span><strong>Two — Pick 2</strong> — Play on the same suit or another 2. The next player draws 2 and misses their turn, unless they answer with another 2, which cancels the penalty.</span></li>
-          <li><span class="rule-icon wild">✳</span><span><strong>Joker — Pick 4</strong> — Play on anything except a 2. The next player draws 4 and misses their turn, unless they answer with a Joker (cancels it; the following player may play anything) or a 2 (blocks 2, so they draw 2). A Joker also clears an Ace’s demand.</span></li>
-          <li><span class="rule-icon clubs">J</span><span><strong>Jack — Jump</strong> — Play on the same suit or another Jack. The next player is skipped. In a 2-player game, the jump comes back to you: play a normal support card or draw 1.</span></li>
-          <li><span class="rule-icon spades">8</span><span><strong>Eight — Needs support</strong> — Play again straight away with a card of the 8’s suit, or another 8 (which needs its own support). If you have no support, draw 1. Completing the support turns play around.</span></li>
+          <li><span class="rule-icon wild">✳</span><span><strong>Joker — Pick 4</strong> — Play on anything except a 2. The next player draws 4 and misses their turn; the following player may play any card, regardless of the previous suit. They can instead answer with a Joker (cancels the penalty; the following player may play anything) or a 2 (blocks 2, so they draw 2 and the next player follows that 2’s suit). A Joker also clears an Ace’s demand.</span></li>
+          <li><span class="rule-icon clubs">J</span><span><strong>Jack — Jump</strong> — Play on the same suit or another Jack. In group play, the next player is skipped. In 1v1 and solo play, the jump comes back to you: play a card in the Jack’s suit or draw 1. Another same-suit Jack can continue the chain.</span></li>
+          <li><span class="rule-icon spades">8</span><span><strong>Eight — Needs support</strong> — Play again straight away with a card of the 8’s suit, or another 8 (which needs its own support). If you have no support, draw 1. Completing the support turns play around. A Jack can support an 8; in 1v1 or solo, continue with a card matching the Jack’s suit, while in group play the Jack skips the next player.</span></li>
         </ul>
         <p class="rules-note">You cannot go out on a Jack, Ace, 8, 2, or Joker; if it is your last card, you must draw 1 on your next turn. Knock when you have one card; it does not use your turn. In 1v1, the first player out wins. In group play, the last player holding cards each round is eliminated; play new rounds until one player remains.</p>
         <p class="rules-note">Each turn has a 60-second timer. If time runs out, draw the active penalty, or 1 card if there is none; your turn then ends.</p>

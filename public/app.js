@@ -62,6 +62,7 @@ const online = {
   roomCode: null,
   token: null,
   seat: -1,
+  starting: false,
   publicData: null,
   ownHand: null,
   isHost: false,
@@ -257,7 +258,7 @@ function isPlayable(card) {
   if (game.combo) {
     return card.rank === "8" || card.suit === game.combo.lastCard.suit;
   }
-  if (game.jumpSupport) return !["A", "2", "8", "J", "JOKER"].includes(card.rank);
+  if (game.jumpSupport) return game.players.length === 2 && card.suit === topCard().suit;
   if (game.freeSuitPlay) return true;
   if (game.demandedSuit) {
     return card.rank === "A" || card.rank === "JOKER" || card.suit === game.demandedSuit;
@@ -497,7 +498,7 @@ function updateMessage() {
     return;
   }
   if (game.jumpSupport) {
-    elements.message.textContent = `${turnLabel} · Play a normal support or draw 1`;
+    elements.message.textContent = `${turnLabel} · Play a card in the same suit or draw 1`;
     return;
   }
   elements.message.textContent = turnLabel;
@@ -613,7 +614,7 @@ function playCard(index, chosenSuit) {
       if (player.hand.length > 0) game.jumpSupport = true;
       showToast(player.hand.length === 0
         ? "Jack played. Draw one on your next turn."
-        : "Jack played. Play a normal support card or draw one.");
+        : "Jack played. Play a card in the same suit or draw one.");
       if (player.hand.length === 0) {
         renderGame();
         startTurnTimer();
@@ -706,6 +707,7 @@ function drawCard(timedOut = false) {
   if (game.mustDrawSeat === game.current) {
     game.combo = null;
     game.jumpSupport = false;
+    game.freeSuitPlay = false;
     takeCards(player, 1);
     game.mustDrawSeat = null;
     showToast(`${prefix} one card.`);
@@ -714,10 +716,11 @@ function drawCard(timedOut = false) {
   }
   if (game.pending > 0) {
     const amount = game.pending;
+    const jokerPenalty = game.pendingType === "draw-four";
     takeCards(player, amount);
     game.pending = 0;
     game.pendingType = null;
-    game.freeSuitPlay = false;
+    game.freeSuitPlay = jokerPenalty;
     showToast(`${prefix} ${amount}.`);
     advanceTurn();
     return;
@@ -840,6 +843,7 @@ function cancelSuitSelection() {
 function showToast(message) {
   window.clearTimeout(toastTimer);
   elements.toast.textContent = message;
+  elements.toast.classList.toggle("toast-knock", /knocked!/i.test(message));
   elements.toast.classList.add("visible");
   toastTimer = window.setTimeout(() => elements.toast.classList.remove("visible"), 2300);
 }
@@ -1147,6 +1151,7 @@ function disconnectOnlineRoom() {
     roomCode: null,
     token: null,
     seat: -1,
+    starting: false,
     publicData: null,
     ownHand: null,
     isHost: false,
@@ -1571,6 +1576,15 @@ function applyRoomSnapshot(snapshot) {
   online.seat = snapshot.seat;
   online.isHost = snapshot.seat === 0;
   updateRoomLobby(data);
+  if (
+    online.isHost
+    && data.status === "waiting"
+    && data.maxPlayers === 2
+    && data.players.length === 2
+  ) {
+    setOnlineStatus("Your friend is here. Starting the game…");
+    void startOnlineGame();
+  }
   if (!changed) return;
   if (!first && data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
   if (data.game) renderOnlineGame();
@@ -1851,12 +1865,15 @@ async function joinOnlineRoom(publicJoin = false) {
 }
 
 async function startOnlineGame() {
-  if (!online.roomCode || !online.isHost) return;
+  if (!online.roomCode || !online.isHost || online.starting) return;
+  online.starting = true;
   try {
     applyRoomSnapshot(await callGameApi(`/api/rooms/${online.roomCode}/start`, "POST", {}));
   } catch (error) {
     if (onlineMode) showToast(onlineErrorMessage(error));
     else setOnlineStatus(onlineErrorMessage(error));
+  } finally {
+    online.starting = false;
   }
 }
 

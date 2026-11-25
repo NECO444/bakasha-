@@ -132,6 +132,11 @@ test("a two-player game starts automatically when the invited player joins", asy
   });
   assert.equal(hostState.publicData.status, "playing");
   assert.deepEqual(hostState.publicData.game, joined.publicData.game);
+
+  const hostStartRetry = await handleStart({
+    request: request(game.roomCode, host, game.token, "start"),
+  });
+  assert.deepEqual(hostStartRetry.publicData.game, hostState.publicData.game);
 });
 
 test("late public-game joiners queue for the next match instead of getting an unavailable error", async () => {

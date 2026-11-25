@@ -118,14 +118,55 @@ test("Jack skips the opponent in a group and gives a 1v1 player a support turn",
   play(group, 0, c("hearts", "J"));
   assert.equal(group.current, 2);
 
-  const duel = table({ hands: [[c("hearts", "J"), c("spades", "3"), c("spades", "4")], [c("clubs", "9"), c("clubs", "8")]] });
+  const duel = table({ hands: [[c("hearts", "J"), c("hearts", "3"), c("hearts", "4")], [c("clubs", "9"), c("clubs", "8")]] });
   play(duel, 0, c("hearts", "J"));
   assert.equal(duel.current, 0);
   assert.equal(duel.jumpSupport, true);
-  assert.equal(isPlayable(duel, c("spades", "3")), true);
-  play(duel, 0, c("spades", "3"));
+  assert.equal(isPlayable(duel, c("hearts", "3")), true);
+  assert.equal(isPlayable(duel, c("spades", "3")), false);
+  play(duel, 0, c("hearts", "3"));
   assert.equal(duel.current, 1);
   assert.equal(duel.jumpSupport, false);
+});
+
+test("a Jack supporting an 8 in 1v1 requires its suit and allows a matching Jack chain", () => {
+  const g = table({
+    hands: [[c("hearts", "8"), c("hearts", "J"), c("hearts", "J"), c("hearts", "9"), c("spades", "3")], [c("clubs", "9"), c("clubs", "8")]],
+  });
+  play(g, 0, c("hearts", "8"));
+  assert.equal(isPlayable(g, c("hearts", "J")), true);
+  play(g, 0, c("hearts", "J"));
+  assert.equal(g.direction, -1);
+  assert.equal(g.jumpSupport, true);
+  assert.equal(isPlayable(g, c("hearts", "9")), true);
+  assert.equal(isPlayable(g, c("spades", "3")), false);
+  assert.equal(isPlayable(g, c("hearts", "J")), true);
+
+  play(g, 0, c("hearts", "J"));
+  assert.equal(g.jumpSupport, true);
+  assert.equal(g.current, 0);
+  play(g, 0, c("hearts", "9"));
+  assert.equal(g.jumpSupport, false);
+  assert.equal(g.current, 1);
+});
+
+test("a Jack supporting an 8 in a group reverses play and skips the next player", () => {
+  const g = table({
+    names: ["Ann", "Ben", "Cal", "Dee"],
+    hands: [
+      [c("hearts", "8"), c("hearts", "J"), c("clubs", "3")],
+      [c("hearts", "9"), c("spades", "6")],
+      [c("clubs", "9"), c("spades", "7")],
+      [c("diamonds", "9"), c("clubs", "6")],
+    ],
+  });
+  play(g, 0, c("hearts", "8"));
+  play(g, 0, c("hearts", "J"));
+  assert.equal(g.direction, -1);
+  assert.equal(g.current, 2);
+  assert.equal(g.jumpSupport, false);
+  assert.equal(g.combo, null);
+  assert.equal(applyAction(g, 0, { type: "play", cardId: "clubs-3" }, 2100).error, "It is not your turn.");
 });
 
 test("an 8 needs same-suit support and reverses play when supported", () => {
@@ -204,6 +245,30 @@ test("a 2 blocks a Joker penalty and the responding player draws two", () => {
   assert.equal(g.pending, 0);
   assert.equal(g.hands[1].length, previousCount + 1);
   assert.equal(g.current, 0);
+  assert.equal(g.activeSuit, "spades");
+  assert.equal(g.freeSuitPlay, false);
+  assert.equal(isPlayable(g, c("spades", "9")), true);
+  assert.equal(isPlayable(g, c("clubs", "9")), false);
+});
+
+test("drawing a Joker penalty passes a free-choice turn to the next player", () => {
+  const g = table({
+    hands: [[joker(), c("hearts", "K"), c("diamonds", "9")], [c("clubs", "9"), c("clubs", "10")]],
+    top: c("hearts", "5"),
+  });
+  play(g, 0, joker());
+  applyAction(g, 1, { type: "draw" }, 2100);
+  assert.equal(g.hands[1].length, 6);
+  assert.equal(g.current, 0);
+  assert.equal(g.pending, 0);
+  assert.equal(g.freeSuitPlay, true);
+  assert.equal(isPlayable(g, c("diamonds", "9")), true);
+
+  const freeChoice = c("diamonds", "9");
+  const result = play(g, 0, freeChoice);
+  assert.equal(result.error, undefined);
+  assert.equal(g.discard.at(-1).id, freeChoice.id);
+  assert.equal(g.freeSuitPlay, false);
 });
 
 test("Joker response cancels the penalty and grants the following player any play", () => {
