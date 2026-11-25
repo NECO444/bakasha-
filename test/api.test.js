@@ -63,6 +63,82 @@ test("room access requires a signed-in account", async () => {
   await assert.rejects(handleState({ request: req("short", "state", "x", await createTestAccount()) }), (e) => e.status === 400);
 });
 
+test("an account cannot create or join a second active room, but can reconnect and play again after finishing", async () => {
+  const owner = await createTestAccount("active_owner");
+  const guest = await createTestAccount("active_guest");
+  const otherHost = await createTestAccount("active_host");
+  const firstRoom = await handleCreate({
+    request: accountRequest("/api/rooms", owner),
+    body: {},
+  });
+  const guestSeat = await handleJoin({
+    request: req(firstRoom.roomCode, "join", null, guest),
+    body: {},
+  });
+  const otherRoom = await handleCreate({
+    request: accountRequest("/api/rooms", otherHost),
+    body: {},
+  });
+
+  await assert.rejects(
+    handleCreate({ request: accountRequest("/api/rooms", owner), body: {} }),
+    (error) => error.status === 409 && error.message.includes(firstRoom.roomCode),
+  );
+  await assert.rejects(
+    handleJoin({ request: req(otherRoom.roomCode, "join", null, guest), body: {} }),
+    (error) => error.status === 409 && error.message.includes(firstRoom.roomCode),
+  );
+
+  const reconnected = await handleJoin({
+    request: req(firstRoom.roomCode, "join", null, guest),
+    body: { token: guestSeat.token },
+  });
+  assert.equal(reconnected.seat, guestSeat.seat);
+
+  const finishedRoom = await loadRoom(firstRoom.roomCode);
+  finishedRoom.status = "finished";
+  finishedRoom.nextMatchPlayers = [];
+  await saveRoom(firstRoom.roomCode, finishedRoom);
+  const afterFinish = await handleCreate({
+    request: accountRequest("/api/rooms", owner),
+    body: {},
+  });
+  assert.notEqual(afterFinish.roomCode, firstRoom.roomCode);
+});
+
+test("simultaneous room creation requests reserve at most one active room per account", async () => {
+  const account = await createTestAccount("active_race");
+  const results = await Promise.allSettled([
+    handleCreate({ request: accountRequest("/api/rooms", account), body: {} }),
+    handleCreate({ request: accountRequest("/api/rooms", account), body: {} }),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  const rejected = results.find((result) => result.status === "rejected");
+  assert.equal(rejected.reason.status, 409);
+});
+
+test("simultaneous joins into different rooms reserve at most one room per account", async () => {
+  const firstHost = await createTestAccount("join_host1");
+  const secondHost = await createTestAccount("join_host2");
+  const joiningAccount = await createTestAccount("join_race");
+  const firstRoom = await handleCreate({
+    request: accountRequest("/api/rooms", firstHost),
+    body: {},
+  });
+  const secondRoom = await handleCreate({
+    request: accountRequest("/api/rooms", secondHost),
+    body: {},
+  });
+
+  const results = await Promise.allSettled([
+    handleJoin({ request: req(firstRoom.roomCode, "join", null, joiningAccount), body: {} }),
+    handleJoin({ request: req(secondRoom.roomCode, "join", null, joiningAccount), body: {} }),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  const rejected = results.find((result) => result.status === "rejected");
+  assert.equal(rejected.reason.status, 409);
+});
+
 test("online group rooms fill their selected capacity before the host can start", async () => {
   const host = await createTestAccount("group_host");
   const second = await createTestAccount("group_second");

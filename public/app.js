@@ -58,6 +58,10 @@ let accountMode = "login";
 let pendingInviteRoom = null;
 let publicRoomsTimer = null;
 let publicRoomsLoading = false;
+let friendChallengesTimer = null;
+let friendsLoading = false;
+let knownFriendChallengeIds = new Set();
+let friendChallengesInitialized = false;
 let soundMuted = isMuted();
 let tutorialIndex = 0;
 let tutorialShown = false;
@@ -1137,7 +1141,7 @@ function renderPublicRooms(rooms) {
   if (rooms.length === 0) {
     const empty = document.createElement("p");
     empty.className = "public-room-empty";
-    empty.textContent = "No open games.";
+    empty.textContent = "No open challenges.";
     list.append(empty);
     return;
   }
@@ -1227,9 +1231,19 @@ function makeInviteLink(roomCode) {
 
 function updateRoomShareLinks(roomCode) {
   const inviteLink = makeInviteLink(roomCode);
-  const message = `Join my Bakasha game: ${inviteLink}`;
-  const whatsappLink = `https://wa.me/?text=${encodeURIComponent(message)}`;
-  document.querySelector("#game-whatsapp-invite").href = whatsappLink;
+  const message = "Come play a card game with me!";
+  const encodedLink = encodeURIComponent(inviteLink);
+  const encodedMessage = encodeURIComponent(`${message} ${inviteLink}`);
+  const shareUrls = {
+    whatsapp: `https://wa.me/?text=${encodedMessage}`,
+    telegram: `https://t.me/share/url?url=${encodedLink}&text=${encodeURIComponent(message)}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`,
+    x: `https://twitter.com/intent/tweet?text=${encodedMessage}`,
+    email: `mailto:?subject=${encodeURIComponent("Join my BAKASHA game")}&body=${encodedMessage}`,
+  };
+  for (const link of document.querySelectorAll("[data-invite-network]")) {
+    link.href = shareUrls[link.dataset.inviteNetwork] || "#";
+  }
 }
 
 const copyFeedbackTimers = new WeakMap();
@@ -1539,6 +1553,8 @@ function updateAccountUI(user) {
   if (!user || (previousUser && previousUser.username !== user.username)) {
     tutorialShown = false;
     tutorialDismissed = false;
+    knownFriendChallengeIds = new Set();
+    friendChallengesInitialized = false;
   }
   accountUser = user;
   const accountButton = document.querySelector("#account-button");
@@ -1566,7 +1582,9 @@ function updateAccountUI(user) {
     document.querySelector("#score-note").textContent = "Your username identifies your seat and tracks your online results.";
     if (pendingInviteRoom) openPendingInvite();
     else startTutorial();
+    startFriendChallengePolling();
   } else {
+    stopFriendChallengePolling();
     elements.setup.classList.add("hidden");
     elements.online.classList.add("hidden");
     elements.game.classList.add("hidden");
@@ -1665,7 +1683,11 @@ function renderFriendEntries(container, entries, section) {
   if (!entries.length) {
     const empty = document.createElement("p");
     empty.className = "friend-empty";
-    empty.textContent = section === "friends" ? "No friends yet." : "No pending requests.";
+    empty.textContent = section === "friends"
+      ? "No friends yet."
+      : section === "challenges"
+        ? "No game invites right now."
+        : "No pending requests.";
     container.append(empty);
     return;
   }
@@ -1674,10 +1696,19 @@ function renderFriendEntries(container, entries, section) {
     const row = document.createElement("div");
     row.className = "friend-row";
     const name = document.createElement("strong");
-    name.textContent = entry.username;
+    name.textContent = section === "challenges" ? entry.fromUsername : entry.username;
     row.append(name);
 
     if (section === "friends") {
+      const challenge = document.createElement("button");
+      challenge.type = "button";
+      challenge.className = "friend-action friend-challenge-action";
+      challenge.dataset.friendChallenge = entry.username;
+      challenge.textContent = "Challenge";
+      challenge.disabled = hasActiveOnlineRoom();
+      challenge.title = challenge.disabled ? "Finish or leave your current game first." : `Start a private duel with ${entry.username}`;
+      row.append(challenge);
+
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "friend-action";
@@ -1685,6 +1716,23 @@ function renderFriendEntries(container, entries, section) {
       remove.dataset.friendUsername = entry.username;
       remove.textContent = "Remove";
       row.append(remove);
+    } else if (section === "challenges") {
+      const details = document.createElement("span");
+      details.className = "friend-challenge-copy";
+      details.textContent = "invited you to a duel";
+      row.append(details);
+      for (const [action, label] of [["accept", "Join"], ["decline", "Decline"]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `friend-action${action === "accept" ? " friend-challenge-action" : ""}`;
+        button.dataset.challengeAction = action;
+        button.dataset.challengeId = entry.id;
+        button.dataset.roomCode = entry.roomCode;
+        button.textContent = label;
+        button.disabled = action === "accept" && hasActiveOnlineRoom();
+        if (button.disabled) button.title = "Finish or leave your current game first.";
+        row.append(button);
+      }
     } else if (section === "incoming") {
       for (const [action, label] of [["accept", "Accept"], ["decline", "Decline"]]) {
         const button = document.createElement("button");
@@ -1705,21 +1753,62 @@ function renderFriendEntries(container, entries, section) {
   }
 }
 
-async function loadFriends() {
+function updateFriendChallengeBadge(challenges) {
+  const badge = document.querySelector("#friends-challenge-badge");
+  badge.textContent = challenges.length ? String(challenges.length) : "";
+  badge.classList.toggle("hidden", challenges.length === 0);
+  badge.setAttribute("aria-label", `${challenges.length} incoming game challenge${challenges.length === 1 ? "" : "s"}`);
+}
+
+async function loadFriends(silent = false) {
+  if (friendsLoading || !accountUser) return;
+  friendsLoading = true;
   const status = document.querySelector("#friends-status");
-  status.textContent = "Loading friends…";
+  if (!silent) status.textContent = "Loading friends…";
   try {
     const result = await callGameApi("/api/friends");
-    for (const key of ["friends", "incoming", "outgoing"]) {
+    for (const key of ["friends", "incoming", "outgoing", "challenges"]) {
       if (!Array.isArray(result[key])) throw new Error("The server returned an invalid friends list.");
     }
+    const newChallenges = result.challenges.filter((challenge) => !knownFriendChallengeIds.has(challenge.id));
+    if (friendChallengesInitialized && newChallenges.length) {
+      const first = newChallenges[0];
+      showToast(`${first.fromUsername} invited you to a duel.`);
+    }
+    knownFriendChallengeIds = new Set(result.challenges.map((challenge) => challenge.id));
+    friendChallengesInitialized = true;
+    updateFriendChallengeBadge(result.challenges);
     renderFriendEntries(document.querySelector("#friend-list"), result.friends, "friends");
+    renderFriendEntries(document.querySelector("#friend-challenges"), result.challenges, "challenges");
     renderFriendEntries(document.querySelector("#friend-incoming"), result.incoming, "incoming");
     renderFriendEntries(document.querySelector("#friend-outgoing"), result.outgoing, "outgoing");
-    status.textContent = "";
+    if (!silent) status.textContent = "";
   } catch (error) {
     status.textContent = onlineErrorMessage(error);
+  } finally {
+    friendsLoading = false;
   }
+}
+
+function stopFriendChallengePolling() {
+  window.clearTimeout(friendChallengesTimer);
+  friendChallengesTimer = null;
+}
+
+function scheduleFriendChallengePolling() {
+  stopFriendChallengePolling();
+  if (!accountUser) return;
+  friendChallengesTimer = window.setTimeout(async () => {
+    if (!document.hidden) await loadFriends(true);
+    scheduleFriendChallengePolling();
+  }, 12_000);
+}
+
+function startFriendChallengePolling() {
+  stopFriendChallengePolling();
+  if (!accountUser) return;
+  void loadFriends(true);
+  scheduleFriendChallengePolling();
 }
 
 function openFriends() {
@@ -1730,6 +1819,71 @@ function openFriends() {
   document.querySelector("#friends-modal").classList.remove("hidden");
   setFriendsStatus("");
   loadFriends();
+}
+
+function hasActiveOnlineRoom() {
+  return Boolean(online.roomCode && online.publicData?.status !== "finished");
+}
+
+async function challengeFriend(username, button) {
+  if (hasActiveOnlineRoom()) {
+    setFriendsStatus("Finish or leave your current game before starting another duel.");
+    return;
+  }
+  button.disabled = true;
+  document.querySelector("#friends-modal").classList.add("hidden");
+  document.querySelector("#public-room-checkbox").checked = false;
+  openOnlineLobby("duel");
+  setOnlineStatus(`Creating a private duel for you and ${username}…`);
+  try {
+    const snapshot = await callGameApi("/api/rooms", "POST", { maxPlayers: 2, isPublic: false });
+    beginRoomSession(snapshot, snapshot.token);
+    await callGameApi("/api/friends", "POST", {
+      action: "challenge",
+      username,
+      roomCode: snapshot.roomCode,
+    });
+    setOnlineStatus(`Game invite sent to ${username}. Waiting for them to join…`);
+    document.querySelector("#room-wait-message").textContent = `Challenge sent to ${username}. Waiting for them to join…`;
+  } catch (error) {
+    setOnlineStatus(onlineErrorMessage(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function respondToFriendChallenge(button) {
+  if (button.dataset.challengeAction === "accept" && hasActiveOnlineRoom()) {
+    setFriendsStatus("Finish or leave your current game before joining this duel.");
+    return;
+  }
+  button.disabled = true;
+  const challengeId = button.dataset.challengeId;
+  const roomCode = button.dataset.roomCode;
+  const action = button.dataset.challengeAction;
+  if (action === "accept") {
+    document.querySelector("#friends-modal").classList.add("hidden");
+    openOnlineLobby("duel");
+    document.querySelector("#invite-link-input").value = makeInviteLink(roomCode);
+    const joined = await joinOnlineRoom(false);
+    if (joined) {
+      try {
+        await callGameApi("/api/friends", "POST", { action: "dismiss-challenge", challengeId });
+      } catch (error) {
+        showToast(onlineErrorMessage(error));
+      }
+    }
+    button.disabled = false;
+    return;
+  }
+  try {
+    await callGameApi("/api/friends", "POST", { action: "dismiss-challenge", challengeId });
+    await loadFriends();
+  } catch (error) {
+    setFriendsStatus(onlineErrorMessage(error));
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function submitFriendRequest(event) {
@@ -1819,8 +1973,19 @@ document.querySelector("#friends-button").addEventListener("click", openFriends)
 document.querySelector("#close-friends").addEventListener("click", () => document.querySelector("#friends-modal").classList.add("hidden"));
 document.querySelector("#friend-form").addEventListener("submit", submitFriendRequest);
 document.querySelector("#friends-modal").addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) return;
+  const challengeButton = event.target.closest("[data-friend-challenge]");
+  if (challengeButton) {
+    void challengeFriend(challengeButton.dataset.friendChallenge, challengeButton);
+    return;
+  }
+  const responseButton = event.target.closest("[data-challenge-action]");
+  if (responseButton) {
+    void respondToFriendChallenge(responseButton);
+    return;
+  }
   const button = event.target.closest("[data-friend-action]");
-  if (button) updateFriendRequest(button.dataset.friendAction, button.dataset.friendUsername);
+  if (button) void updateFriendRequest(button.dataset.friendAction, button.dataset.friendUsername);
 });
 document.querySelector("#close-account").addEventListener("click", () => {
   if (accountUser) document.querySelector("#account-modal").classList.add("hidden");
@@ -1930,6 +2095,13 @@ function applyRoomSnapshot(snapshot) {
   const previousData = online.publicData;
   const first = !online.publicData;
   const changed = first || data.version !== online.version;
+  const challengeJoiner = !first
+    && online.isHost
+    && previousData.isPublic
+    && previousData.status === "waiting"
+    && data.players.length > previousData.players.length
+    ? data.players.find((player) => !previousData.players.some((previousPlayer) => previousPlayer.name === player.name))
+    : null;
   online.clockOffset = data.serverNow - Date.now();
   online.version = data.version;
   online.publicData = data;
@@ -1948,7 +2120,8 @@ function applyRoomSnapshot(snapshot) {
   }
   if (!changed) return;
   if (!first && data.version !== previousData.version) {
-    if (data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
+    if (challengeJoiner) showToast(`${challengeJoiner.name} answered your public challenge!`);
+    else if (data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
     if (online.soundVersion !== data.version) {
       if (!data.game?.finished) {
         if (/joker|draw two|skipped|jack/i.test(data.lastMessage || "")) playSound("penalty");
@@ -2006,13 +2179,21 @@ function updateRoomLobby(data) {
     return;
   }
   if (data.status === "waiting") {
-    message.textContent = online.isHost
-      ? isFull
-        ? waitingNext.length
-          ? `This match is ready. ${waitingNext.length} more player${waitingNext.length === 1 ? "" : "s"} queued for the next match.`
-          : "Everyone is here! Start when you’re ready."
-        : `Waiting for ${maxPlayers - data.players.length} more player${maxPlayers - data.players.length === 1 ? "" : "s"}…`
-      : `Connected to ${data.players[0].name}’s game. Waiting for the host to start.`;
+    if (online.isHost && Number.isFinite(data.publicChallengeExpiresAt)) {
+      message.textContent = data.serverNow >= data.publicChallengeExpiresAt
+        ? "Your public challenge has expired. Create a new one to invite more players."
+        : isFull
+          ? "Your challenge is full. Start the game when you’re ready."
+          : "Your challenge is open to everyone for 1 hour. You’ll be notified here when someone joins.";
+    } else if (online.isHost && isFull) {
+      message.textContent = waitingNext.length
+        ? `This match is ready. ${waitingNext.length} more player${waitingNext.length === 1 ? "" : "s"} queued for the next match.`
+        : "Everyone is here! Start when you’re ready.";
+    } else if (online.isHost) {
+      message.textContent = `Waiting for ${maxPlayers - data.players.length} more player${maxPlayers - data.players.length === 1 ? "" : "s"}…`;
+    } else {
+      message.textContent = `Connected to ${data.players[0].name}’s game. Waiting for the host to start.`;
+    }
     return;
   }
   message.textContent = data.status === "closed" ? "The game host ended this game." : "Game connected.";
@@ -2193,7 +2374,7 @@ async function createOnlineRoom() {
   try {
     const isPublic = document.querySelector("#public-room-checkbox").checked;
     document.querySelector("#invite-room-note").textContent = isPublic
-      ? "Public games are listed while seats are open. Late arrivals wait for the next match."
+      ? "Your challenge stays open for 1 hour, even if you leave this screen. Stay in the waiting room to be notified when someone joins."
       : "This private game link stays open until the host ends the game or it has been inactive for 24 hours. Late arrivals wait for the next match.";
     setOnlineStatus("Creating your game…");
     const snapshot = await callGameApi("/api/rooms", "POST", {
@@ -2201,7 +2382,7 @@ async function createOnlineRoom() {
       isPublic,
     });
     beginRoomSession(snapshot, snapshot.token);
-    setOnlineStatus(isPublic ? "Public game created." : "Private game created.");
+    setOnlineStatus(isPublic ? "Your public challenge is live for 1 hour." : "Private game created.");
   } catch (error) {
     setOnlineStatus(onlineErrorMessage(error));
   }
@@ -2252,12 +2433,12 @@ async function joinOnlineRoom(publicJoin = false) {
   if (!roomCode) {
     setOnlineStatus("Paste your friend’s invite link first.");
     inviteInput.focus();
-    return;
+    return false;
   }
   if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(roomCode)) {
     setOnlineStatus("That invite link isn’t valid. Check it and try again.");
     inviteInput.focus();
-    return;
+    return false;
   }
   try {
     const saved = readSavedRoom(roomCode);
@@ -2266,14 +2447,16 @@ async function joinOnlineRoom(publicJoin = false) {
     setOnlineStatus(saved ? "Reconnecting…" : publicJoin ? "Joining public game…" : "Joining your friend’s game…");
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
+    return true;
   } catch (error) {
     if (publicJoin && error.status === 404) {
       setOnlineStatus("That game isn’t open for public play. Open games have been refreshed.");
       await refreshPublicRooms();
       schedulePublicRoomsRefresh();
-      return;
+      return false;
     }
     setOnlineStatus(onlineErrorMessage(error));
+    return false;
   }
 }
 
@@ -2406,8 +2589,13 @@ document.querySelector("#public-room-list").addEventListener("click", (event) =>
 document.querySelector("#start-online-game").addEventListener("click", startOnlineGame);
 document.querySelector("#chat-form").addEventListener("submit", sendChatMessage);
 document.querySelector("#leave-online-room").addEventListener("click", () => {
+  const challengeIsLive = online.publicData?.status === "waiting"
+    && Number.isFinite(online.publicData.publicChallengeExpiresAt)
+    && online.publicData.serverNow < online.publicData.publicChallengeExpiresAt;
   disconnectOnlineRoom();
-  setOnlineStatus("You left this game. Open its invite link to reconnect.");
+  setOnlineStatus(challengeIsLive
+    ? "Your public challenge stays open until its 1-hour window ends."
+    : "You left this game. Open its invite link to reconnect.");
   refreshPublicRooms();
   schedulePublicRoomsRefresh();
 });
@@ -2417,6 +2605,18 @@ document.addEventListener("visibilitychange", () => {
 document.querySelector("#copy-invite-button").addEventListener("click", () => {
   shareInviteLink(document.querySelector("#copy-invite-button"));
 });
+for (const button of document.querySelectorAll("[data-copy-invite]")) {
+  button.addEventListener("click", () => {
+    const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
+    void copyTextToButton(
+      inviteLink,
+      button,
+      "Copied!",
+      "Invite link copied. Send it to your friend.",
+      "Could not copy the invite link. Copy it from the address bar instead.",
+    );
+  });
+}
 document.querySelector("#mode-label").textContent = "Choose game";
 enableAudioUnlock();
 window.setTimeout(() => document.querySelector("#loading-screen").classList.add("loading-screen-done"), 850);

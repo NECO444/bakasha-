@@ -1959,16 +1959,16 @@ body {
 .back-mark { border-color: #1cb0f6; color: #55c6ff; background: #1d3040; }
 .opponent-back { border-color: #1cb0f6; background: repeating-linear-gradient(45deg, #1d3040 0 4px, #1cb0f6 4px 6px, #1d3040 6px 10px); }
 .playing-card { border-color: #d5ded5; box-shadow: 0 7px 16px #09110d88; }
-.playing-card[data-suit="hearts"] { border-color: #ff7385; color: #ff7385; background: #48232b; }
-.playing-card[data-suit="diamonds"] { border-color: #ffc800; color: #ffc800; background: #463711; }
-.playing-card[data-suit="spades"] { border-color: #35bcff; color: #55c6ff; background: #20374c; }
-.playing-card[data-suit="clubs"] { border-color: #58cc02; color: #74df28; background: #203b20; }
+.playing-card[data-suit="hearts"] { border-color: #ff929d; color: #fff; background: #ff4b4b; }
+.playing-card[data-suit="diamonds"] { border-color: #ffe16b; color: #172316; background: #ffc800; }
+.playing-card[data-suit="spades"] { border-color: #70d3ff; color: #102535; background: #1cb0f6; }
+.playing-card[data-suit="clubs"] { border-color: #9af05e; color: #172316; background: #58cc02; }
 .playing-card[data-suit="wild"] { border-color: #e6d5ff; color: #fff0c2; background: conic-gradient(#ff4b70 0 25%, #1cb0f6 0 50%, #ffc800 0 75%, #58cc02 0); }
 .playing-card[data-suit="wild"] .card-corner { color: #f0eadc; }
 .playing-card::before { border-color: #ffffff30; }
+.playing-card, .playing-card.is-unplayable, .playing-card:disabled { opacity: 1; }
 .playing-card.is-playable { box-shadow: 0 0 0 2px #58cc02, 0 0 18px #58cc0277, 0 8px 18px #09110d88; }
-.playing-card.is-unplayable { opacity: .7; filter: saturate(.72); }
-.playing-card:disabled { opacity: .78; }
+.playing-card.is-unplayable { filter: saturate(.72); }
 .draw-pile .back-card, .playing-card { transition-duration: 280ms; }
 .playing-card:hover:not(:disabled), .playing-card:focus-visible:not(:disabled) { box-shadow: 0 14px 24px #080f0b99; }
 .playing-card.card-deal { animation-duration: 360ms; }
@@ -2077,3 +2077,73 @@ body {
   .playing-card, .draw-pile .back-card { transition-duration: 0.01ms !important; }
   .playing-card.card-deal, .playing-card.card-play { animation-duration: 0.01ms !important; }
 }
+
+.invite-result { border: 1px solid #3a493e; background: #202a24; }
+.invite-ready-heading strong { color: #e2e9e2; }
+.invite-ready-heading div > span, .invite-result p { color: #a4b0a7; }
+.invite-actions { grid-template-columns: 1fr 1fr; }
+.copy-invite-link {
+  border-color: #405045;
+  color: #e2e8e2;
+  background: #2b372f;
+  box-shadow: 0 3px 0 #182019;
+}
+.copy-invite-link:hover:not(:disabled) { border-color: #1cb0f6; background: #20394a; }
+.invite-social-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.invite-social {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 11px;
+  border: 1px solid #405045;
+  border-radius: 10px;
+  color: #e2e8e2;
+  background: #2b372f;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 160ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+.invite-social:hover { transform: translateY(-2px); text-decoration: none; }
+.invite-social.whatsapp-invite, .game-invite-actions .whatsapp-invite { border-color: #25d366; color: #10251a; background: #25d366; }
+.invite-social.telegram-invite, .game-invite-actions .telegram-invite { border-color: #38a9e8; color: #102333; background: #38a9e8; }
+.invite-social.facebook-invite, .game-invite-actions .facebook-invite { border-color: #5890ff; color: #101f3c; background: #5890ff; }
+.invite-social.x-invite, .game-invite-actions .x-invite { border-color: #aab4ad; color: #f0f3f0; background: #111713; }
+.invite-social.email-invite, .game-invite-actions .email-invite { border-color: #ffc800; color: #241d09; background: #ffc800; }
+.game-invite-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.game-invite-actions .secondary-button { min-height: 32px; padding: 0 8px; font-size: 9px; }
+.game-invite-actions .copy-invite-link { color: #e2e8e2; background: #2b372f; }
+
+@media (max-width: 600px) {
+  .invite-actions { grid-template-columns: 1fr 1fr; }
+  .invite-social-actions { gap: 6px; }
+  .invite-social { min-height: 34px; padding: 0 9px; }
+}
+.friends-challenge-badge:not(.hidden) {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: 999px;
+  color: #172316;
+  background: #ffc800;
+  font-size: 10px;
+  font-weight: 900;
+}
+.friend-row { flex-wrap: wrap; }
+.friend-challenge-copy { color: #a4b0a7; font-size: 10px; }
+.friend-action.friend-challenge-action {
+  border-color: #58cc02;
+  color: #172316;
+  background: #58cc02;
+  box-shadow: 0 2px 0 #348700;
+}
+.friend-action.friend-challenge-action:hover:not(:disabled) {
+  border-color: #72df18;
+  color: #172316;
+  background: #72df18;
+}
+.friend-action.friend-challenge-action:disabled { opacity: .48; }

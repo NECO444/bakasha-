@@ -49,9 +49,11 @@ test("public lobby hides inactive hosts but allows joining a still-waiting room"
   const inactiveHost = await createTestAccount("away");
   const activeHost = await createTestAccount("playing");
   const guest = await createTestAccount("guest");
+  const activeGuest = await createTestAccount("active_guest");
   const inactiveRoom = await handleCreate({ request: accountRequest("/api/rooms", inactiveHost), body: { isPublic: true } });
   const inactiveData = await loadRoom(inactiveRoom.roomCode);
   inactiveData.players[0].lastSeenAt -= 31_000;
+  inactiveData.publicChallengeExpiresAt = null;
   await saveRoom(inactiveRoom.roomCode, inactiveData);
   assert.equal((await handleListPublicRooms()).rooms.some((room) => room.roomCode === inactiveRoom.roomCode), false);
   const joinedInactiveRoom = await handleJoin({
@@ -62,7 +64,7 @@ test("public lobby hides inactive hosts but allows joining a still-waiting room"
 
   const activeRoom = await handleCreate({ request: accountRequest("/api/rooms", activeHost), body: { isPublic: true } });
   const joined = await handleJoin({
-    request: request(activeRoom.roomCode, guest),
+    request: request(activeRoom.roomCode, activeGuest),
     body: { publicJoin: true },
   });
   await handleStart({
@@ -73,6 +75,59 @@ test("public lobby hides inactive hosts but allows joining a still-waiting room"
   assert.equal(rooms.rooms.some((room) => room.roomCode === inactiveRoom.roomCode), false);
   assert.equal(rooms.rooms.some((room) => room.roomCode === activeRoom.roomCode), false);
   assert.equal(joined.seat, 1);
+});
+
+test("broadcast challenges stay open while the host is away and expire after one hour", async () => {
+  const host = await createTestAccount("broadcast_host");
+  const guest = await createTestAccount("broadcast_guest");
+  const room = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { isPublic: true, maxPlayers: 3 },
+  });
+  const storedRoom = await loadRoom(room.roomCode);
+  assert.equal(storedRoom.publicChallengeExpiresAt, storedRoom.createdAt + 60 * 60 * 1000);
+
+  storedRoom.players[0].lastSeenAt -= 31_000;
+  await saveRoom(room.roomCode, storedRoom);
+  assert.ok((await handleListPublicRooms()).rooms.some((listed) => listed.roomCode === room.roomCode));
+
+  const joined = await handleJoin({
+    request: request(room.roomCode, guest),
+    body: { publicJoin: true },
+  });
+  assert.equal(joined.publicData.players[1].name, guest.username);
+  assert.equal(joined.publicData.status, "waiting");
+  const hostState = await handleState({
+    request: request(room.roomCode, host, room.token, "state"),
+  });
+  assert.equal(hostState.publicData.players[1].name, guest.username);
+
+  const expiredHost = await createTestAccount("expired_host");
+  const expiredGuest = await createTestAccount("expired_guest");
+  const expiredRoom = await handleCreate({
+    request: accountRequest("/api/rooms", expiredHost),
+    body: { isPublic: true },
+  });
+  const expiredData = await loadRoom(expiredRoom.roomCode);
+  expiredData.publicChallengeExpiresAt = Date.now() - 1;
+  await saveRoom(expiredRoom.roomCode, expiredData);
+
+  assert.equal(
+    (await handleListPublicRooms()).rooms.some((listed) => listed.roomCode === expiredRoom.roomCode),
+    false,
+  );
+  await assert.rejects(
+    handleJoin({
+      request: request(expiredRoom.roomCode, expiredGuest),
+      body: { publicJoin: true },
+    }),
+    (error) => error.status === 410,
+  );
+  const replacementRoom = await handleCreate({
+    request: accountRequest("/api/rooms", expiredHost),
+    body: {},
+  });
+  assert.notEqual(replacementRoom.roomCode, expiredRoom.roomCode);
 });
 
 test("public group rooms stay listed until their selected seats are filled", async () => {

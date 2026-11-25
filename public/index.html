@@ -29,7 +29,7 @@
           <button class="text-button nav-link active" id="nav-play-button" type="button" aria-current="page">Play</button>
           <button class="text-button nav-link hidden" id="stats-button" type="button">My stats</button>
           <button class="text-button nav-link" id="leaderboard-button" type="button" aria-label="Open public leaderboard">Leaderboard</button>
-          <button class="text-button nav-link hidden" id="friends-button" type="button">Friends</button>
+          <button class="text-button nav-link hidden" id="friends-button" type="button">Friends <span class="friends-challenge-badge hidden" id="friends-challenge-badge" aria-label="Incoming game challenges"></span></button>
         </nav>
         <div class="topbar-right">
           <span class="mode-badge"><span class="mode-dot"></span> <span id="mode-label">Choose game</span></span>
@@ -63,7 +63,7 @@
               <button class="game-mode-option" id="group-game-button" type="button"><strong>Group quest</strong><span>Invite 2–5 players</span></button>
               <button class="game-mode-option training-mode-option" id="training-game-button" type="button"><strong>Solo play</strong><span>Play against the system</span></button>
             </div>
-            <button class="text-button browse-games-button" id="browse-games-button" type="button">Browse open games or join with an invite</button>
+            <button class="text-button browse-games-button" id="browse-games-button" type="button">Browse public challenges or join with an invite</button>
             <div class="group-game-options hidden" id="group-game-options">
               <span class="field-label">CHOOSE YOUR CREW SIZE</span>
               <div class="count-picker" id="count-picker" role="group" aria-label="Number of players">
@@ -93,7 +93,7 @@
 
             <label class="room-visibility" for="public-room-checkbox">
               <input id="public-room-checkbox" type="checkbox">
-              <span><strong>Public game</strong><small>Anyone can join</small></span>
+              <span><strong>Broadcast challenge</strong><small>Open to anyone for 1 hour</small></span>
             </label>
             <div id="create-room-controls">
               <button class="primary-button online-action" id="create-room-button" type="button">Create a game <span aria-hidden="true">→</span></button>
@@ -105,17 +105,25 @@
               </div>
               <div class="invite-actions">
                 <button class="primary-button" id="copy-invite-button" type="button">Share invite link</button>
+                <button class="secondary-button copy-invite-link" type="button" data-copy-invite>Copy link</button>
+              </div>
+              <div class="invite-social-actions" aria-label="Share invite on social networks">
+                <a class="invite-social whatsapp-invite" data-invite-network="whatsapp" href="#" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                <a class="invite-social telegram-invite" data-invite-network="telegram" href="#" target="_blank" rel="noopener noreferrer">Telegram</a>
+                <a class="invite-social facebook-invite" data-invite-network="facebook" href="#" target="_blank" rel="noopener noreferrer">Facebook</a>
+                <a class="invite-social x-invite" data-invite-network="x" href="#" target="_blank" rel="noopener noreferrer">X</a>
+                <a class="invite-social email-invite" data-invite-network="email" href="#">Email</a>
               </div>
               <p id="invite-room-note">Your friend can join from the link. The game starts when they arrive.</p>
             </div>
 
-            <section class="public-rooms" aria-label="Open public games">
+            <section class="public-rooms" aria-label="Open public challenges">
               <div class="public-rooms-heading">
-                <h3>Open games</h3>
-                <button class="public-rooms-refresh" id="refresh-public-rooms" type="button" aria-label="Refresh open games">↻</button>
+                <h3>Open challenges</h3>
+                <button class="public-rooms-refresh" id="refresh-public-rooms" type="button" aria-label="Refresh open challenges">↻</button>
               </div>
               <div class="public-room-list" id="public-room-list" aria-live="polite">
-                <p class="public-room-empty">Loading games…</p>
+                <p class="public-room-empty">Loading challenges…</p>
               </div>
             </section>
 
@@ -195,7 +203,12 @@
                 <div><h2>Table chat</h2><p>Only players at this table can see these messages.</p></div>
               <div class="game-chat-tools">
                 <div class="game-invite-actions">
-                  <a class="secondary-button whatsapp-invite" id="game-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">Invite</a>
+                  <button class="secondary-button copy-invite-link" type="button" data-copy-invite>Copy link</button>
+                  <a class="secondary-button whatsapp-invite" data-invite-network="whatsapp" href="#" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                  <a class="secondary-button telegram-invite" data-invite-network="telegram" href="#" target="_blank" rel="noopener noreferrer">Telegram</a>
+                  <a class="secondary-button facebook-invite" data-invite-network="facebook" href="#" target="_blank" rel="noopener noreferrer">Facebook</a>
+                  <a class="secondary-button x-invite" data-invite-network="x" href="#" target="_blank" rel="noopener noreferrer">X</a>
+                  <a class="secondary-button email-invite" data-invite-network="email" href="#">Email</a>
                 </div>
                 <span class="chat-live-label"><span></span> LIVE</span>
               </div>
@@ -256,6 +269,10 @@
         <section class="friend-section" aria-labelledby="friend-list-title">
           <h3 id="friend-list-title">Your friends</h3>
           <div class="friend-list" id="friend-list"></div>
+        </section>
+        <section class="friend-section" aria-labelledby="friend-challenges-title">
+          <h3 id="friend-challenges-title">Game invites</h3>
+          <div class="friend-list" id="friend-challenges"></div>
         </section>
         <section class="friend-section" aria-labelledby="friend-incoming-title">
           <h3 id="friend-incoming-title">Requests for you</h3>
