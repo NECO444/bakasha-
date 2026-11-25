@@ -55,7 +55,7 @@ test("a rematch request notifies the other player and starts after they accept",
   const accepted = await handleRematch({ request: request(code, "rematch", joined.token, guest) });
   assert.equal(accepted.publicData.status, "playing");
   assert.deepEqual(accepted.publicData.rematchRequests, [false, false]);
-  assert.match(accepted.publicData.lastMessage, /Both players agreed/);
+  assert.match(accepted.publicData.lastMessage, /Everyone agreed/);
   assert.equal(accepted.ownHand.length, 4);
 });
 

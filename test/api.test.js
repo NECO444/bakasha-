@@ -25,7 +25,9 @@ test("full room flow: create, join, start, play, privacy, reconnect", async () =
 
   const joined = await handleJoin({ request: req(code, "join", null, guest), body: { name: "untrusted name" } });
   assert.equal(joined.seat, 1);
-  await assert.rejects(handleJoin({ request: req(code, "join", null, stranger), body: { name: "Cy" } }), (e) => e.status === 403);
+  const queued = await handleJoin({ request: req(code, "join", null, stranger), body: { name: "Cy" } });
+  assert.equal(queued.publicData.queuedForNextMatch, true);
+  assert.equal(queued.publicData.queuedName, stranger.username);
 
   const again = await handleJoin({ request: req(code, "join", null, guest), body: { token: joined.token } });
   assert.equal(again.seat, 1);
@@ -86,10 +88,9 @@ test("online group rooms fill their selected capacity before the host can start"
   });
   assert.equal(joinedSecond.seat, 1);
   assert.equal(joinedThird.seat, 2);
-  await assert.rejects(
-    handleJoin({ request: req(created.roomCode, "join", null, extra), body: {} }),
-    (error) => error.status === 403,
-  );
+  const queuedExtra = await handleJoin({ request: req(created.roomCode, "join", null, extra), body: {} });
+  assert.equal(queuedExtra.publicData.queuedForNextMatch, true);
+  assert.equal(queuedExtra.seat, -2);
 
   const started = await handleStart({ request: req(created.roomCode, "start", created.token, host) });
   assert.equal(started.publicData.players.length, 3);

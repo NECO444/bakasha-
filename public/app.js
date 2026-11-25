@@ -19,6 +19,7 @@ const elements = {
   discard: document.querySelector("#discard-pile"),
   drawPile: document.querySelector("#draw-pile"),
   pileCount: document.querySelector("#pile-count"),
+  supportAlert: document.querySelector("#support-alert"),
   message: document.querySelector("#turn-message"),
   hint: document.querySelector("#game-hint"),
   activeSuit: document.querySelector("#active-suit"),
@@ -50,6 +51,8 @@ let toastTimer = null;
 let turnTimer = null;
 let onlineMode = false;
 let onlineSeat = -1;
+let trainingMode = false;
+let trainingTurnTimer = null;
 let accountUser = null;
 let accountMode = "login";
 let pendingInviteRoom = null;
@@ -102,7 +105,21 @@ function startGame() {
   openOnlineLobby("group");
 }
 
-function dealGame(names) {
+function startTrainingGame() {
+  if (!accountUser) {
+    showAccountGate();
+    return;
+  }
+  dealGame([accountUser.username, "Fundo"], { training: true });
+}
+
+function dealGame(names, options = {}) {
+  window.clearTimeout(trainingTurnTimer);
+  trainingTurnTimer = null;
+  trainingMode = options.training === true;
+  for (const selector of ["#end-online-room", "#end-room-from-game", "#end-room-from-result", "#start-queued-match"]) {
+    document.querySelector(selector).classList.add("hidden");
+  }
   onlineMode = false;
   onlineSeat = -1;
   online.chatOpen = false;
@@ -110,8 +127,8 @@ function dealGame(names) {
   elements.rematch.disabled = false;
   elements.rematch.innerHTML = 'Rematch <span aria-hidden="true">↻</span>';
   document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
-  document.querySelector("#mode-label").textContent = "Local game";
-  document.querySelector("#round-mode-label").textContent = "PASS & PLAY";
+  document.querySelector("#mode-label").textContent = trainingMode ? "Training with Fundo" : "Local game";
+  document.querySelector("#round-mode-label").textContent = trainingMode ? "TRAINING" : "PASS & PLAY";
   window.clearInterval(turnTimer);
   turnTimer = null;
   hideModal(elements.suitModal);
@@ -184,6 +201,8 @@ function completeLocalOut(seat) {
 function finishLocalGame(winnerSeat) {
   game.finished = true;
   game.winner = game.players[winnerSeat].name;
+  window.clearTimeout(trainingTurnTimer);
+  trainingTurnTimer = null;
   window.clearInterval(turnTimer);
   turnTimer = null;
   renderGame();
@@ -260,7 +279,8 @@ function createCardElement(card, options) {
   button.dataset.cardId = card.id;
   if (options.interactive) {
     button.disabled = !isPlayable(card) || game.finished ||
-      (onlineMode && (game.current !== onlineSeat || online.movePending));
+      (onlineMode && (game.current !== onlineSeat || online.movePending)) ||
+      (trainingMode && game.current !== 0);
     button.setAttribute("aria-label", card.rank === "JOKER" ? "Joker, draw four and change suit" : `${card.rank} of ${SUITS[card.suit].name}`);
     button.addEventListener("click", () => selectCard(options.index));
   }
@@ -328,10 +348,12 @@ function renderGame() {
     chatToggle.setAttribute("aria-expanded", "false");
     chatToggle.setAttribute("aria-label", "Open table chat");
   }
-  const viewIndex = onlineMode ? onlineSeat : game.current;
+  const viewIndex = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
   const player = game.players[viewIndex];
   elements.currentName.textContent = player.name;
-  elements.currentCaption.textContent = onlineMode && game.current === onlineSeat ? "YOUR TURN" : "YOUR HAND";
+  elements.currentCaption.textContent = trainingMode
+    ? "YOUR HAND"
+    : onlineMode && game.current === onlineSeat ? "YOUR TURN" : "YOUR HAND";
   elements.avatar.textContent = player.name.trim().charAt(0).toUpperCase();
   elements.avatar.style.color = PLAYER_COLORS[viewIndex % PLAYER_COLORS.length];
   elements.handCount.textContent = `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`;
@@ -345,10 +367,13 @@ function renderGame() {
     : game.mustDrawSeat === game.current ? "Draw one card" : "Draw a card");
   elements.drawPile.classList.toggle("is-drawing", online.movePending && online.pendingAction === "draw");
   elements.drawPile.disabled = (onlineMode && (game.current !== onlineSeat || online.movePending))
+    || (trainingMode && game.current !== 0)
     || (player.hand.length === 1 && !game.knocked?.[viewIndex] && (!onlineMode || game.current === onlineSeat));
-  const canKnock = player.hand.length === 1 && !game.knocked?.[viewIndex] && !game.finished;
+  elements.supportAlert.classList.toggle("hidden", !game.combo && !game.jumpSupport);
+  const canKnock = player.hand.length === 1 && !game.knocked?.[viewIndex] && !game.finished
+    && (!trainingMode || game.current === 0);
   elements.knockButton.classList.toggle("hidden", !canKnock);
-  elements.knockButton.disabled = onlineMode && online.movePending;
+  elements.knockButton.disabled = (onlineMode && online.movePending) || (trainingMode && game.current !== 0);
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
   const previousDiscard = elements.discard.firstElementChild;
   const visibleTopCard = online.optimisticCard || topCard();
@@ -367,17 +392,19 @@ function renderGame() {
   } else {
     elements.activeSuit.classList.remove("hidden");
     elements.activeSuit.textContent = SUITS[game.activeSuit].symbol;
-    elements.activeSuit.style.color = getCardColor(game.activeSuit) === "red" || getCardColor(game.activeSuit) === "yellow" ? "#f0c95e" : getCardColor(game.activeSuit) === "blue" ? "#70a9f6" : "#6bcf9d";
+    elements.activeSuit.style.color = getCardColor(game.activeSuit) === "red" || getCardColor(game.activeSuit) === "yellow" ? "#e83f37" : getCardColor(game.activeSuit) === "blue" ? "#70a9f6" : "#6bcf9d";
   }
   renderOpponents();
   renderHand();
   updateMessage();
+  scheduleFundoTurn();
 }
 
 function renderOpponents() {
   elements.opponents.replaceChildren();
   game.players.forEach((player, index) => {
-    if (index === (onlineMode ? onlineSeat : game.current)) return;
+    const viewerSeat = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
+    if (index === viewerSeat) return;
     const opponent = document.createElement("div");
     opponent.className = "opponent";
     const name = document.createElement("span");
@@ -408,8 +435,8 @@ function renderHand() {
     [...elements.hand.querySelectorAll("[data-card-id]")].map((card) => card.dataset.cardId),
   );
   elements.hand.replaceChildren();
-  const hand = game.players[onlineMode ? onlineSeat : game.current].hand;
-  const seat = onlineMode ? onlineSeat : game.current;
+  const seat = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
+  const hand = game.players[seat].hand;
   hand.forEach((card, index) => {
     const cardElement = createCardElement(card, { interactive: true, index });
     if (hand.length === 1 && !game.knocked?.[seat]) cardElement.disabled = true;
@@ -432,46 +459,54 @@ function renderHand() {
 
 function updateMessage() {
   const player = game.players[game.current];
+  const isViewerTurn = (onlineMode && game.current === onlineSeat)
+    || (trainingMode && game.current === 0);
+  const turnLabel = isViewerTurn ? "Your turn" : `${player.name}’s turn`;
   elements.hint.textContent = "";
   elements.handHelp.textContent = "";
   if (game.finished) {
     elements.message.textContent = `${game.winner} wins!`;
     return;
   }
-  if (onlineMode && game.current !== onlineSeat) {
+  if (onlineMode && !isViewerTurn) {
     elements.message.textContent = `${player.name}’s turn`;
+    return;
+  }
+  if (trainingMode && game.current !== 0) {
+    elements.message.textContent = "Fundo is thinking…";
     return;
   }
   if (game.pending > 0) {
-    elements.message.textContent = `Draw ${game.pending}`;
+    elements.message.textContent = isViewerTurn ? `Your turn · Draw ${game.pending}` : `Draw ${game.pending}`;
     return;
   }
   if (game.mustDrawSeat === game.current) {
-    elements.message.textContent = `${player.name} must draw 1`;
+    elements.message.textContent = isViewerTurn ? "Your turn · Draw 1" : `${player.name} must draw 1`;
     return;
   }
   if (game.demandedSuit) {
-    elements.message.textContent = `Play ${SUITS[game.demandedSuit].name} or an Ace`;
+    elements.message.textContent = `${isViewerTurn ? "Your turn · " : ""}Play ${SUITS[game.demandedSuit].name} or an Ace`;
     return;
   }
   if (game.freeSuitPlay) {
-    elements.message.textContent = `${player.name}’s turn`;
+    elements.message.textContent = turnLabel;
     return;
   }
   if (game.combo) {
-    elements.message.textContent = `${player.name} · Add 8 support or draw 1`;
+    elements.message.textContent = `${turnLabel} · Add 8 support or draw 1`;
     return;
   }
   if (game.jumpSupport) {
-    elements.message.textContent = `${player.name} · Play a normal support or draw 1`;
+    elements.message.textContent = `${turnLabel} · Play a normal support or draw 1`;
     return;
   }
-  elements.message.textContent = `${player.name}’s turn`;
+  elements.message.textContent = turnLabel;
 }
 
 function selectCard(index) {
   if (!game || game.finished) return;
   if (onlineMode && (game.current !== onlineSeat || online.movePending)) return;
+  if (trainingMode && game.current !== 0) return;
   const card = game.players[game.current].hand[index];
   if (!card || !isPlayable(card) || (game.players[game.current].hand.length === 1 && !game.knocked[game.current])) return;
   if (card.rank === "A") {
@@ -718,6 +753,43 @@ function startTurnTimer() {
   turnTimer = window.setInterval(updateTurnTimer, 250);
 }
 
+function scheduleFundoTurn() {
+  if (!trainingMode || !game || game.finished || game.current !== 1 || trainingTurnTimer !== null) return;
+  trainingTurnTimer = window.setTimeout(() => {
+    trainingTurnTimer = null;
+    playFundoTurn();
+  }, 650);
+}
+
+function playFundoTurn() {
+  if (!trainingMode || !game || game.finished || game.current !== 1) return;
+  const hand = game.players[1].hand;
+  if (hand.length === 1 && !game.knocked[1]) {
+    game.knocked[1] = true;
+    showToast("Fundo knocked!");
+    renderGame();
+    return;
+  }
+
+  const playableIndex = hand.findIndex(isPlayable);
+  if (playableIndex < 0) {
+    drawCard();
+    return;
+  }
+
+  const card = hand[playableIndex];
+  if (card.rank === "A") {
+    const counts = SUIT_ORDER.map((suit) => ({
+      suit,
+      count: hand.filter((candidate) => candidate !== card && candidate.suit === suit).length,
+    }));
+    counts.sort((left, right) => right.count - left.count);
+    playCard(playableIndex, counts[0].suit);
+    return;
+  }
+  playCard(playableIndex);
+}
+
 function updateTurnTimer() {
   if (!game || game.finished) {
     window.clearInterval(turnTimer);
@@ -793,10 +865,12 @@ document.querySelector("#count-picker").addEventListener("click", (event) => {
 });
 elements.start.addEventListener("click", startGame);
 document.querySelector("#one-v-one-button").addEventListener("click", () => openOnlineLobby("duel"));
+document.querySelector("#training-game-button").addEventListener("click", startTrainingGame);
 document.querySelector("#group-game-button").addEventListener("click", () => {
   document.querySelector("#group-game-options").classList.remove("hidden");
   document.querySelector("#group-game-button").classList.add("active");
   document.querySelector("#one-v-one-button").classList.remove("active");
+  document.querySelector("#training-game-button").classList.remove("active");
 });
 elements.drawPile.addEventListener("click", () => {
   drawCard();
@@ -828,12 +902,18 @@ elements.rematch.addEventListener("click", async () => {
     return;
   }
   const names = game.players.map((player) => player.name);
-  dealGame(names);
+  dealGame(names, { training: trainingMode });
 });
 document.querySelector("#close-suit").addEventListener("click", cancelSuitSelection);
 function returnToSetup() {
   window.clearInterval(turnTimer);
   turnTimer = null;
+  window.clearTimeout(trainingTurnTimer);
+  trainingTurnTimer = null;
+  trainingMode = false;
+  for (const selector of ["#end-online-room", "#end-room-from-game", "#end-room-from-result", "#start-queued-match"]) {
+    document.querySelector(selector).classList.add("hidden");
+  }
   disconnectOnlineRoom();
   onlineMode = false;
   onlineSeat = -1;
@@ -850,6 +930,7 @@ function returnToSetup() {
   document.querySelector("#group-game-options").classList.add("hidden");
   document.querySelector("#group-game-button").classList.remove("active");
   document.querySelector("#one-v-one-button").classList.remove("active");
+  document.querySelector("#training-game-button").classList.remove("active");
 }
 document.querySelector("#back-button").addEventListener("click", returnToSetup);
 document.querySelector("#new-table-button").addEventListener("click", returnToSetup);
@@ -896,7 +977,9 @@ function openOnlineLobby(mode = "duel") {
   elements.online.classList.remove("hidden");
   document.querySelector("#mode-label").textContent = onlineRoomSize > 2 ? "Group quest" : "Quick duel";
   document.querySelector("#online-title").textContent = onlineRoomSize > 2 ? `${onlineRoomSize}-player group` : "Quick duel";
-  document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
+  document.querySelector("#online-subtitle").textContent = snapshot.publicData.queuedForNextMatch
+    ? "You joined the room and are queued for the next match."
+    : onlineRoomSize > 2
     ? `Create a room for ${onlineRoomSize} players, then invite your crew.`
     : "Create a table and send your friend a link.";
   document.querySelector("#create-room-button").innerHTML = `Create ${onlineRoomSize === 2 ? "duel" : `${onlineRoomSize}-player room`} <span aria-hidden="true">→</span>`;
@@ -1470,6 +1553,13 @@ async function refreshRoomState() {
 function applyRoomSnapshot(snapshot) {
   if (!snapshot || !snapshot.publicData) throw new Error("The game server returned an invalid room state.");
   const data = snapshot.publicData;
+  if (data.status === "closed") {
+    removeStored(roomStorageKey(snapshot.roomCode));
+    returnToSetup();
+    window.history.replaceState(null, "", window.location.pathname);
+    showToast("The room creator ended this room.");
+    return;
+  }
   if (online.publicData && data.version < online.version) return; // an older response arrived late
   const previousData = online.publicData;
   const first = !online.publicData;
@@ -1484,16 +1574,20 @@ function applyRoomSnapshot(snapshot) {
   if (!changed) return;
   if (!first && data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
   if (data.game) renderOnlineGame();
-  else setOnlineStatus(online.isHost
-    ? `Room ready. Share the invite with ${data.maxPlayers > 2 ? "your group" : "your friend"}.`
-    : "Joined. Waiting for the host to start.");
+  else setOnlineStatus(data.queuedForNextMatch
+    ? "You joined the room and are queued for the next match."
+    : online.isHost
+      ? `Room ready. Share the invite with ${data.maxPlayers > 2 ? "your group" : "your friend"}.`
+      : "Joined. Waiting for the host to start.");
 }
 
 function updateRoomLobby(data) {
   const startButton = document.querySelector("#start-online-game");
+  const endButton = document.querySelector("#end-online-room");
   const message = document.querySelector("#room-wait-message");
   const players = document.querySelector("#room-players");
   document.querySelector("#room-wait-panel").classList.remove("hidden");
+  endButton.classList.toggle("hidden", !online.isHost || data.status === "closed");
   players.replaceChildren();
   data.players.forEach((player, index) => {
     const row = document.createElement("div");
@@ -1506,18 +1600,37 @@ function updateRoomLobby(data) {
     row.append(name, presence);
     players.append(row);
   });
+  const waitingNext = Array.isArray(data.nextMatchPlayers) ? data.nextMatchPlayers : [];
+  waitingNext.forEach((player) => {
+    const row = document.createElement("div");
+    row.className = "room-player room-player-queued";
+    const name = document.createElement("span");
+    name.textContent = `${player.name}${data.queuedName === player.name ? " (you)" : ""}`;
+    const presence = document.createElement("span");
+    presence.className = `room-player-presence${player.online ? " is-online" : ""}`;
+    presence.textContent = "Next match";
+    row.append(name, presence);
+    players.append(row);
+  });
   const maxPlayers = data.maxPlayers || 2;
   const isFull = data.players.length === maxPlayers;
   startButton.classList.toggle("hidden", !online.isHost || !isFull || data.status !== "waiting");
+  document.querySelector("#end-room-from-game").classList.toggle("hidden", !online.isHost || data.status === "closed");
+  if (data.queuedForNextMatch) {
+    message.textContent = "You’re in the room and queued for the next match.";
+    return;
+  }
   if (data.status === "waiting") {
     message.textContent = online.isHost
       ? isFull
-        ? "Everyone is here! Start when you’re ready."
+        ? waitingNext.length
+          ? `This match is ready. ${waitingNext.length} more player${waitingNext.length === 1 ? "" : "s"} queued for the next match.`
+          : "Everyone is here! Start when you’re ready."
         : `Waiting for ${maxPlayers - data.players.length} more player${maxPlayers - data.players.length === 1 ? "" : "s"}…`
       : `Connected to ${data.players[0].name}’s room. Waiting for the host to start.`;
     return;
   }
-  message.textContent = "Game connected.";
+  message.textContent = data.status === "closed" ? "The room creator ended this room." : "Game connected.";
 }
 
 function renderGameChat(data) {
@@ -1630,6 +1743,11 @@ function updateRematchControls(data) {
     : data.players.map(() => false);
   const button = elements.rematch;
   const message = document.querySelector("#rematch-status");
+  const startQueued = document.querySelector("#start-queued-match");
+  const endRoom = document.querySelector("#end-room-from-result");
+  const waitingCount = Array.isArray(data.nextMatchPlayers) ? data.nextMatchPlayers.length : 0;
+  startQueued.classList.toggle("hidden", !online.isHost || data.status !== "finished" || waitingCount === 0);
+  endRoom.classList.toggle("hidden", !online.isHost);
   if (requests[online.seat]) {
     button.textContent = "Rematch requested";
     button.disabled = true;
@@ -1649,7 +1767,9 @@ function updateRematchControls(data) {
   } else {
     button.textContent = "Rematch";
     button.disabled = false;
-    message.textContent = "Keep this table going with the same players.";
+    message.textContent = waitingCount
+      ? `${waitingCount} player${waitingCount === 1 ? "" : "s"} waiting for the next match.`
+      : "Keep this table going with the same players.";
   }
 }
 
@@ -1684,6 +1804,9 @@ function beginRoomSession(snapshot, token) {
 async function createOnlineRoom() {
   try {
     const isPublic = document.querySelector("#public-room-checkbox").checked;
+    document.querySelector("#invite-room-note").textContent = isPublic
+      ? "Public rooms are listed while they have open seats. Use a private room for links that stay available between matches."
+      : "This private link stays open until the host ends the room or it has been inactive for 24 hours. Mid-game joins wait for the next match.";
     setOnlineStatus("Creating your room…");
     const snapshot = await callGameApi("/api/rooms", "POST", {
       maxPlayers: onlineRoomSize,
@@ -1717,6 +1840,12 @@ async function joinOnlineRoom(publicJoin = false) {
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
   } catch (error) {
+    if (publicJoin && error.status === 404) {
+      setOnlineStatus("That public room filled or started. Open games have been refreshed.");
+      await refreshPublicRooms();
+      schedulePublicRoomsRefresh();
+      return;
+    }
     setOnlineStatus(onlineErrorMessage(error));
   }
 }
@@ -1728,6 +1857,34 @@ async function startOnlineGame() {
   } catch (error) {
     if (onlineMode) showToast(onlineErrorMessage(error));
     else setOnlineStatus(onlineErrorMessage(error));
+  }
+}
+
+async function endOnlineRoom() {
+  if (!online.roomCode || !online.isHost) return;
+  if (!window.confirm("End this room for everyone? Its invite link will stop working.")) return;
+  const code = online.roomCode;
+  try {
+    await callGameApi(`/api/rooms/${code}/end`, "POST", {});
+    removeStored(roomStorageKey(code));
+    returnToSetup();
+    window.history.replaceState(null, "", window.location.pathname);
+    showToast("Room ended. The invite link is closed.");
+  } catch (error) {
+    showToast(onlineErrorMessage(error));
+  }
+}
+
+async function startQueuedMatch() {
+  const button = document.querySelector("#start-queued-match");
+  if (!online.roomCode || !online.isHost || button.disabled) return;
+  button.disabled = true;
+  try {
+    applyRoomSnapshot(await callGameApi(`/api/rooms/${online.roomCode}/start`, "POST", {}));
+  } catch (error) {
+    showToast(onlineErrorMessage(error));
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -1798,6 +1955,10 @@ async function submitOnlineMove(action) {
 
 document.querySelector("#create-room-button").addEventListener("click", createOnlineRoom);
 document.querySelector("#join-room-button").addEventListener("click", joinOnlineRoom);
+document.querySelector("#end-online-room").addEventListener("click", endOnlineRoom);
+document.querySelector("#end-room-from-game").addEventListener("click", endOnlineRoom);
+document.querySelector("#end-room-from-result").addEventListener("click", endOnlineRoom);
+document.querySelector("#start-queued-match").addEventListener("click", startQueuedMatch);
 document.querySelector("#refresh-public-rooms").addEventListener("click", refreshPublicRooms);
 document.querySelector("#public-room-list").addEventListener("click", (event) => {
   const button = event.target.closest("[data-public-room-code]");

@@ -43,6 +43,7 @@
             <div class="game-mode-picker" id="game-mode-picker" role="group" aria-label="Game type">
               <button class="game-mode-option" id="one-v-one-button" type="button"><strong>Quick duel</strong><span>Find a friend online</span></button>
               <button class="game-mode-option" id="group-game-button" type="button"><strong>Group quest</strong><span>Invite 2–5 players</span></button>
+              <button class="game-mode-option training-mode-option" id="training-game-button" type="button"><strong>Practice with Fundo</strong><span>Play solo against the game coach</span></button>
             </div>
             <div class="group-game-options hidden" id="group-game-options">
               <span class="field-label">CHOOSE YOUR CREW SIZE</span>
@@ -87,7 +88,7 @@
                 <button class="secondary-button" id="copy-invite-button" type="button">Copy invite link</button>
                 <a class="secondary-button invite-whatsapp" id="lobby-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">WhatsApp</a>
               </div>
-              <p>Anyone with the invite link can join an open seat.</p>
+              <p id="invite-room-note">Private links stay open until the host ends the room or it has been inactive for 24 hours.</p>
             </div>
 
             <section class="public-rooms" aria-label="Open public games">
@@ -111,6 +112,7 @@
               <div class="room-players" id="room-players" aria-label="Room player statuses"></div>
               <p id="room-wait-message">Waiting for your friend to join…</p>
               <button class="primary-button online-action hidden" id="start-online-game" type="button">Start game <span aria-hidden="true">→</span></button>
+              <button class="secondary-button online-action end-room-button hidden" id="end-online-room" type="button">End room for everyone</button>
               <button class="secondary-button online-action" id="leave-online-room" type="button">Back to lobby</button>
             </section>
 
@@ -126,12 +128,16 @@
               <button class="icon-button chat-toggle hidden" id="game-chat-toggle" type="button" aria-label="Open table chat" aria-controls="game-chat" aria-expanded="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5 7.4 7.4 0 0 1-3.5-.9L4 20l1.2-4.3A7.5 7.5 0 1 1 20 11.5Z"></path><path d="M8 11.5h.01M12.5 11.5h.01M17 11.5h.01"></path></svg>
               </button>
+              <button class="secondary-button end-room-button game-end-room hidden" id="end-room-from-game" type="button">End room</button>
               <button class="icon-button" id="game-rules-button" type="button" aria-label="How to play">?</button>
             </div>
           </div>
           <div class="table-surface">
             <div class="opponents" id="opponents"></div>
             <div class="table-center">
+              <div class="support-alert hidden" id="support-alert" role="status" aria-live="polite" aria-atomic="true">
+                <span aria-hidden="true">✦</span> SUPPORT
+              </div>
               <div class="turn-message" id="turn-message" aria-live="polite"></div>
               <div class="play-area">
                 <button class="draw-pile" id="draw-pile" type="button" aria-label="Draw a card">
@@ -283,6 +289,8 @@
         <div class="winning-card-preview hidden" id="winning-card" aria-label="Winning card"></div>
         <p id="rematch-status">Keep this table going with the same players.</p>
         <button class="primary-button rematch-button" id="rematch-button" type="button">Rematch <span aria-hidden="true">↻</span></button>
+        <button class="secondary-button start-queued-button hidden" id="start-queued-match" type="button">Start next match with waiting players</button>
+        <button class="secondary-button end-room-button hidden" id="end-room-from-result" type="button">End room for everyone</button>
         <button class="secondary-button" id="new-table-button" type="button">New game</button>
       </div>
     </div>

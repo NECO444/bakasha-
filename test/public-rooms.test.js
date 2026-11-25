@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleCreate, handleJoin, handleListPublicRooms, handleStart } from "../lib/rooms.js";
+import { handleCreate, handleEnd, handleJoin, handleListPublicRooms, handleRematch, handleStart, handleState } from "../lib/rooms.js";
 import { loadRoom, saveRoom } from "../lib/store.js";
 import { accountRequest, createTestAccount } from "../test-helpers/auth.js";
 
@@ -30,6 +30,11 @@ test("public lobby lists only active public waiting rooms without room credentia
   });
   assert.equal(joined.seat, 1);
   assert.equal((await handleListPublicRooms()).rooms.some((room) => room.roomCode === publicRoom.roomCode), false);
+  const reconnected = await handleJoin({
+    request: request(publicRoom.roomCode, guest, joined.token),
+    body: { publicJoin: true, token: joined.token },
+  });
+  assert.equal(reconnected.seat, 1);
 
   await assert.rejects(
     handleJoin({
@@ -102,4 +107,104 @@ test("public group rooms stay listed until their selected seats are filled", asy
   });
   assert.equal(secondJoin.seat, 2);
   assert.equal((await handleListPublicRooms()).rooms[0].playerCount, 3);
+});
+
+test("private rooms queue late joiners for the next match and can be ended by the creator", async () => {
+  const host = await createTestAccount("roomhost");
+  const guest = await createTestAccount("roomguest");
+  const lateGuest = await createTestAccount("latemember");
+  const laterGuest = await createTestAccount("latermember");
+  const secondLaterGuest = await createTestAccount("secondlater");
+  const thirdLaterGuest = await createTestAccount("thirdlater");
+  const overLimitGuest = await createTestAccount("overlimit");
+  const room = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { maxPlayers: 2 },
+  });
+  const joined = await handleJoin({
+    request: request(room.roomCode, guest),
+    body: {},
+  });
+  await handleStart({
+    request: request(room.roomCode, host, room.token, "start"),
+  });
+
+  const queued = await handleJoin({
+    request: request(room.roomCode, lateGuest),
+    body: {},
+  });
+  assert.equal(queued.seat, -2);
+  assert.equal(queued.publicData.queuedForNextMatch, true);
+  assert.equal(queued.publicData.game, null);
+  const queuedState = await handleState({
+    request: request(room.roomCode, lateGuest, queued.token, "state"),
+  });
+  assert.equal(queuedState.publicData.queuedName, lateGuest.username);
+
+  const finishedRoom = await loadRoom(room.roomCode);
+  finishedRoom.status = "finished";
+  finishedRoom.game.finished = true;
+  finishedRoom.rematchRequests = [false, false];
+  await saveRoom(room.roomCode, finishedRoom);
+  await handleRematch({ request: request(room.roomCode, host, room.token, "rematch") });
+  const rematch = await handleRematch({ request: request(room.roomCode, guest, joined.token, "rematch") });
+  assert.deepEqual(rematch.publicData.players.map((player) => player.name), [
+    host.username,
+    guest.username,
+    lateGuest.username,
+  ]);
+  assert.equal(rematch.publicData.maxPlayers, 3);
+  const promoted = await handleState({
+    request: request(room.roomCode, lateGuest, queued.token, "state"),
+  });
+  assert.equal(promoted.seat, 2);
+  assert.equal(promoted.publicData.status, "playing");
+
+  const queuedAgain = await handleJoin({
+    request: request(room.roomCode, laterGuest),
+    body: {},
+  });
+  assert.equal(queuedAgain.publicData.queuedForNextMatch, true);
+  const queuedSecond = await handleJoin({
+    request: request(room.roomCode, secondLaterGuest),
+    body: {},
+  });
+  const queuedThird = await handleJoin({
+    request: request(room.roomCode, thirdLaterGuest),
+    body: {},
+  });
+  assert.equal(queuedSecond.seat, -3);
+  assert.equal(queuedThird.seat, -4);
+  await assert.rejects(
+    handleJoin({ request: request(room.roomCode, overLimitGuest), body: {} }),
+    (error) => error.status === 403,
+  );
+  const secondFinishedRoom = await loadRoom(room.roomCode);
+  secondFinishedRoom.status = "finished";
+  secondFinishedRoom.game.finished = true;
+  secondFinishedRoom.rematchRequests = [false, false, false];
+  await saveRoom(room.roomCode, secondFinishedRoom);
+  const hostStarted = await handleStart({
+    request: request(room.roomCode, host, room.token, "start"),
+  });
+  assert.equal(hostStarted.publicData.players.length, 6);
+  assert.equal(hostStarted.publicData.maxPlayers, 6);
+
+  await assert.rejects(
+    handleEnd({ request: request(room.roomCode, guest, joined.token, "end") }),
+    (error) => error.status === 403,
+  );
+  const ended = await handleEnd({ request: request(room.roomCode, host, room.token, "end") });
+  assert.deepEqual(ended, { closed: true });
+  const endedState = await handleState({
+    request: request(room.roomCode, guest, joined.token, "state"),
+  });
+  assert.equal(endedState.publicData.status, "closed");
+  await assert.rejects(
+    handleJoin({
+      request: request(room.roomCode, lateGuest),
+      body: {},
+    }),
+    (error) => error.status === 410,
+  );
 });
