@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleAction, handleCreate, handleJoin, handleStart, handleState } from "../lib/rooms.js";
+import {
+  handleAction,
+  handleActiveRoomAction,
+  handleCreate,
+  handleJoin,
+  handleListActiveRooms,
+  handleStart,
+  handleState,
+} from "../lib/rooms.js";
 import { HttpError } from "../lib/http.js";
 import { handleLeaderboard } from "../lib/leaderboard.js";
 import { loadRoom, saveRoom } from "../lib/store.js";
@@ -137,6 +145,71 @@ test("simultaneous joins into different rooms reserve at most one room per accou
   assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
   const rejected = results.find((result) => result.status === "rejected");
   assert.equal(rejected.reason.status, 409);
+});
+
+test("active games can be listed, rejoined without a saved token, left before play, or ended by the host", async () => {
+  const host = await createTestAccount("active_list_host");
+  const guest = await createTestAccount("active_list_guest");
+  const room = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { isPublic: true, maxPlayers: 3 },
+  });
+
+  assert.deepEqual((await handleListActiveRooms({ request: accountRequest("/api/rooms/active", host) })).rooms.map((active) => ({
+    roomCode: active.roomCode,
+    isHost: active.isHost,
+    canEnd: active.canEnd,
+  })), [{ roomCode: room.roomCode, isHost: true, canEnd: true }]);
+
+  const guestSeat = await handleJoin({
+    request: req(room.roomCode, "join", null, guest),
+    body: { publicJoin: true },
+  });
+  const guestRooms = await handleListActiveRooms({ request: accountRequest("/api/rooms/active", guest) });
+  assert.equal(guestRooms.rooms[0].canLeave, true);
+
+  const rejoined = await handleJoin({
+    request: req(room.roomCode, "join", null, guest),
+    body: {},
+  });
+  assert.equal(rejoined.seat, guestSeat.seat);
+  assert.equal(typeof rejoined.token, "string");
+
+  await handleActiveRoomAction({
+    request: accountRequest("/api/rooms/active", guest),
+    body: { action: "leave" },
+  });
+  assert.deepEqual((await handleListActiveRooms({ request: accountRequest("/api/rooms/active", guest) })).rooms, []);
+  assert.equal((await loadRoom(room.roomCode)).players.length, 1);
+  const guestNewRoom = await handleCreate({ request: accountRequest("/api/rooms", guest), body: {} });
+  assert.ok(guestNewRoom.roomCode);
+
+  await handleActiveRoomAction({
+    request: accountRequest("/api/rooms/active", host),
+    body: { action: "end" },
+  });
+  assert.deepEqual((await handleListActiveRooms({ request: accountRequest("/api/rooms/active", host) })).rooms, []);
+  assert.equal((await loadRoom(room.roomCode)).status, "closed");
+  assert.ok((await handleCreate({ request: accountRequest("/api/rooms", host), body: {} })).roomCode);
+});
+
+test("leaving a game after it starts is blocked, but the host can end it", async () => {
+  const host = await createTestAccount("active_play_host");
+  const guest = await createTestAccount("active_play_guest");
+  const room = await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
+  await handleJoin({ request: req(room.roomCode, "join", null, guest), body: {} });
+
+  await assert.rejects(
+    handleActiveRoomAction({
+      request: accountRequest("/api/rooms/active", guest),
+      body: { action: "leave" },
+    }),
+    (error) => error.status === 409,
+  );
+  await handleActiveRoomAction({
+    request: accountRequest("/api/rooms/active", host),
+    body: { action: "end" },
+  });
 });
 
 test("online group rooms fill their selected capacity before the host can start", async () => {

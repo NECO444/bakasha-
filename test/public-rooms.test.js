@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleCreate, handleEnd, handleJoin, handleListPublicRooms, handleRematch, handleStart, handleState } from "../lib/rooms.js";
+import {
+  handleActiveRoomAction,
+  handleCreate,
+  handleEnd,
+  handleJoin,
+  handleListPublicRooms,
+  handleRematch,
+  handleStart,
+  handleState,
+} from "../lib/rooms.js";
 import { loadRoom, saveRoom } from "../lib/store.js";
 import { accountRequest, createTestAccount } from "../test-helpers/auth.js";
 
@@ -162,6 +171,26 @@ test("public group rooms stay listed until their selected seats are filled", asy
   });
   assert.equal(secondJoin.seat, 2);
   assert.equal((await handleListPublicRooms()).rooms[0].playerCount, 3);
+});
+
+test("leaving a full public waiting room opens its seat to the lobby again", async () => {
+  const host = await createTestAccount("reopenhost");
+  const firstGuest = await createTestAccount("reopenone");
+  const leavingGuest = await createTestAccount("reopentwo");
+  const room = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { isPublic: true, maxPlayers: 3 },
+  });
+  await handleJoin({ request: request(room.roomCode, firstGuest), body: { publicJoin: true } });
+  await handleJoin({ request: request(room.roomCode, leavingGuest), body: { publicJoin: true } });
+  assert.equal((await handleListPublicRooms()).rooms.some((listed) => listed.roomCode === room.roomCode), false);
+
+  await handleActiveRoomAction({
+    request: accountRequest("/api/rooms/active", leavingGuest),
+    body: { action: "leave" },
+  });
+  const reopened = (await handleListPublicRooms()).rooms.find((listed) => listed.roomCode === room.roomCode);
+  assert.equal(reopened.playerCount, 2);
 });
 
 test("a two-player game starts automatically when the invited player joins", async () => {

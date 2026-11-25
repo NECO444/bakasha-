@@ -60,11 +60,12 @@
             </div>
             <div class="game-mode-picker" id="game-mode-picker" role="group" aria-label="Game type">
               <button class="game-mode-option" id="one-v-one-button" type="button"><strong>Quick duel</strong><span>Find a friend online</span></button>
-              <button class="game-mode-option" id="group-game-button" type="button"><strong>Group quest</strong><span>Invite 2–5 players</span></button>
+              <button class="game-mode-option" id="group-game-button" type="button" aria-expanded="false" aria-controls="group-game-options"><strong>Group quest</strong><span>Invite 2–5 players</span></button>
               <button class="game-mode-option training-mode-option" id="training-game-button" type="button"><strong>Solo play</strong><span>Play against the system</span></button>
             </div>
             <button class="text-button browse-games-button" id="browse-games-button" type="button">Browse public challenges or join with an invite</button>
             <div class="group-game-options hidden" id="group-game-options">
+              <button class="text-button mode-back-button" id="cancel-group-setup" type="button">← Back to game modes</button>
               <span class="field-label">CHOOSE YOUR CREW SIZE</span>
               <div class="count-picker" id="count-picker" role="group" aria-label="Number of players">
                 <button type="button" class="count-button" data-count="3" aria-pressed="false">3</button>
@@ -80,6 +81,7 @@
 
         <section class="online-screen hidden" id="online-screen" aria-label="Online play">
           <section class="setup-card online-card" aria-labelledby="online-title">
+            <button class="text-button mode-back-button online-back-button" id="online-back-button" type="button">← Back to game modes</button>
             <div class="setup-card-head">
               <div class="setup-icon" aria-hidden="true">↗</div>
               <div><h2 id="online-title">Play together</h2><p id="online-subtitle">Create a table and send your friend a link.</p></div>
@@ -89,6 +91,15 @@
               <label class="field-label" for="account-username">PLAYING AS</label>
               <input class="online-input" id="account-username" type="text" maxlength="16" autocomplete="nickname" placeholder="What should your friend call you?">
               <p class="score-note" id="score-note">Your account name labels your seat and tracks your online results.</p>
+            </section>
+
+            <section class="active-games" aria-label="Your active games">
+              <div class="public-rooms-heading">
+                <h3>Your active game</h3>
+              </div>
+              <div class="active-game-list" id="active-game-list" aria-live="polite">
+                <p class="public-room-empty">Checking for an active game…</p>
+              </div>
             </section>
 
             <label class="room-visibility" for="public-room-checkbox">
@@ -106,13 +117,6 @@
               <div class="invite-actions">
                 <button class="primary-button" id="copy-invite-button" type="button">Share invite link</button>
                 <button class="secondary-button copy-invite-link" type="button" data-copy-invite>Copy link</button>
-              </div>
-              <div class="invite-social-actions" aria-label="Share invite on social networks">
-                <a class="invite-social whatsapp-invite" data-invite-network="whatsapp" href="#" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-                <a class="invite-social telegram-invite" data-invite-network="telegram" href="#" target="_blank" rel="noopener noreferrer">Telegram</a>
-                <a class="invite-social facebook-invite" data-invite-network="facebook" href="#" target="_blank" rel="noopener noreferrer">Facebook</a>
-                <a class="invite-social x-invite" data-invite-network="x" href="#" target="_blank" rel="noopener noreferrer">X</a>
-                <a class="invite-social email-invite" data-invite-network="email" href="#">Email</a>
               </div>
               <p id="invite-room-note">Your friend can join from the link. The game starts when they arrive.</p>
             </div>
@@ -203,12 +207,8 @@
                 <div><h2>Table chat</h2><p>Only players at this table can see these messages.</p></div>
               <div class="game-chat-tools">
                 <div class="game-invite-actions">
+                  <button class="secondary-button" type="button" data-share-invite>Share link</button>
                   <button class="secondary-button copy-invite-link" type="button" data-copy-invite>Copy link</button>
-                  <a class="secondary-button whatsapp-invite" data-invite-network="whatsapp" href="#" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-                  <a class="secondary-button telegram-invite" data-invite-network="telegram" href="#" target="_blank" rel="noopener noreferrer">Telegram</a>
-                  <a class="secondary-button facebook-invite" data-invite-network="facebook" href="#" target="_blank" rel="noopener noreferrer">Facebook</a>
-                  <a class="secondary-button x-invite" data-invite-network="x" href="#" target="_blank" rel="noopener noreferrer">X</a>
-                  <a class="secondary-button email-invite" data-invite-network="email" href="#">Email</a>
                 </div>
                 <span class="chat-live-label"><span></span> LIVE</span>
               </div>
