@@ -63,6 +63,7 @@
               <button class="game-mode-option" id="group-game-button" type="button"><strong>Group quest</strong><span>Invite 2–5 players</span></button>
               <button class="game-mode-option training-mode-option" id="training-game-button" type="button"><strong>Solo play</strong><span>Play against the system</span></button>
             </div>
+            <button class="text-button browse-games-button" id="browse-games-button" type="button">Browse open games or join with an invite</button>
             <div class="group-game-options hidden" id="group-game-options">
               <span class="field-label">CHOOSE YOUR CREW SIZE</span>
               <div class="count-picker" id="count-picker" role="group" aria-label="Number of players">
@@ -103,10 +104,9 @@
                 <div><strong>Game is ready</strong><span>Send your friend an invite.</span></div>
               </div>
               <div class="invite-actions">
-                <button class="secondary-button" id="copy-invite-button" type="button">Copy invite link</button>
-                <a class="secondary-button invite-whatsapp" id="lobby-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                <button class="primary-button" id="copy-invite-button" type="button">Share invite link</button>
               </div>
-              <p id="invite-room-note">Private game links stay open until the host ends the game or it has been inactive for 24 hours.</p>
+              <p id="invite-room-note">Your friend can join from the link. The game starts when they arrive.</p>
             </div>
 
             <section class="public-rooms" aria-label="Open public games">
@@ -367,21 +367,6 @@
       </div>
     </div>
 
-    <aside class="mascot" id="mascot" data-mood="idle" aria-label="Game buddy">
-      <div class="mascot-bubble" id="mascot-bubble" aria-live="polite"></div>
-      <svg class="mascot-svg" viewBox="0 0 100 100" role="img" aria-label="Friendly game buddy">
-        <path class="mascot-body" d="M17 53c0-23 14-39 33-39s33 16 33 39c0 20-13 34-33 34S17 73 17 53Z"></path>
-        <path class="mascot-wing" d="M18 57C6 52 6 68 20 73m62-16c12-5 12 11-2 16"></path>
-        <circle class="mascot-eye-white" cx="39" cy="48" r="11"></circle><circle class="mascot-eye-white" cx="61" cy="48" r="11"></circle>
-        <circle class="mascot-eye" cx="42" cy="49" r="4"></circle><circle class="mascot-eye" cx="64" cy="49" r="4"></circle>
-        <path class="mascot-beak" d="m45 60 5 6 5-6Z"></path>
-        <path class="mascot-mouth mascot-smile" d="M40 69q10 10 20 0"></path>
-        <path class="mascot-mouth mascot-o" d="M45 70q5-7 10 0t-5 8-5-8Z"></path>
-        <path class="mascot-brow mascot-sad-brow" d="m31 35 9 3m29-3-9 3"></path>
-        <path class="mascot-brow mascot-surprised-brow" d="m31 35 9-2m20 0 9 2"></path>
-        <path class="mascot-foot" d="m37 84-5 5m31-5 5 5"></path>
-      </svg>
-    </aside>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="app.js"></script>
   </body>

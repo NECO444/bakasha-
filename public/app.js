@@ -10,16 +10,6 @@ const SUITS = {
 };
 const SUIT_ORDER = ["hearts", "spades", "diamonds", "clubs"];
 const PLAYER_COLORS = ["#d3f36b", "#70a9f6", "#f17474", "#f0c95e", "#c39aef", "#6bcf9d"];
-const MASCOT_MESSAGES = {
-  idle: ["Your turn!", "You got this!", "Ready for a round?"],
-  happy: ["Nice move!", "Great card!", "Smooth play!", "That was clever!"],
-  surprised: ["Whoa!", "Plot twist!", "Ooh, didn't see that coming!"],
-  drawTwo: ["Ouch, draw 2!", "Two cards? You got this!"],
-  drawFour: ["Ouch, draw 4!", "Yikes, four cards!"],
-  sad: ["Close one!", "You'll get the next one!", "Good game!"],
-  celebrating: ["What a win!", "You got it!", "Let's go!"],
-};
-
 const elements = {
   setup: document.querySelector("#setup-screen"),
   online: document.querySelector("#online-screen"),
@@ -51,8 +41,6 @@ const elements = {
   suitModal: document.querySelector("#suit-modal"),
   rulesModal: document.querySelector("#rules-modal"),
   toast: document.querySelector("#toast"),
-  mascot: document.querySelector("#mascot"),
-  mascotBubble: document.querySelector("#mascot-bubble"),
 };
 const chatToggle = document.querySelector("#game-chat-toggle");
 
@@ -71,9 +59,6 @@ let pendingInviteRoom = null;
 let publicRoomsTimer = null;
 let publicRoomsLoading = false;
 let soundMuted = isMuted();
-let mascotTimer = null;
-let lastMascotMessage = "";
-let mascotTurnKey = null;
 let tutorialIndex = 0;
 let tutorialShown = false;
 let tutorialDismissed = false;
@@ -139,7 +124,6 @@ function startTrainingGame() {
 function dealGame(names, options = {}) {
   window.clearTimeout(trainingTurnTimer);
   trainingTurnTimer = null;
-  mascotTurnKey = null;
   renderedHandSeat = null;
   trainingMode = options.training === true;
   for (const selector of ["#end-online-room", "#end-room-from-game", "#end-room-from-result", "#start-queued-match"]) {
@@ -252,11 +236,9 @@ function presentGameResult(winner) {
   updateResultScore();
   if (won) {
     playSound("win");
-    setMascotMood("celebrating");
     showConfetti();
   } else {
     playSound("lose");
-    setMascotMood("sad");
   }
 }
 
@@ -406,7 +388,7 @@ function animatePlayedCard(index) {
   const animation = flight.animate([
     { transform: "translate(0, 0) rotate(0deg) scale(1)" },
     { transform: `translate(${moveX}px, ${moveY}px) rotate(220deg) scale(.86)` },
-  ], { duration: 420, easing: "cubic-bezier(.2, .75, .25, 1)", fill: "forwards" });
+  ], { duration: 280, easing: "cubic-bezier(.22, 1, .36, 1)", fill: "forwards" });
   animation.onfinish = () => flight.remove();
   animation.oncancel = () => flight.remove();
 }
@@ -444,7 +426,7 @@ function animateDrawnCard(cardElement) {
   const animation = flight.animate([
     { transform: "translate(0, 0) scale(.8)", opacity: .8 },
     { transform: `translate(${moveX}px, ${moveY}px) scale(1)`, opacity: 1 },
-  ], { duration: 360, easing: "cubic-bezier(.2, .75, .25, 1)", fill: "forwards" });
+  ], { duration: 300, easing: "cubic-bezier(.22, 1, .36, 1)", fill: "forwards" });
   animation.onfinish = () => {
     flight.remove();
     cardElement.classList.remove("card-draw-arrival");
@@ -489,17 +471,6 @@ function renderGame() {
       ? game.current === 0
       : true;
   elements.turnIndicator.classList.toggle("is-your-turn", isViewerTurn && !game.finished);
-  const turnKey = `${onlineMode ? "online" : trainingMode ? "solo" : "local"}:${game.round || 1}:${game.turns}:${game.current}`;
-  if (turnKey !== mascotTurnKey) {
-    mascotTurnKey = turnKey;
-    if (isViewerTurn && !game.finished) {
-      if (game.pending === 2 || game.pending === 4) {
-        setMascotMood("surprised", game.pending === 4 ? "drawFour" : "drawTwo");
-      } else {
-        setMascotMood("idle");
-      }
-    }
-  }
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
   const previousDiscard = elements.discard.firstElementChild;
   const visibleTopCard = online.optimisticCard || topCard();
@@ -564,9 +535,12 @@ function renderHand() {
   const seat = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
   const sameSeat = renderedHandSeat === seat;
   renderedHandSeat = seat;
-  const hand = game.players[seat].hand;
-  hand.forEach((card, index) => {
+  const hand = game.players[seat].hand
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => !onlineMode || !online.optimisticCard || card.id !== online.optimisticCard.id);
+  hand.forEach(({ card, index }, position) => {
     const cardElement = createCardElement(card, { interactive: true, index });
+    cardElement.style.zIndex = String(position + 1);
     if (hand.length === 1 && !game.knocked?.[seat]) cardElement.disabled = true;
     const spread = hand.length > 9 ? 0 : (index - (hand.length - 1) / 2) * 1.4;
     cardElement.style.setProperty("--tilt", `${spread}deg`);
@@ -578,7 +552,7 @@ function renderHand() {
         return;
       }
       cardElement.classList.add("card-deal");
-      cardElement.style.animationDelay = `${Math.min(index, 8) * 24}ms`;
+      cardElement.style.animationDelay = `${Math.min(position, 8) * 24}ms`;
     }
     elements.hand.append(cardElement);
   });
@@ -653,7 +627,6 @@ function selectCard(index) {
       window.setTimeout(() => button.classList.remove("is-illegal"), 400);
     }
     playSound("error");
-    setMascotMood("surprised");
     showToast("Not quite! Pick a card that matches the suit or number.");
     return;
   }
@@ -667,7 +640,6 @@ function selectCard(index) {
     if (firstOption) firstOption.focus();
     return;
   }
-  const isHumanCard = !trainingMode || game.current === 0;
   if (onlineMode) {
     animatePlayedCard(index);
     submitOnlineMove({ type: "play", cardId: card.id });
@@ -675,7 +647,6 @@ function selectCard(index) {
   }
   animatePlayedCard(index);
   playLocalTurnCard(index);
-  if (isHumanCard && !game.finished) setMascotMood("happy");
 }
 
 function playCard(index, chosenSuit) {
@@ -845,9 +816,6 @@ function takeCards(player, count) {
 
 function drawCard(timedOut = false) {
   if (!game || game.finished) return;
-  if (game.pending === 2 || game.pending === 4) {
-    setMascotMood("surprised", game.pending === 4 ? "drawFour" : "drawTwo");
-  }
   if (onlineMode) {
     if (game.current === onlineSeat) {
       showToast("Drawing card…");
@@ -1001,21 +969,6 @@ function friendlyToastMessage(message) {
   return message;
 }
 
-function setMascotMood(mood, messageGroup = mood) {
-  const messages = MASCOT_MESSAGES[messageGroup] || MASCOT_MESSAGES.idle;
-  const choices = messages.filter((message) => message !== lastMascotMessage);
-  const message = (choices.length ? choices : messages)[Math.floor(Math.random() * (choices.length || messages.length))];
-  lastMascotMessage = message;
-  elements.mascot.dataset.mood = mood;
-  elements.mascotBubble.textContent = message;
-  elements.mascot.classList.add("mascot-speaking");
-  window.clearTimeout(mascotTimer);
-  mascotTimer = window.setTimeout(() => {
-    elements.mascot.classList.remove("mascot-speaking");
-    elements.mascot.dataset.mood = "idle";
-  }, 2000);
-}
-
 function showToast(message) {
   window.clearTimeout(toastTimer);
   if (/knocked!/i.test(message)) {
@@ -1050,7 +1003,8 @@ document.querySelector("#count-picker").addEventListener("click", (event) => {
   }
 });
 elements.start.addEventListener("click", startGame);
-document.querySelector("#one-v-one-button").addEventListener("click", () => openOnlineLobby("duel"));
+document.querySelector("#one-v-one-button").addEventListener("click", startQuickDuel);
+document.querySelector("#browse-games-button").addEventListener("click", () => openOnlineLobby("duel"));
 document.querySelector("#training-game-button").addEventListener("click", startTrainingGame);
 document.querySelector("#group-game-button").addEventListener("click", () => {
   document.querySelector("#group-game-options").classList.remove("hidden");
@@ -1085,7 +1039,6 @@ function returnToSetup() {
   window.clearTimeout(trainingTurnTimer);
   trainingTurnTimer = null;
   trainingMode = false;
-  mascotTurnKey = null;
   renderedHandSeat = null;
   online.soundVersion = null;
   for (const selector of ["#end-online-room", "#end-room-from-game", "#end-room-from-result", "#start-queued-match"]) {
@@ -1276,7 +1229,6 @@ function updateRoomShareLinks(roomCode) {
   const inviteLink = makeInviteLink(roomCode);
   const message = `Join my Bakasha game: ${inviteLink}`;
   const whatsappLink = `https://wa.me/?text=${encodeURIComponent(message)}`;
-  document.querySelector("#lobby-whatsapp-invite").href = whatsappLink;
   document.querySelector("#game-whatsapp-invite").href = whatsappLink;
 }
 
@@ -1342,7 +1294,7 @@ function disconnectOnlineRoom() {
   document.querySelector(".room-visibility").classList.remove("hidden");
   document.querySelector(".public-rooms").classList.remove("hidden");
   document.querySelector("#join-room-panel").classList.remove("hidden");
-  document.querySelector("#copy-invite-button").textContent = "Copy invite link";
+  document.querySelector("#copy-invite-button").textContent = "Share invite link";
 }
 
 async function callGameApi(path, method, body, token) {
@@ -2125,7 +2077,6 @@ function renderOnlineGame() {
   const state = data.game;
   const previous = game;
   const wasFinished = Boolean(previous && previous.finished);
-  if (!previous || (previous.finished && !state.finished)) mascotTurnKey = null;
   if (!previous || previous.turnStartedAt !== state.turnStartedAt) online.timeoutSentAt = null;
   onlineSeat = online.seat;
   onlineMode = true;
@@ -2256,6 +2207,45 @@ async function createOnlineRoom() {
   }
 }
 
+async function startQuickDuel() {
+  if (!accountUser) {
+    showAccountGate();
+    return;
+  }
+  document.querySelector("#public-room-checkbox").checked = false;
+  openOnlineLobby("duel");
+  await createOnlineRoom();
+}
+
+async function shareInviteLink(button) {
+  const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
+  if (!inviteLink) {
+    announceCopyStatus("Create a game before sharing an invite.");
+    return;
+  }
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share({
+        title: "Join my BAKASHA game",
+        text: "Come play a card game with me!",
+        url: inviteLink,
+      });
+      showCopySuccess(button, "Invite shared!");
+      announceCopyStatus("Invite shared.");
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+    }
+  }
+  await copyTextToButton(
+    inviteLink,
+    button,
+    "Link copied!",
+    "Invite link copied. Send it to your friend.",
+    "Could not copy the invite link. Copy it from the address bar instead.",
+  );
+}
+
 async function joinOnlineRoom(publicJoin = false) {
   const inviteInput = document.querySelector("#invite-link-input");
   const roomCode = extractInviteRoomCode(inviteInput.value);
@@ -2377,7 +2367,6 @@ async function submitOnlineMove(action) {
       if (action.type === "play") {
         const played = online.optimisticCard;
         playSound(played && (played.rank === "2" || played.rank === "JOKER") ? "penalty" : "play");
-        setMascotMood("happy");
       } else if (action.type === "draw") playSound("draw");
       online.soundVersion = snapshot.publicData.version;
     }
@@ -2426,12 +2415,10 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && online.roomCode) refreshRoomState(); // catch up right away when the tab returns
 });
 document.querySelector("#copy-invite-button").addEventListener("click", () => {
-  const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
-  copyTextToButton(inviteLink, document.querySelector("#copy-invite-button"), "✓ Copied!", "Invite link copied.", "Could not copy the invite link. Select and copy it manually.");
+  shareInviteLink(document.querySelector("#copy-invite-button"));
 });
 document.querySelector("#mode-label").textContent = "Choose game";
 enableAudioUnlock();
-setMascotMood("idle");
 window.setTimeout(() => document.querySelector("#loading-screen").classList.add("loading-screen-done"), 850);
 for (const button of document.querySelectorAll(".suit-option")) {
   button.addEventListener("click", () => {
@@ -2448,9 +2435,7 @@ for (const button of document.querySelectorAll(".suit-option")) {
       });
       return;
     }
-    const isHumanCard = !trainingMode || game.current === 0;
     playLocalTurnCard(index, button.dataset.suit);
-    if (isHumanCard && !game.finished) setMascotMood("happy");
   });
 }
 document.querySelector("#game-rules-button").addEventListener("click", openRules);
