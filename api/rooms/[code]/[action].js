@@ -1,4 +1,4 @@
-import { handle, HttpError } from "../../lib/http.js";
+import { handle, HttpError } from "../../../lib/http.js";
 import {
   handleAction,
   handleChat,
@@ -7,7 +7,7 @@ import {
   handleRematch,
   handleStart,
   handleState,
-} from "../../lib/rooms.js";
+} from "../../../lib/rooms.js";
 
 const routes = {
   state: { GET: handleState },

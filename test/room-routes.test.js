@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GET, POST } from "../api/rooms/[...path].js";
+import { GET, POST } from "../api/rooms/[code]/[action].js";
 import { handleCreate } from "../lib/rooms.js";
 import { accountRequest, createTestAccount } from "../test-helpers/auth.js";
 
