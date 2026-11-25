@@ -260,35 +260,35 @@ function presentGameResult(winner) {
   } else {
     playSound("lose");
   }
+}
 
-  function updateTurnNotificationControl() {
-    const button = document.querySelector("#turn-notifications-button");
-    const status = document.querySelector("#turn-notifications-status");
-    const supported = "Notification" in window;
-    button.classList.toggle(
-      "hidden",
-      !game?.finished || !accountUser || !supported || Notification.permission !== "default",
-    );
-    if (!supported) status.textContent = "";
-    else if (Notification.permission === "granted") status.textContent = "Turn notifications are enabled.";
-    else if (Notification.permission === "denied") status.textContent = "Notifications are blocked in your browser settings.";
+function updateTurnNotificationControl() {
+  const button = document.querySelector("#turn-notifications-button");
+  const status = document.querySelector("#turn-notifications-status");
+  const supported = "Notification" in window;
+  button.classList.toggle(
+    "hidden",
+    !game?.finished || !accountUser || !supported || Notification.permission !== "default",
+  );
+  if (!supported) status.textContent = "";
+  else if (Notification.permission === "granted") status.textContent = "Turn notifications are enabled.";
+  else if (Notification.permission === "denied") status.textContent = "Notifications are blocked in your browser settings.";
+}
+
+function alertForTurn(state) {
+  if (!state || state.finished || state.current !== online.seat) {
+    online.lastAlertedTurn = null;
+    document.title = PAGE_TITLE;
+    return;
   }
-
-  function alertForTurn(state) {
-    if (!state || state.finished || state.current !== online.seat) {
-      online.lastAlertedTurn = null;
-      document.title = PAGE_TITLE;
-      return;
-    }
-    const turnKey = `${online.roomCode}:${state.turnStartedAt}:${state.current}`;
-    if (!document.hidden || online.lastAlertedTurn === turnKey) return;
-    online.lastAlertedTurn = turnKey;
-    document.title = "Your turn! | BAKASHA";
-    if (!soundMuted) playSound("turn");
-    if (typeof navigator.vibrate === "function") navigator.vibrate([120, 80, 120]);
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Your turn in BAKASHA", { body: "Tap to return to your game." });
-    }
+  const turnKey = `${online.roomCode}:${state.turnStartedAt}:${state.current}`;
+  if (!document.hidden || online.lastAlertedTurn === turnKey) return;
+  online.lastAlertedTurn = turnKey;
+  document.title = "Your turn! | BAKASHA";
+  if (!soundMuted) playSound("turn");
+  if (typeof navigator.vibrate === "function") navigator.vibrate([120, 80, 120]);
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("Your turn in BAKASHA", { body: "Tap to return to your game." });
   }
 }
 
@@ -1751,20 +1751,6 @@ function renderProgress() {
   document.querySelector("#progress-streak").textContent = `${streak} win streak`;
   document.querySelector("#streak-chip").setAttribute("aria-label", `${streak} consecutive wins. View your stats.`);
   document.querySelector("#progress-wins-label").textContent = `${wins} wins · online results`;
-  const unlocked = new Set(Array.isArray(progress && progress.unlockedRewards) ? progress.unlockedRewards : []);
-  const rewardList = document.querySelector("#progress-reward-list");
-  rewardList.replaceChildren();
-  for (const reward of [
-    { id: "avatar", level: 2, label: "New avatar" },
-    { id: "card-back", level: 3, label: "Card back" },
-    { id: "title", level: 5, label: "Player title" },
-  ]) {
-    const item = document.createElement("li");
-    const isUnlocked = unlocked.has(reward.id);
-    item.classList.toggle("is-unlocked", isUnlocked);
-    item.textContent = `Level ${reward.level}: ${reward.label} · ${isUnlocked ? "Unlocked" : "Locked"}`;
-    rewardList.append(item);
-  }
 }
 
 function renderTutorialStep() {

@@ -2659,26 +2659,6 @@ button { min-height: 44px; }
   .leaderboard-card { padding: 26px 15px; }
   .leaderboard-empty { align-items: stretch; flex-direction: column; }
 }
-.progress-rewards {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin-top: 10px;
-  color: #dce5dc;
-  font-size: 13px;
-}
-.progress-rewards > strong { color: #b7ee91; }
-.progress-rewards ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.progress-rewards li {
-  padding: 5px 8px;
-  border: 1px solid #465349;
-  border-radius: 999px;
-  color: #c3d2c4;
-  background: #1d2721;
-  font-size: 12px;
-}
-.progress-rewards li.is-unlocked { border-color: #58cc02; color: #e7ffd8; background: #29431f; }
 .tutorial-practice {
   display: flex;
   flex-wrap: wrap;
