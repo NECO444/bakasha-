@@ -1,3 +1,5 @@
+import { enableAudioUnlock, isMuted, playSound, setMuted } from "./sound.js";
+
 "use strict";
 
 const SUITS = {
@@ -8,6 +10,15 @@ const SUITS = {
 };
 const SUIT_ORDER = ["hearts", "spades", "diamonds", "clubs"];
 const PLAYER_COLORS = ["#d3f36b", "#70a9f6", "#f17474", "#f0c95e", "#c39aef", "#6bcf9d"];
+const MASCOT_MESSAGES = {
+  idle: ["Your turn!", "You got this!", "Ready for a round?"],
+  happy: ["Nice move!", "Great card!", "Smooth play!", "That was clever!"],
+  surprised: ["Whoa!", "Plot twist!", "Ooh, didn't see that coming!"],
+  drawTwo: ["Ouch, draw 2!", "Two cards? You got this!"],
+  drawFour: ["Ouch, draw 4!", "Yikes, four cards!"],
+  sad: ["Close one!", "You'll get the next one!", "Good game!"],
+  celebrating: ["What a win!", "You got it!", "Let's go!"],
+};
 
 const elements = {
   setup: document.querySelector("#setup-screen"),
@@ -33,7 +44,6 @@ const elements = {
   avatar: document.querySelector("#player-avatar"),
   handCount: document.querySelector("#hand-count"),
   handHelp: document.querySelector("#hand-help"),
-  knockButton: document.querySelector("#knock-button"),
   timer: document.querySelector("#turn-timer"),
   clock: document.querySelector("#turn-clock"),
   turnNumber: document.querySelector("#turn-number"),
@@ -41,6 +51,8 @@ const elements = {
   suitModal: document.querySelector("#suit-modal"),
   rulesModal: document.querySelector("#rules-modal"),
   toast: document.querySelector("#toast"),
+  mascot: document.querySelector("#mascot"),
+  mascotBubble: document.querySelector("#mascot-bubble"),
 };
 const chatToggle = document.querySelector("#game-chat-toggle");
 
@@ -58,6 +70,15 @@ let accountMode = "login";
 let pendingInviteRoom = null;
 let publicRoomsTimer = null;
 let publicRoomsLoading = false;
+let soundMuted = isMuted();
+let mascotTimer = null;
+let lastMascotMessage = "";
+let mascotTurnKey = null;
+let tutorialIndex = 0;
+let tutorialShown = false;
+let tutorialDismissed = false;
+let statsPeriod = "all";
+let renderedHandSeat = null;
 const online = {
   roomCode: null,
   token: null,
@@ -74,6 +95,7 @@ const online = {
   chatOpen: false,
   optimisticCard: null,
   timeoutSentAt: null,
+  soundVersion: null,
   version: 0,
   clockOffset: 0,
 };
@@ -117,6 +139,8 @@ function startTrainingGame() {
 function dealGame(names, options = {}) {
   window.clearTimeout(trainingTurnTimer);
   trainingTurnTimer = null;
+  mascotTurnKey = null;
+  renderedHandSeat = null;
   trainingMode = options.training === true;
   for (const selector of ["#end-online-room", "#end-room-from-game", "#end-room-from-result", "#start-queued-match"]) {
     document.querySelector(selector).classList.add("hidden");
@@ -126,7 +150,7 @@ function dealGame(names, options = {}) {
   online.chatOpen = false;
   online.optimisticCard = null;
   elements.rematch.disabled = false;
-  elements.rematch.innerHTML = 'Rematch <span aria-hidden="true">↻</span>';
+  elements.rematch.innerHTML = 'Play again <span aria-hidden="true">↻</span>';
   document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
   document.querySelector("#mode-label").textContent = trainingMode ? "Training with Fundo" : "Local game";
   document.querySelector("#round-mode-label").textContent = trainingMode ? "TRAINING" : "PASS & PLAY";
@@ -207,10 +231,51 @@ function finishLocalGame(winnerSeat) {
   window.clearInterval(turnTimer);
   turnTimer = null;
   renderGame();
-  elements.rematchWinner.textContent = game.winner;
+  presentGameResult(game.winner);
   document.querySelector("#rematch-status").textContent = "Last player standing wins the playoff.";
   elements.rematchModal.classList.remove("hidden");
   elements.rematch.focus();
+}
+
+function updateResultScore() {
+  const progress = accountUser && accountUser.progress;
+  document.querySelector("#result-score").textContent = progress
+    ? `Score: ${progress.wins} points · ${progress.xp} XP`
+    : "Sign in to save your online progress.";
+}
+
+function presentGameResult(winner) {
+  const won = Boolean(accountUser && winner === accountUser.username);
+  elements.rematchWinner.textContent = won ? "You" : winner;
+  document.querySelector("#result-word").textContent = won ? "won!" : "wins!";
+  document.querySelector("#rematch-modal .eyebrow").textContent = won ? "YOU DID IT!" : "GOOD GAME";
+  updateResultScore();
+  if (won) {
+    playSound("win");
+    setMascotMood("celebrating");
+    showConfetti();
+  } else {
+    playSound("lose");
+    setMascotMood("sad");
+  }
+}
+
+function showConfetti() {
+  const colors = ["#58cc02", "#1cb0f6", "#ffc800", "#ff4b4b", "#fff"];
+  const confetti = document.createElement("div");
+  confetti.className = "confetti-burst";
+  confetti.setAttribute("aria-hidden", "true");
+  for (let index = 0; index < 36; index += 1) {
+    const piece = document.createElement("span");
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.setProperty("--confetti-color", colors[index % colors.length]);
+    piece.style.setProperty("--confetti-delay", `${Math.random() * 260}ms`);
+    piece.style.setProperty("--confetti-drift", `${Math.round(Math.random() * 180 - 90)}px`);
+    piece.style.setProperty("--confetti-rotate", `${Math.round(Math.random() * 720 - 360)}deg`);
+    confetti.append(piece);
+  }
+  document.body.append(confetti);
+  window.setTimeout(() => confetti.remove(), 2200);
 }
 
 function startPlayoffRound(survivors) {
@@ -279,10 +344,16 @@ function createCardElement(card, options) {
   button.dataset.suit = card.suit;
   button.dataset.cardId = card.id;
   if (options.interactive) {
-    button.disabled = !isPlayable(card) || game.finished ||
+    const playable = isPlayable(card);
+    const turnBlocked = game.finished ||
       (onlineMode && (game.current !== onlineSeat || online.movePending)) ||
       (trainingMode && game.current !== 0);
-    button.setAttribute("aria-label", card.rank === "JOKER" ? "Joker, draw four and change suit" : `${card.rank} of ${SUITS[card.suit].name}`);
+    button.disabled = turnBlocked;
+    button.classList.toggle("is-playable", playable);
+    button.classList.toggle("is-unplayable", !playable);
+    button.setAttribute("aria-disabled", String(turnBlocked));
+    const description = card.rank === "JOKER" ? "Joker, draw four and change suit" : `${card.rank} of ${SUITS[card.suit].name}`;
+    button.setAttribute("aria-label", playable ? description : `${description}, not playable right now`);
     button.addEventListener("click", () => selectCard(options.index));
   }
   const corner = document.createElement("span");
@@ -340,8 +411,50 @@ function animatePlayedCard(index) {
   animation.oncancel = () => flight.remove();
 }
 
+function animateDrawnCard(cardElement) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    cardElement.classList.remove("card-draw-arrival");
+    return;
+  }
+  const sourceRect = elements.drawPile.getBoundingClientRect();
+  const targetRect = cardElement.getBoundingClientRect();
+  const flight = cardElement.cloneNode(true);
+  flight.className = "playing-card card-flight";
+  flight.setAttribute("aria-hidden", "true");
+  flight.removeAttribute("tabindex");
+  flight.disabled = true;
+  Object.assign(flight.style, {
+    position: "fixed",
+    left: `${sourceRect.left}px`,
+    top: `${sourceRect.top}px`,
+    width: `${sourceRect.width}px`,
+    height: `${sourceRect.height}px`,
+    margin: "0",
+    zIndex: "20",
+    pointerEvents: "none",
+  });
+  document.body.append(flight);
+  const moveX = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
+  const moveY = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
+  if (typeof flight.animate !== "function") {
+    flight.remove();
+    cardElement.classList.remove("card-draw-arrival");
+    return;
+  }
+  const animation = flight.animate([
+    { transform: "translate(0, 0) scale(.8)", opacity: .8 },
+    { transform: `translate(${moveX}px, ${moveY}px) scale(1)`, opacity: 1 },
+  ], { duration: 360, easing: "cubic-bezier(.2, .75, .25, 1)", fill: "forwards" });
+  animation.onfinish = () => {
+    flight.remove();
+    cardElement.classList.remove("card-draw-arrival");
+  };
+  animation.oncancel = animation.onfinish;
+}
+
 function renderGame() {
   if (!game) return;
+  document.body.classList.toggle("game-active", !game.finished);
   chatToggle.classList.toggle("hidden", !onlineMode);
   if (!onlineMode) {
     online.chatOpen = false;
@@ -368,13 +481,25 @@ function renderGame() {
     : game.mustDrawSeat === game.current ? "Draw one card" : "Draw a card");
   elements.drawPile.classList.toggle("is-drawing", online.movePending && online.pendingAction === "draw");
   elements.drawPile.disabled = (onlineMode && (game.current !== onlineSeat || online.movePending))
-    || (trainingMode && game.current !== 0)
-    || (player.hand.length === 1 && !game.knocked?.[viewIndex] && (!onlineMode || game.current === onlineSeat));
+    || (trainingMode && game.current !== 0);
   elements.supportAlert.classList.toggle("hidden", !game.combo && !game.jumpSupport);
-  const canKnock = player.hand.length === 1 && !game.knocked?.[viewIndex] && !game.finished
-    && (!trainingMode || game.current === 0);
-  elements.knockButton.classList.toggle("hidden", !canKnock);
-  elements.knockButton.disabled = (onlineMode && online.movePending) || (trainingMode && game.current !== 0);
+  const isViewerTurn = onlineMode
+    ? game.current === onlineSeat
+    : trainingMode
+      ? game.current === 0
+      : true;
+  elements.turnIndicator.classList.toggle("is-your-turn", isViewerTurn && !game.finished);
+  const turnKey = `${onlineMode ? "online" : trainingMode ? "solo" : "local"}:${game.round || 1}:${game.turns}:${game.current}`;
+  if (turnKey !== mascotTurnKey) {
+    mascotTurnKey = turnKey;
+    if (isViewerTurn && !game.finished) {
+      if (game.pending === 2 || game.pending === 4) {
+        setMascotMood("surprised", game.pending === 4 ? "drawFour" : "drawTwo");
+      } else {
+        setMascotMood("idle");
+      }
+    }
+  }
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
   const previousDiscard = elements.discard.firstElementChild;
   const visibleTopCard = online.optimisticCard || topCard();
@@ -437,6 +562,8 @@ function renderHand() {
   );
   elements.hand.replaceChildren();
   const seat = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
+  const sameSeat = renderedHandSeat === seat;
+  renderedHandSeat = seat;
   const hand = game.players[seat].hand;
   hand.forEach((card, index) => {
     const cardElement = createCardElement(card, { interactive: true, index });
@@ -444,6 +571,12 @@ function renderHand() {
     const spread = hand.length > 9 ? 0 : (index - (hand.length - 1) / 2) * 1.4;
     cardElement.style.setProperty("--tilt", `${spread}deg`);
     if (!previousCards.has(card.id)) {
+      if (sameSeat) {
+        cardElement.classList.add("card-draw-arrival");
+        elements.hand.append(cardElement);
+        animateDrawnCard(cardElement);
+        return;
+      }
       cardElement.classList.add("card-deal");
       cardElement.style.animationDelay = `${Math.min(index, 8) * 24}ms`;
     }
@@ -509,7 +642,21 @@ function selectCard(index) {
   if (onlineMode && (game.current !== onlineSeat || online.movePending)) return;
   if (trainingMode && game.current !== 0) return;
   const card = game.players[game.current].hand[index];
-  if (!card || !isPlayable(card) || (game.players[game.current].hand.length === 1 && !game.knocked[game.current])) return;
+  if (!card) return;
+  if (!isPlayable(card)) {
+    const button = [...elements.hand.querySelectorAll("[data-card-id]")]
+      .find((item) => item.dataset.cardId === card.id);
+    if (button) {
+      button.classList.remove("is-illegal");
+      void button.offsetWidth;
+      button.classList.add("is-illegal");
+      window.setTimeout(() => button.classList.remove("is-illegal"), 400);
+    }
+    playSound("error");
+    setMascotMood("surprised");
+    showToast("Not quite! Pick a card that matches the suit or number.");
+    return;
+  }
   if (card.rank === "A") {
     game.stagedCardIndex = index;
     elements.suitTitle.textContent = "Name a suit";
@@ -520,6 +667,7 @@ function selectCard(index) {
     if (firstOption) firstOption.focus();
     return;
   }
+  const isHumanCard = !trainingMode || game.current === 0;
   if (onlineMode) {
     animatePlayedCard(index);
     submitOnlineMove({ type: "play", cardId: card.id });
@@ -527,19 +675,21 @@ function selectCard(index) {
   }
   animatePlayedCard(index);
   playLocalTurnCard(index);
+  if (isHumanCard && !game.finished) setMascotMood("happy");
 }
 
 function playCard(index, chosenSuit) {
   const player = game.players[game.current];
   const [card] = player.hand.splice(index, 1);
   if (!card) return;
+  playSound(card.rank === "2" || card.rank === "JOKER" ? "penalty" : "play");
   const counteringJoker = game.pending > 0 && game.pendingType === "draw-four";
   const counteringDrawTwo = game.pending > 0 && game.pendingType === "draw-two" && card.rank === "2";
   const supportedEight = Boolean(game.combo);
   const supportedJump = game.jumpSupport;
   game.discard.push(card);
   game.freeSuitPlay = false;
-  game.knocked[game.current] = false;
+  game.knocked[game.current] = player.hand.length === 1;
   if (card.rank === "A") {
     game.activeSuit = chosenSuit;
     game.demandedSuit = chosenSuit;
@@ -695,6 +845,9 @@ function takeCards(player, count) {
 
 function drawCard(timedOut = false) {
   if (!game || game.finished) return;
+  if (game.pending === 2 || game.pending === 4) {
+    setMascotMood("surprised", game.pending === 4 ? "drawFour" : "drawTwo");
+  }
   if (onlineMode) {
     if (game.current === onlineSeat) {
       showToast("Drawing card…");
@@ -702,6 +855,7 @@ function drawCard(timedOut = false) {
     }
     return;
   }
+  playSound("draw");
   const player = game.players[game.current];
   const prefix = timedOut ? `${player.name} ran out of time and drew` : `${player.name} draws`;
   if (game.mustDrawSeat === game.current) {
@@ -769,7 +923,6 @@ function playFundoTurn() {
   const hand = game.players[1].hand;
   if (hand.length === 1 && !game.knocked[1]) {
     game.knocked[1] = true;
-    showToast("Fundo knocked!");
     renderGame();
     return;
   }
@@ -840,10 +993,39 @@ function cancelSuitSelection() {
   if (stagedButton) stagedButton.focus();
 }
 
+function friendlyToastMessage(message) {
+  if (/draw (?:four|4)|draw-four|joker penalty/i.test(message)) return "Opponent draws 4! The next player picks four.";
+  if (/draw (?:two|2)|two-card penalty|2-card penalty/i.test(message)) return "Draw 2! The next player picks two.";
+  if (/skipped|is skipped|jack played.*next player/i.test(message)) return "Skip! The next player misses a turn.";
+  if (/cancel(?:ed|led)|blocked .*joker penalty/i.test(message)) return "Cancelled! That penalty is cleared.";
+  return message;
+}
+
+function setMascotMood(mood, messageGroup = mood) {
+  const messages = MASCOT_MESSAGES[messageGroup] || MASCOT_MESSAGES.idle;
+  const choices = messages.filter((message) => message !== lastMascotMessage);
+  const message = (choices.length ? choices : messages)[Math.floor(Math.random() * (choices.length || messages.length))];
+  lastMascotMessage = message;
+  elements.mascot.dataset.mood = mood;
+  elements.mascotBubble.textContent = message;
+  elements.mascot.classList.add("mascot-speaking");
+  window.clearTimeout(mascotTimer);
+  mascotTimer = window.setTimeout(() => {
+    elements.mascot.classList.remove("mascot-speaking");
+    elements.mascot.dataset.mood = "idle";
+  }, 2000);
+}
+
 function showToast(message) {
   window.clearTimeout(toastTimer);
-  elements.toast.textContent = message;
-  elements.toast.classList.toggle("toast-knock", /knocked!/i.test(message));
+  if (/knocked!/i.test(message)) {
+    elements.toast.classList.remove("visible", "toast-knock", "toast-special");
+    return;
+  }
+  const friendlyMessage = friendlyToastMessage(message);
+  elements.toast.textContent = friendlyMessage;
+  elements.toast.classList.remove("toast-knock");
+  elements.toast.classList.toggle("toast-special", friendlyMessage !== message || /draw|skip|cancel/i.test(message));
   elements.toast.classList.add("visible");
   toastTimer = window.setTimeout(() => elements.toast.classList.remove("visible"), 2300);
 }
@@ -879,18 +1061,6 @@ document.querySelector("#group-game-button").addEventListener("click", () => {
 elements.drawPile.addEventListener("click", () => {
   drawCard();
 });
-elements.knockButton.addEventListener("click", () => {
-  if (!game || game.finished) return;
-  if (onlineMode) {
-    submitOnlineMove({ type: "knock" });
-    return;
-  }
-  const seat = game.current;
-  if (game.players[seat].hand.length !== 1 || game.knocked[seat]) return;
-  game.knocked[seat] = true;
-  showToast(`${game.players[seat].name} knocked!`);
-  renderGame();
-});
 elements.rematch.addEventListener("click", async () => {
   if (!game) return;
   if (onlineMode) {
@@ -915,6 +1085,9 @@ function returnToSetup() {
   window.clearTimeout(trainingTurnTimer);
   trainingTurnTimer = null;
   trainingMode = false;
+  mascotTurnKey = null;
+  renderedHandSeat = null;
+  online.soundVersion = null;
   for (const selector of ["#end-online-room", "#end-room-from-game", "#end-room-from-result", "#start-queued-match"]) {
     document.querySelector(selector).classList.add("hidden");
   }
@@ -926,6 +1099,7 @@ function returnToSetup() {
   document.querySelector("#mode-label").textContent = "Choose game";
   document.querySelector("#round-mode-label").textContent = "ONLINE GAME";
   game = null;
+  document.body.classList.remove("game-active");
   hideModal(elements.suitModal);
   hideModal(elements.rematchModal);
   elements.game.classList.add("hidden");
@@ -1230,8 +1404,190 @@ function renderAccountMode() {
   document.querySelector("#auth-password").autocomplete = registering ? "new-password" : "current-password";
 }
 
+const tutorialSteps = [
+  {
+    title: "Match the top card",
+    copy: "Play a card with the same suit or number as the card in the middle. If you cannot play, draw one card and your turn ends.",
+  },
+  {
+    title: "Joker: pick four",
+    copy: "A Joker can go on almost any card except a 2. The next player draws four; after that, the following player may play any card, ignoring the old suit. A Joker can cancel the penalty.",
+  },
+  {
+    title: "Two: pick two",
+    copy: "Play a 2 to make the next player draw two and miss their turn. They can answer with another 2 to cancel the penalty.",
+  },
+  {
+    title: "Ace: name a suit",
+    copy: "When you play an Ace, choose the suit the next player must follow. They can also answer with an Ace. A Joker clears an Ace’s suit demand.",
+  },
+  {
+    title: "Jack: jump or support",
+    copy: "In a group, a Jack skips the next player. In solo or 1v1, you get a support turn: play a card in the Jack’s suit or draw one. An 8 also needs support in its suit.",
+  },
+  {
+    title: "One card left",
+    copy: "When you have one card, you are automatically marked. You cannot finish on a special card—if your last card is an Ace, 2, 8, Jack, or Joker, draw one on your next turn.",
+  },
+];
+
+function renderProgress() {
+  const dashboard = document.querySelector("#progress-dashboard");
+  const statsButton = document.querySelector("#stats-button");
+  const user = accountUser;
+  const progress = user && user.progress;
+  dashboard.classList.toggle("hidden", !user);
+  statsButton.classList.toggle("hidden", !user);
+  if (!user) return;
+  const xp = Number.isSafeInteger(progress && progress.xp) ? progress.xp : 0;
+  const wins = Number.isSafeInteger(progress && progress.wins) ? progress.wins : 0;
+  const streak = Number.isSafeInteger(progress && progress.streak) ? progress.streak : 0;
+  const level = Math.floor(xp / 100) + 1;
+  const levelXp = xp % 100;
+  document.querySelector("#progress-level").textContent = `LEVEL ${level}`;
+  document.querySelector("#progress-xp-label").textContent = `${levelXp} / 100 XP`;
+  document.querySelector("#progress-xp-fill").style.width = `${levelXp}%`;
+  document.querySelector("#xp-progress").setAttribute("aria-valuenow", String(levelXp));
+  document.querySelector("#progress-streak").textContent = `${streak} win streak`;
+  document.querySelector("#streak-chip").setAttribute("aria-label", `${streak} consecutive wins. View your stats.`);
+  document.querySelector("#progress-wins-label").textContent = `${wins} wins · online results`;
+}
+
+function renderTutorialStep() {
+  const step = tutorialSteps[tutorialIndex];
+  document.querySelector("#tutorial-step").textContent = `CARD ${tutorialIndex + 1} OF ${tutorialSteps.length}`;
+  document.querySelector("#tutorial-title").textContent = step.title;
+  document.querySelector("#tutorial-copy").textContent = step.copy;
+  document.querySelector("#tutorial-next").innerHTML = tutorialIndex === tutorialSteps.length - 1
+    ? "Let’s play! <span aria-hidden=\"true\">→</span>"
+    : "Next <span aria-hidden=\"true\">→</span>";
+  const progress = document.querySelector("#tutorial-progress");
+  progress.setAttribute("aria-valuemax", String(tutorialSteps.length));
+  progress.setAttribute("aria-valuenow", String(tutorialIndex + 1));
+  document.querySelector("#tutorial-progress-fill").style.width =
+    `${((tutorialIndex + 1) / tutorialSteps.length) * 100}%`;
+}
+
+function startTutorial(force = false) {
+  if (!accountUser) return;
+  if (!force && (tutorialShown || tutorialDismissed)) return;
+  if (!force && (!accountUser.progress || accountUser.progress.tutorialCompleted)) return;
+  tutorialShown = true;
+  tutorialDismissed = false;
+  tutorialIndex = 0;
+  document.querySelector("#tutorial-status").textContent = "";
+  renderTutorialStep();
+  document.querySelector("#tutorial-modal").classList.remove("hidden");
+  document.querySelector("#tutorial-next").focus();
+}
+
+async function completeTutorial() {
+  const button = document.querySelector("#tutorial-next");
+  button.disabled = true;
+  document.querySelector("#tutorial-status").textContent = "Saving your progress…";
+  try {
+    const result = await callGameApi("/api/account", "POST", {});
+    if (accountUser) accountUser.progress = result.progress;
+    tutorialDismissed = true;
+    document.querySelector("#tutorial-modal").classList.add("hidden");
+    renderProgress();
+  } catch (error) {
+    document.querySelector("#tutorial-status").textContent = onlineErrorMessage(error);
+    if (error.status === 401) {
+      document.querySelector("#tutorial-modal").classList.add("hidden");
+      updateAccountUI(null);
+      renderAccountMode();
+      setAccountStatus("Your sign-in expired. Sign in again to save your tutorial progress.");
+    }
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function refreshAccountProgress() {
+  if (!accountUser) return null;
+  const result = await callGameApi("/api/account");
+  if (!result.user) {
+    updateAccountUI(null);
+    renderAccountMode();
+    setAccountStatus("Your sign-in expired. Sign in again to continue.");
+    throw new Error("Your sign-in expired. Sign in again to continue.");
+  }
+  accountUser = result.user;
+  renderProgress();
+  return accountUser.progress;
+}
+
+function filterMatches(history, period) {
+  if (period === "all") return history;
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (period === "week") start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  else if (period === "month") start.setDate(1);
+  return history.filter((match) => Number.isFinite(match.finishedAt) && match.finishedAt >= start.getTime());
+}
+
+function renderStats() {
+  const history = accountUser && accountUser.progress && accountUser.progress.history || [];
+  const matches = filterMatches(history, statsPeriod)
+    .slice()
+    .sort((left, right) => right.finishedAt - left.finishedAt);
+  const wins = matches.filter((match) => match.result === "win").length;
+  const losses = matches.filter((match) => match.result === "loss").length;
+  document.querySelector("#stats-wins").textContent = String(wins);
+  document.querySelector("#stats-losses").textContent = String(losses);
+  document.querySelector("#stats-played").textContent = String(matches.length);
+  const list = document.querySelector("#match-history");
+  list.replaceChildren();
+  if (!matches.length) {
+    const empty = document.createElement("li");
+    empty.textContent = "No online matches in this period yet.";
+    list.append(empty);
+  }
+  for (const match of matches.slice(0, 50)) {
+    const item = document.createElement("li");
+    const detail = document.createElement("div");
+    const title = document.createElement("strong");
+    const opponents = Array.isArray(match.opponents) ? match.opponents : [];
+    title.textContent = opponents.length ? `vs ${opponents.join(", ")}` : "Online match";
+    const date = document.createElement("time");
+    date.dateTime = new Date(match.finishedAt).toISOString();
+    date.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" })
+      .format(new Date(match.finishedAt));
+    detail.append(title, date);
+    const result = document.createElement("span");
+    result.className = `match-result${match.result === "loss" ? " is-loss" : ""}`;
+    result.textContent = match.result === "win" ? "WIN" : "LOSS";
+    item.append(detail, result);
+    list.append(item);
+  }
+}
+
+async function openStats() {
+  statsPeriod = "all";
+  for (const button of document.querySelectorAll(".stats-filter")) {
+    const active = button.dataset.period === statsPeriod;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+  document.querySelector("#stats-modal").classList.remove("hidden");
+  document.querySelector("#stats-status").textContent = "Loading your matches…";
+  try {
+    await refreshAccountProgress();
+    renderStats();
+    document.querySelector("#stats-status").textContent = "";
+  } catch (error) {
+    document.querySelector("#stats-status").textContent = onlineErrorMessage(error);
+  }
+}
+
 function updateAccountUI(user) {
   const previousUser = accountUser;
+  if (!user || (previousUser && previousUser.username !== user.username)) {
+    tutorialShown = false;
+    tutorialDismissed = false;
+  }
   accountUser = user;
   const accountButton = document.querySelector("#account-button");
   const friendsButton = document.querySelector("#friends-button");
@@ -1240,6 +1596,7 @@ function updateAccountUI(user) {
   const formPanel = document.querySelector("#account-form-panel");
   const sessionPanel = document.querySelector("#account-session-panel");
   const roomNameInput = document.querySelector("#account-username");
+  renderProgress();
   accountButton.textContent = user ? user.username : "Sign in";
   accountButton.title = user ? `Signed in as ${user.username}` : "Sign in or create an account";
   friendsButton.classList.toggle("hidden", !user);
@@ -1256,11 +1613,14 @@ function updateAccountUI(user) {
     document.querySelector("#account-current-name").textContent = user.username;
     document.querySelector("#score-note").textContent = "Your username identifies your seat and tracks your online results.";
     if (pendingInviteRoom) openPendingInvite();
+    else startTutorial();
   } else {
     elements.setup.classList.add("hidden");
     elements.online.classList.add("hidden");
     elements.game.classList.add("hidden");
     document.querySelector("#friends-modal").classList.add("hidden");
+    document.querySelector("#stats-modal").classList.add("hidden");
+    document.querySelector("#tutorial-modal").classList.add("hidden");
     accountModal.classList.remove("hidden");
     document.querySelector("#score-note").textContent = "Sign in is required to play and track your results.";
     if (previousUser) roomNameInput.value = "";
@@ -1281,6 +1641,11 @@ async function submitAccountForm(event) {
     renderAccountMode();
     document.querySelector("#auth-password").value = "";
     setAccountStatus(`Signed in as ${result.user.username}.`);
+    void refreshAccountProgress()
+      .then(() => {
+        if (document.querySelector("#online-screen").classList.contains("hidden")) startTutorial();
+      })
+      .catch((error) => showToast(onlineErrorMessage(error)));
   } catch (error) {
     setAccountStatus(onlineErrorMessage(error));
   } finally {
@@ -1510,7 +1875,51 @@ document.querySelector("#close-account").addEventListener("click", () => {
 });
 document.querySelector("#leaderboard-button").addEventListener("click", openLeaderboard);
 document.querySelector("#close-leaderboard").addEventListener("click", () => document.querySelector("#leaderboard-modal").classList.add("hidden"));
-for (const modalId of ["account-modal", "leaderboard-modal", "friends-modal"]) {
+document.querySelector("#stats-button").addEventListener("click", openStats);
+document.querySelector("#streak-chip").addEventListener("click", openStats);
+document.querySelector("#close-stats").addEventListener("click", () => document.querySelector("#stats-modal").classList.add("hidden"));
+document.querySelector("#stats-modal").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.classList.add("hidden");
+});
+for (const button of document.querySelectorAll(".stats-filter")) {
+  button.addEventListener("click", () => {
+    statsPeriod = button.dataset.period;
+    for (const filter of document.querySelectorAll(".stats-filter")) {
+      const active = filter === button;
+      filter.classList.toggle("active", active);
+      filter.setAttribute("aria-pressed", String(active));
+    }
+    renderStats();
+  });
+}
+document.querySelector("#tutorial-replay").addEventListener("click", () => startTutorial(true));
+document.querySelector("#tutorial-skip").addEventListener("click", completeTutorial);
+document.querySelector("#tutorial-next").addEventListener("click", () => {
+  if (tutorialIndex === tutorialSteps.length - 1) {
+    void completeTutorial();
+    return;
+  }
+  tutorialIndex += 1;
+  renderTutorialStep();
+});
+document.querySelector("#sound-toggle").addEventListener("click", () => {
+  soundMuted = setMuted(!soundMuted);
+  const toggle = document.querySelector("#sound-toggle");
+  toggle.textContent = soundMuted ? "🔇" : "🔊";
+  toggle.setAttribute("aria-label", soundMuted ? "Turn sounds on" : "Mute sounds");
+  toggle.setAttribute("aria-pressed", String(soundMuted));
+  if (!soundMuted) playSound("click");
+});
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : event.target.parentElement;
+  const control = target && target.closest("button, a");
+  if (!control || control.matches("#sound-toggle, .playing-card, #draw-pile, .suit-option, #rematch-button")) return;
+  playSound("click");
+});
+document.querySelector("#sound-toggle").textContent = soundMuted ? "🔇" : "🔊";
+document.querySelector("#sound-toggle").setAttribute("aria-label", soundMuted ? "Turn sounds on" : "Mute sounds");
+document.querySelector("#sound-toggle").setAttribute("aria-pressed", String(soundMuted));
+for (const modalId of ["account-modal", "leaderboard-modal", "friends-modal", "stats-modal"]) {
   document.querySelector(`#${modalId}`).addEventListener("click", (event) => {
     if (event.target === event.currentTarget && (modalId !== "account-modal" || accountUser)) {
       event.currentTarget.classList.add("hidden");
@@ -1586,7 +1995,17 @@ function applyRoomSnapshot(snapshot) {
     void startOnlineGame();
   }
   if (!changed) return;
-  if (!first && data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
+  if (!first && data.version !== previousData.version) {
+    if (data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
+    if (online.soundVersion !== data.version) {
+      if (!data.game?.finished) {
+        if (/joker|draw two|skipped|jack/i.test(data.lastMessage || "")) playSound("penalty");
+        else if (/draw(?:s|ing)?|pick/i.test(data.lastMessage || "")) playSound("draw");
+        else playSound("play");
+      }
+      online.soundVersion = data.version;
+    }
+  }
   if (data.game) renderOnlineGame();
   else setOnlineStatus(data.queuedForNextMatch
     ? "You joined the game and are queued for the next match."
@@ -1706,6 +2125,7 @@ function renderOnlineGame() {
   const state = data.game;
   const previous = game;
   const wasFinished = Boolean(previous && previous.finished);
+  if (!previous || (previous.finished && !state.finished)) mascotTurnKey = null;
   if (!previous || previous.turnStartedAt !== state.turnStartedAt) online.timeoutSentAt = null;
   onlineSeat = online.seat;
   onlineMode = true;
@@ -1737,16 +2157,19 @@ function renderOnlineGame() {
   if (game.finished && !wasFinished) {
     window.clearInterval(turnTimer);
     turnTimer = null;
-    elements.rematchWinner.textContent = game.winner;
+    presentGameResult(game.winner);
     elements.rematchModal.classList.remove("hidden");
     elements.rematch.focus();
+    void refreshAccountProgress()
+      .then(() => updateResultScore())
+      .catch((error) => showToast(onlineErrorMessage(error)));
   } else if (!game.finished) {
     hideModal(elements.rematchModal);
   }
   if (game.finished) updateRematchControls(data);
   else {
     elements.rematch.disabled = false;
-    elements.rematch.innerHTML = 'Rematch <span aria-hidden="true">↻</span>';
+    elements.rematch.innerHTML = 'Play again <span aria-hidden="true">↻</span>';
     document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
   }
 }
@@ -1763,7 +2186,7 @@ function updateRematchControls(data) {
   startQueued.classList.toggle("hidden", !online.isHost || data.status !== "finished" || waitingCount === 0);
   endRoom.classList.toggle("hidden", !online.isHost);
   if (requests[online.seat]) {
-    button.textContent = "Rematch requested";
+    button.textContent = "Waiting for a reply…";
     button.disabled = true;
     const waitingOn = data.players
       .filter((_, index) => index !== online.seat && !requests[index])
@@ -1772,14 +2195,14 @@ function updateRematchControls(data) {
       ? `Waiting for ${waitingOn.join(", ")} to accept.`
       : "Waiting for everyone to accept.";
   } else if (requests.some(Boolean)) {
-    button.textContent = "Accept rematch";
+    button.textContent = "Play again";
     button.disabled = false;
     const requestedBy = data.players
       .filter((_, index) => requests[index])
       .map((player) => player.name);
     message.textContent = `${requestedBy.join(", ")} want${requestedBy.length === 1 ? "s" : ""} a rematch.`;
   } else {
-    button.textContent = "Rematch";
+    button.innerHTML = 'Play again <span aria-hidden="true">↻</span>';
     button.disabled = false;
     message.textContent = waitingCount
       ? `${waitingCount} player${waitingCount === 1 ? "" : "s"} waiting for the next match.`
@@ -1950,6 +2373,14 @@ async function submitOnlineMove(action) {
     const snapshot = await callGameApi(`/api/rooms/${online.roomCode}/action`, "POST", { ...action, actionId });
     online.movePending = false;
     online.pendingAction = null;
+    if (!snapshot.ignored) {
+      if (action.type === "play") {
+        const played = online.optimisticCard;
+        playSound(played && (played.rank === "2" || played.rank === "JOKER") ? "penalty" : "play");
+        setMascotMood("happy");
+      } else if (action.type === "draw") playSound("draw");
+      online.soundVersion = snapshot.publicData.version;
+    }
     online.optimisticCard = null;
     applyRoomSnapshot(snapshot);
     if (game) renderGame();
@@ -1999,6 +2430,8 @@ document.querySelector("#copy-invite-button").addEventListener("click", () => {
   copyTextToButton(inviteLink, document.querySelector("#copy-invite-button"), "✓ Copied!", "Invite link copied.", "Could not copy the invite link. Select and copy it manually.");
 });
 document.querySelector("#mode-label").textContent = "Choose game";
+enableAudioUnlock();
+setMascotMood("idle");
 window.setTimeout(() => document.querySelector("#loading-screen").classList.add("loading-screen-done"), 850);
 for (const button of document.querySelectorAll(".suit-option")) {
   button.addEventListener("click", () => {
@@ -2015,7 +2448,9 @@ for (const button of document.querySelectorAll(".suit-option")) {
       });
       return;
     }
+    const isHumanCard = !trainingMode || game.current === 0;
     playLocalTurnCard(index, button.dataset.suit);
+    if (isHumanCard && !game.finished) setMascotMood("happy");
   });
 }
 document.querySelector("#game-rules-button").addEventListener("click", openRules);
@@ -2031,9 +2466,10 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!elements.rulesModal.classList.contains("hidden")) closeRules();
   if (!elements.suitModal.classList.contains("hidden")) cancelSuitSelection();
-  for (const modalId of ["leaderboard-modal", "friends-modal"]) {
+  for (const modalId of ["leaderboard-modal", "friends-modal", "stats-modal"]) {
     document.querySelector(`#${modalId}`).classList.add("hidden");
   }
+  if (!document.querySelector("#tutorial-modal").classList.contains("hidden")) void completeTutorial();
   if (accountUser) document.querySelector("#account-modal").classList.add("hidden");
 });
 

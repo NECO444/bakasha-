@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { handleLogin, handleLogout, handleRegister, getAuthenticatedAccount } from "../lib/accounts.js";
 import { handleAction, handleCreate, handleJoin, handleStart, handleState } from "../lib/rooms.js";
 import { handleLeaderboard } from "../lib/leaderboard.js";
-import { loadRoom, saveRoom } from "../lib/store.js";
+import { loadPlayerProgress, loadRoom, saveRoom } from "../lib/store.js";
 
 const username = () => `p${Date.now().toString(36)}${randomBytes(2).toString("hex")}`;
 const requestWithCookie = (path, cookie) => new Request(`https://example.test${path}`, {
@@ -111,6 +111,13 @@ test("username-only accounts sign in securely and bind room seats to the account
   const standings = await handleLeaderboard();
   assert.equal(standings.players.find((player) => player.username === firstName).wins, 1);
   assert.equal(standings.players.find((player) => player.username === secondName).losses, 1);
+  const firstProgress = await loadPlayerProgress((await getAuthenticatedAccount(requestWithCookie("/api/account", firstCookie))).id, firstName);
+  const secondProgress = await loadPlayerProgress((await getAuthenticatedAccount(requestWithCookie("/api/account", cookieFrom(secondResponse)))).id, secondName);
+  assert.equal(firstProgress.xp, 12);
+  assert.equal(firstProgress.wins, 1);
+  assert.equal(firstProgress.history[0].opponents[0], secondName);
+  assert.equal(secondProgress.xp, 2);
+  assert.equal(secondProgress.losses, 1);
   assert.equal(started.publicData.status, "playing");
 
   const logoutResponse = await handleLogout({ request: requestWithCookie("/api/account", firstCookie) });

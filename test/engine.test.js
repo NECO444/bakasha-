@@ -18,9 +18,6 @@ function table({ names = ["Ann", "Ben"], hands, top = c("hearts", "5"), deck } =
 }
 
 function play(g, seat, card, action = {}) {
-  if (g.hands[seat].length === 1 && !g.knocked[seat]) {
-    applyAction(g, seat, { type: "knock" }, 2000);
-  }
   return applyAction(g, seat, { type: "play", cardId: card.id, ...action }, 2000);
 }
 
@@ -54,7 +51,6 @@ test("ordinary cards match suit or rank and Joker cannot cover a 2", () => {
 test("drawing ends the turn and the drawn card cannot be played immediately", () => {
   const drawn = c("clubs", "5");
   const g = table({ hands: [[c("spades", "7")], [c("clubs", "9")]], deck: [drawn] });
-  applyAction(g, 0, { type: "knock" }, 1500);
   applyAction(g, 0, { type: "draw" }, 2000);
   assert.equal(g.current, 1);
   assert.deepEqual(g.hands[0].at(-1), drawn);
@@ -300,7 +296,6 @@ test("Jacks, Aces, and Jokers also cannot finish a hand", () => {
     const g = table({ hands: [[card], [c("clubs", "9"), c("spades", "4")]] });
     const action = { type: "play", cardId: card.id };
     if (card.rank === "A") action.chosenSuit = "clubs";
-    applyAction(g, 0, { type: "knock" }, 1500);
     const result = applyAction(g, 0, action, 2000);
     assert.ok(result.message);
     assert.equal(g.finished, false);
@@ -308,21 +303,21 @@ test("Jacks, Aces, and Jokers also cannot finish a hand", () => {
   }
 });
 
-test("knock is independent of the turn and required before playing with one card", () => {
-  const g = table({ hands: [[c("hearts", "9")], [c("clubs", "9"), c("spades", "4")]] });
-  assert.match(applyAction(g, 0, { type: "play", cardId: "hearts-9" }, 2000).error, /Knock/);
-  assert.match(applyAction(g, 1, { type: "knock" }, 2000).error, /one card/);
-  assert.match(applyAction(g, 0, { type: "knock" }, 2000).message, /knocked/);
-  assert.equal(g.current, 0);
+test("reaching one card marks the player automatically and requires no knock action", () => {
+  const g = table({
+    hands: [[c("hearts", "3"), c("clubs", "3")], [c("clubs", "9"), c("spades", "4")]],
+  });
+  play(g, 0, c("hearts", "3"));
+  assert.equal(g.hands[0].length, 1);
   assert.equal(publicGame(g).knocked[0], true);
-  assert.equal(play(g, 0, c("hearts", "9")).message, "Ann wins!");
+  applyAction(g, 1, { type: "draw" }, 2100);
+  assert.equal(play(g, 0, c("clubs", "3")).message, "Ann wins!");
 });
 
 test("timeouts draw one card and the first player out wins 1v1", () => {
   const g = table({ hands: [[c("clubs", "3")], [c("clubs", "9")]] });
   assert.ok(applyAction(g, 0, { type: "timeout" }, 1000 + 5000).ignored);
   assert.equal(g.hands[0].length, 1);
-  applyAction(g, 0, { type: "knock" }, 2000);
   assert.ok(applyAction(g, 0, { type: "timeout" }, 1000 + TURN_MS).message.includes("ran out of time"));
   assert.equal(g.hands[0].length, 2);
   assert.equal(g.current, 1);
@@ -335,9 +330,6 @@ test("fuzz: legal play keeps all 54 cards", () => {
     for (let step = 0; step < 400 && !g.finished; step += 1) {
       now += 1000;
       const seat = g.current;
-      if (g.hands[seat].length === 1 && !g.knocked[seat]) {
-        assert.ok(applyAction(g, seat, { type: "knock" }, now).message);
-      }
       const playable = g.hands[seat].filter((card) => isPlayable(g, card));
       const action = playable.length && rng() < 0.8
         ? { type: "play", cardId: playable[Math.floor(rng() * playable.length)].id, chosenSuit: "clubs" }
