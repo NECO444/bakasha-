@@ -64,8 +64,9 @@ let activeRoomsLoading = false;
 let friendChallengesTimer = null;
 let presenceTimer = null;
 let friendsLoading = false;
-let knownFriendChallengeIds = new Set();
-let friendChallengesInitialized = false;
+let pendingLobbyRequest = null;
+let roomCreationPending = false;
+let roomJoinPending = false;
 let soundMuted = isMuted();
 let tutorialIndex = 0;
 let tutorialShown = false;
@@ -1118,10 +1119,8 @@ document.querySelector("#count-picker").addEventListener("click", (event) => {
 });
 elements.start.addEventListener("click", startGame);
 document.querySelector("#one-v-one-button").addEventListener("click", startQuickDuel);
-document.querySelector("#play-now-button").addEventListener("click", startQuickDuel);
 document.querySelector("#browse-games-button").addEventListener("click", () => {
-  openOnlineLobby("duel");
-  setDuelTab("join");
+  openOnlineLobby("duel", "join");
 });
 document.querySelector("#training-game-button").addEventListener("click", startTrainingGame);
 document.querySelector("#group-game-button").addEventListener("click", () => {
@@ -1301,8 +1300,9 @@ function readSavedRoom(code) {
   }
 }
 
-function openOnlineLobby(mode = "duel") {
+function openOnlineLobby(mode = "duel", tab = "create") {
   if (!accountUser) {
+    pendingLobbyRequest = { mode, tab };
     showAccountGate();
     return;
   }
@@ -1326,7 +1326,7 @@ function openOnlineLobby(mode = "duel") {
   document.querySelector("#duel-tabs").classList.toggle("hidden", !isDuel);
   document.querySelector("#duel-create-panel").classList.remove("hidden");
   document.querySelector("#duel-join-panel").classList.toggle("hidden", isDuel);
-  if (isDuel) setDuelTab("create");
+  if (isDuel) setDuelTab(tab);
   document.querySelector("#mode-label").textContent = onlineRoomSize > 2 ? "Group quest" : "Duel a friend";
   document.querySelector("#online-title").textContent = onlineRoomSize > 2 ? `${onlineRoomSize}-player group` : "Duel a friend";
   document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
@@ -1337,7 +1337,7 @@ function openOnlineLobby(mode = "duel") {
   refreshPublicRooms();
   refreshActiveRooms();
   schedulePublicRoomsRefresh();
-  if (isDuel) document.querySelector("#duel-create-tab").focus();
+  if (isDuel) document.querySelector(tab === "join" ? "#duel-join-tab" : "#duel-create-tab").focus();
 }
 
 function stopPublicRoomsRefresh() {
@@ -1471,7 +1471,9 @@ async function refreshActiveRooms() {
     const list = document.querySelector("#active-game-list");
     list.replaceChildren();
     document.querySelector(".active-games").classList.add("hidden");
-    setOnlineStatus(onlineErrorMessage(error));
+    if (!roomJoinPending && !roomCreationPending && !online.roomCode) {
+      setOnlineStatus(onlineErrorMessage(error));
+    }
   } finally {
     activeRoomsLoading = false;
   }
@@ -1523,13 +1525,16 @@ function extractRoomCode(value) {
 }
 
 function extractInviteRoomCode(value) {
+  const input = value.trim();
+  if (!input) return "";
   try {
-    const invite = new URL(value.trim());
+    const invite = new URL(input, window.location.href);
     const code = invite.searchParams.get("game") || invite.searchParams.get("room");
-    return code ? extractRoomCode(code) : "";
+    if (code) return extractRoomCode(code);
   } catch (error) {
-    return "";
+    // Continue with the room-code form below.
   }
+  return /^[a-z0-9\s-]{4,8}$/i.test(input) ? extractRoomCode(input) : "";
 }
 
 function makeInviteLink(roomCode) {
@@ -1884,8 +1889,6 @@ function updateAccountUI(user) {
   if (!user || (previousUser && previousUser.username !== user.username)) {
     tutorialShown = false;
     tutorialDismissed = false;
-    knownFriendChallengeIds = new Set();
-    friendChallengesInitialized = false;
   }
   accountUser = user;
   const accountButton = document.querySelector("#account-button");
@@ -1915,7 +1918,11 @@ function updateAccountUI(user) {
     void heartbeatPresence();
     schedulePresenceHeartbeat();
     if (pendingInviteRoom) openPendingInvite();
-    else if (
+    else if (pendingLobbyRequest) {
+      const request = pendingLobbyRequest;
+      pendingLobbyRequest = null;
+      openOnlineLobby(request.mode, request.tab);
+    } else if (
       user.progress
       && user.progress.wins + user.progress.losses === 0
       && !user.progress.tutorialCompleted
@@ -1928,6 +1935,7 @@ function updateAccountUI(user) {
     stopFriendChallengePolling();
     window.clearTimeout(presenceTimer);
     presenceTimer = null;
+    document.querySelector("#game-invite-alert").classList.add("hidden");
     elements.setup.classList.add("hidden");
     elements.online.classList.add("hidden");
     elements.game.classList.add("hidden");
@@ -1956,7 +1964,9 @@ async function submitAccountForm(event) {
     setAccountStatus(`Signed in as ${result.user.username}.`);
     void refreshAccountProgress()
       .then(() => {
-        if (document.querySelector("#online-screen").classList.contains("hidden")) startTutorial();
+        if (elements.online.classList.contains("hidden") && elements.game.classList.contains("hidden")) {
+          startTutorial();
+        }
       })
       .catch((error) => showToast(onlineErrorMessage(error)));
   } catch (error) {
@@ -2004,16 +2014,16 @@ function showAccountGate() {
 function openPendingInvite() {
   if (!accountUser || !pendingInviteRoom) return;
   const invitedRoom = pendingInviteRoom;
-  pendingInviteRoom = null;
-  openOnlineLobby("invite");
+  pendingLobbyRequest = null;
+  openOnlineLobby("duel", "join");
   const invitedCode = extractRoomCode(invitedRoom);
   const inviteInput = document.querySelector("#invite-link-input");
   if (/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(invitedCode)) {
-    setDuelTab("join");
+    pendingInviteRoom = invitedCode;
     inviteInput.value = makeInviteLink(invitedCode);
-    if (readSavedRoom(invitedCode)) joinOnlineRoom();
-    else inviteInput.focus();
+    void joinOnlineRoom();
   } else {
+    pendingInviteRoom = null;
     setOnlineStatus("That invite link isn’t valid. Check it and try again.");
   }
 }
@@ -2070,7 +2080,7 @@ function renderFriendEntries(container, entries, section) {
       details.className = "friend-challenge-copy";
       details.textContent = "invited you to a duel";
       row.append(details);
-      for (const [action, label] of [["accept", "Join"], ["decline", "Decline"]]) {
+      for (const [action, label] of [["accept", "Join game"], ["decline", "Decline"]]) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = `friend-action${action === "accept" ? " friend-challenge-action" : ""}`;
@@ -2109,6 +2119,25 @@ function updateFriendChallengeBadge(challenges) {
   badge.setAttribute("aria-label", `${challenges.length} incoming game challenge${challenges.length === 1 ? "" : "s"}`);
 }
 
+function renderIncomingGameInvite(challenges) {
+  const alert = document.querySelector("#game-invite-alert");
+  const challenge = challenges[0];
+  if (!challenge) {
+    alert.classList.add("hidden");
+    return;
+  }
+  document.querySelector("#game-invite-from").textContent = challenge.fromUsername;
+  document.querySelector("#game-invite-copy").textContent = hasActiveOnlineRoom()
+    ? "Finish or leave your current game before joining."
+    : "invited you to play.";
+  for (const button of alert.querySelectorAll("[data-challenge-action]")) {
+    button.dataset.challengeId = challenge.id;
+    button.dataset.roomCode = challenge.roomCode;
+    button.disabled = button.dataset.challengeAction === "accept" && hasActiveOnlineRoom();
+  }
+  alert.classList.remove("hidden");
+}
+
 async function heartbeatPresence() {
   if (!accountUser) return;
   try {
@@ -2145,14 +2174,8 @@ async function loadFriends(silent = false) {
     for (const key of ["friends", "incoming", "outgoing", "challenges"]) {
       if (!Array.isArray(result[key])) throw new Error("The server returned an invalid friends list.");
     }
-    const newChallenges = result.challenges.filter((challenge) => !knownFriendChallengeIds.has(challenge.id));
-    if (friendChallengesInitialized && newChallenges.length) {
-      const first = newChallenges[0];
-      showToast(`${first.fromUsername} invited you to a duel.`);
-    }
-    knownFriendChallengeIds = new Set(result.challenges.map((challenge) => challenge.id));
-    friendChallengesInitialized = true;
     updateFriendChallengeBadge(result.challenges);
+    renderIncomingGameInvite(result.challenges);
     renderFriendEntries(document.querySelector("#friend-list"), result.friends, "friends");
     renderFriendEntries(document.querySelector("#friend-challenges"), result.challenges, "challenges");
     renderFriendEntries(document.querySelector("#friend-incoming"), result.incoming, "incoming");
@@ -2176,7 +2199,7 @@ function scheduleFriendChallengePolling() {
   friendChallengesTimer = window.setTimeout(async () => {
     if (!document.hidden) await loadFriends(true);
     scheduleFriendChallengePolling();
-  }, 12_000);
+  }, document.hidden ? 20_000 : 6_000);
 }
 
 function startFriendChallengePolling() {
@@ -2236,18 +2259,21 @@ async function respondToFriendChallenge(button) {
   const challengeId = button.dataset.challengeId;
   const roomCode = button.dataset.roomCode;
   const action = button.dataset.challengeAction;
+  document.querySelector("#game-invite-alert").classList.add("hidden");
   if (action === "accept") {
     document.querySelector("#friends-modal").classList.add("hidden");
-    openOnlineLobby("duel");
-    setDuelTab("join");
+    openOnlineLobby("duel", "join");
     document.querySelector("#invite-link-input").value = makeInviteLink(roomCode);
     const joined = await joinOnlineRoom(false);
     if (joined) {
       try {
         await callGameApi("/api/friends", "POST", { action: "dismiss-challenge", challengeId });
+        await loadFriends(true);
       } catch (error) {
         showToast(onlineErrorMessage(error));
       }
+    } else {
+      await loadFriends(true);
     }
     button.disabled = false;
     return;
@@ -2384,6 +2410,10 @@ document.querySelector("#friends-modal").addEventListener("click", (event) => {
   }
   const button = event.target.closest("[data-friend-action]");
   if (button) void updateFriendRequest(button.dataset.friendAction, button.dataset.friendUsername);
+});
+document.querySelector("#game-invite-alert").addEventListener("click", (event) => {
+  const button = event.target instanceof Element ? event.target.closest("[data-challenge-action]") : null;
+  if (button) void respondToFriendChallenge(button);
 });
 document.querySelector("#close-account").addEventListener("click", () => {
   if (accountUser) document.querySelector("#account-modal").classList.add("hidden");
@@ -2819,6 +2849,10 @@ function beginRoomSession(snapshot, token) {
 }
 
 async function createOnlineRoom() {
+  if (roomCreationPending) return;
+  roomCreationPending = true;
+  const createButton = document.querySelector("#create-room-button");
+  createButton.disabled = true;
   try {
     const isPublic = document.querySelector("#public-room-checkbox").checked;
     document.querySelector("#invite-room-note").textContent = isPublic
@@ -2836,15 +2870,15 @@ async function createOnlineRoom() {
     elements.online.classList.remove("hidden");
     hideOptimisticConnection(true);
     elements.game.classList.add("hidden");
+    if (elements.online.classList.contains("is-duel-sheet")) elements.setup.classList.remove("hidden");
     setOnlineStatus(onlineErrorMessage(error));
+  } finally {
+    roomCreationPending = false;
+    createButton.disabled = false;
   }
 }
 
 function startQuickDuel() {
-  if (!accountUser) {
-    showAccountGate();
-    return;
-  }
   document.querySelector("#public-room-checkbox").checked = false;
   openOnlineLobby("duel");
 }
@@ -2879,6 +2913,7 @@ async function shareInviteLink(button) {
 }
 
 async function joinOnlineRoom(publicJoin = false) {
+  if (roomJoinPending) return false;
   const inviteInput = document.querySelector("#invite-link-input");
   const roomCode = extractInviteRoomCode(inviteInput.value);
   if (!roomCode) {
@@ -2891,6 +2926,10 @@ async function joinOnlineRoom(publicJoin = false) {
     inviteInput.focus();
     return false;
   }
+  roomJoinPending = true;
+  const joinButton = document.querySelector("#join-room-button");
+  joinButton.disabled = true;
+  pendingInviteRoom = roomCode;
   try {
     const saved = readSavedRoom(roomCode);
     const body = publicJoin ? { publicJoin: true } : {};
@@ -2899,11 +2938,16 @@ async function joinOnlineRoom(publicJoin = false) {
     setOnlineStatus(saved ? "Reconnecting…" : publicJoin ? "Joining public game…" : "Joining your friend’s game…");
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
+    pendingInviteRoom = null;
+    document.querySelector("#game-invite-alert").classList.add("hidden");
     return true;
   } catch (error) {
+    delete inviteInput.dataset.autoJoinValue;
+    if (error.status !== 401) pendingInviteRoom = null;
     elements.online.classList.remove("hidden");
     hideOptimisticConnection(true);
     elements.game.classList.add("hidden");
+    if (elements.online.classList.contains("is-duel-sheet")) elements.setup.classList.remove("hidden");
     if (publicJoin && error.status === 404) {
       setOnlineStatus("That game isn’t open for public play. Open games have been refreshed.");
       await refreshPublicRooms();
@@ -2912,6 +2956,9 @@ async function joinOnlineRoom(publicJoin = false) {
     }
     setOnlineStatus(onlineErrorMessage(error));
     return false;
+  } finally {
+    roomJoinPending = false;
+    joinButton.disabled = false;
   }
 }
 
@@ -3079,8 +3126,7 @@ document.querySelector("#active-game-list").addEventListener("click", (event) =>
 document.querySelector("#home-resume-button").addEventListener("click", (event) => {
   const code = event.currentTarget.dataset.activeRoomCode;
   if (!code) return;
-  openOnlineLobby("duel");
-  setDuelTab("join");
+  openOnlineLobby("duel", "join");
   document.querySelector("#invite-link-input").value = makeInviteLink(code);
   void joinOnlineRoom(false);
 });
@@ -3133,6 +3179,10 @@ document.addEventListener("visibilitychange", () => {
     document.title = PAGE_TITLE;
     online.lastAlertedTurn = null;
     if (online.roomCode) refreshRoomState();
+    if (accountUser) {
+      void loadFriends(true);
+      scheduleFriendChallengePolling();
+    }
   }
 });
 document.querySelector("#copy-invite-button").addEventListener("click", () => {

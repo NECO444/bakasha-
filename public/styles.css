@@ -1956,13 +1956,13 @@ body {
 .back-mark { border-color: #1cb0f6; color: #55c6ff; background: #1d3040; }
 .opponent-back { border-color: #1cb0f6; background: repeating-linear-gradient(45deg, #1d3040 0 4px, #1cb0f6 4px 6px, #1d3040 6px 10px); }
 .playing-card { border-color: #d5ded5; box-shadow: 0 7px 16px #09110d88; }
-.playing-card[data-suit="hearts"] { border-color: #ed8992; color: #fff; background: #f2525a; }
-.playing-card[data-suit="diamonds"] { border-color: #e9d071; color: #172316; background: #f1c84f; }
-.playing-card[data-suit="spades"] { border-color: #73c2df; color: #102535; background: #53b0d9; }
-.playing-card[data-suit="clubs"] { border-color: #9bd578; color: #172316; background: #68c12b; }
-.playing-card[data-suit="wild"] { border-color: #d9cbe9; color: #fff0c2; background: conic-gradient(#f25267 0 25%, #53b0d9 0 50%, #f1c84f 0 75%, #68c12b 0); }
-.playing-card[data-suit="wild"] .card-corner { color: #f0eadc; }
-.playing-card::before { border-color: #ffffff30; }
+.playing-card[data-suit="hearts"] { border-color: #e5c9cc; color: #c83d50; background: #fff; }
+.playing-card[data-suit="diamonds"] { border-color: #e6d9ac; color: #8a6800; background: #fff; }
+.playing-card[data-suit="spades"] { border-color: #cbd6de; color: #233b50; background: #fff; }
+.playing-card[data-suit="clubs"] { border-color: #c8dbc9; color: #287044; background: #fff; }
+.playing-card[data-suit="wild"] { border-color: #d5ded5; color: #253d31; background: #fff; }
+.playing-card[data-suit="wild"] .card-corner { color: #253d31; }
+.playing-card::before { border-color: #dce5dc; }
 .playing-card, .playing-card.is-unplayable, .playing-card:disabled { opacity: 1; }
 .playing-card.is-playable { box-shadow: 0 0 0 2px #58cc02, 0 0 18px #58cc0277, 0 8px 18px #09110d88; }
 .playing-card.is-unplayable { filter: saturate(.72); }
@@ -2773,4 +2773,273 @@ button { min-height: 44px; }
   margin-top: 3px;
   color: #c3d2c4;
   font-size: 12px;
+}
+
+.home-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.home-action-card {
+  display: grid;
+  min-width: 0;
+  min-height: 112px;
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid #3e5144;
+  border-radius: 17px;
+  color: #e7f1e7;
+  background: linear-gradient(145deg, #29372d, #202a24);
+  box-shadow: 0 4px 0 #111813, 0 10px 22px #0000001c;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.home-action-grid > .home-action-card {
+  width: 100%;
+  min-height: 112px;
+  margin: 0;
+  font-size: inherit;
+  text-decoration: none;
+}
+.home-action-card:hover {
+  transform: translateY(-2px);
+  border-color: #58cc02;
+  color: inherit;
+  box-shadow: 0 6px 0 #111813, 0 14px 24px #00000024;
+}
+.home-action-card:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #111813;
+}
+.home-action-create {
+  border-color: #58cc02;
+  color: #172316;
+  background: linear-gradient(135deg, #a5e844, #58cc02);
+  box-shadow: 0 4px 0 #348700, 0 10px 22px #0000001c;
+}
+.home-action-create:hover {
+  border-color: #b7ee91;
+  background: linear-gradient(135deg, #b7ee63, #72df18);
+  box-shadow: 0 6px 0 #348700, 0 14px 24px #00000024;
+}
+.home-action-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #58cc024d;
+  border-radius: 12px;
+  color: #b7ee91;
+  background: #58cc021c;
+  font-size: 22px;
+  font-weight: 900;
+}
+.home-action-create .home-action-icon {
+  border-color: #17231633;
+  color: #172316;
+  background: #ffffff3d;
+}
+.home-action-copy { display: grid; min-width: 0; gap: 4px; }
+.home-action-copy strong { font: 900 17px/1.1 "Nunito", sans-serif; }
+.home-action-copy small { color: #c3d2c4; font-size: 12px; line-height: 1.35; }
+.home-action-create .home-action-copy small { color: #24391c; }
+.home-action-arrow { justify-self: end; color: #b7ee91; font-size: 21px; font-weight: 900; }
+.home-action-create .home-action-arrow { color: #172316; }
+.home-more-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+.home-more-heading h3 { margin: 0; color: #e7f1e7; font: 800 14px "Nunito", sans-serif; }
+.home-more-heading span { color: #a2aea5; font-size: 12px; }
+.game-mode-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.game-mode-option, .training-mode-option { min-height: 82px; }
+
+.online-screen.is-duel-sheet .online-card {
+  width: min(560px, 100%);
+  border-color: #506755;
+  background: linear-gradient(155deg, #25352a, #1a251e);
+  box-shadow: 0 8px 0 #101812, 0 22px 55px #0009;
+}
+.online-screen.is-duel-sheet .setup-card-head { margin-bottom: 18px; }
+.online-screen.is-duel-sheet .setup-card-head h2 { font-size: 25px; }
+.online-screen.is-duel-sheet .setup-card-head p { font-size: 14px; }
+.online-screen.is-duel-sheet .duel-tabs { margin-bottom: 20px; }
+.online-screen.is-duel-sheet .account-panel {
+  margin: 0 0 18px;
+  padding: 13px 15px;
+  border: 1px solid #405045;
+  border-radius: 13px;
+  background: #202a24;
+}
+.online-screen.is-duel-sheet .duel-playing-as { color: #aebdaf; }
+.online-screen.is-duel-sheet .duel-playing-as strong { color: #f0f7ef; }
+.online-screen.is-duel-sheet .room-visibility {
+  margin: 16px 0 8px;
+  padding: 14px;
+  border: 1px solid #405045;
+  border-radius: 13px;
+  color: #e2e9e2;
+  background: #202a24;
+}
+.online-screen.is-duel-sheet .room-visibility small { color: #b7c2b9; }
+.online-screen.is-duel-sheet #create-room-button,
+.online-screen.is-duel-sheet #join-room-button { min-height: 54px; font-size: 15px; }
+.online-screen.is-duel-sheet .public-rooms { margin-top: 20px; }
+
+body.game-active {
+  height: 100dvh;
+  overflow: hidden;
+}
+body.game-active .app-shell {
+  display: flex;
+  width: min(1200px, 100%);
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 clamp(10px, 2vw, 24px);
+}
+body.game-active .topbar,
+body.game-active .primary-nav { display: none; }
+body.game-active main { display: flex; min-height: 0; flex: 1; }
+body.game-active .game-screen:not(.hidden) {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 10px 0 8px;
+}
+body.game-active .game-heading { min-height: 44px; flex: 0 0 auto; margin-bottom: 8px; }
+body.game-active .table-surface {
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-rows: minmax(0, auto) minmax(0, 1fr) auto;
+}
+body.game-active .game-footer { flex: 0 0 auto; padding-top: 6px; }
+
+@media (max-width: 760px) {
+  .home-action-card { min-height: 100px; grid-template-columns: 32px minmax(0, 1fr) 14px; gap: 8px; padding: 12px; }
+  .home-action-grid > .home-action-card { min-height: 100px; }
+  .home-action-icon { width: 32px; height: 32px; }
+  .home-action-copy strong { font-size: 15px; }
+  .home-action-copy small { font-size: 11px; }
+  .game-mode-picker { grid-template-columns: 1fr 1fr; }
+  body.game-active .app-shell { padding-bottom: 0; }
+  body.game-active .game-screen:not(.hidden) { padding-top: 6px; }
+}
+@media (max-width: 420px) {
+  .home-action-grid { gap: 8px; }
+  .home-action-card { grid-template-columns: 1fr 14px; min-height: 104px; gap: 5px 8px; padding: 11px; }
+  .home-action-icon { grid-column: 1 / -1; width: 28px; height: 28px; font-size: 17px; }
+  .home-action-copy strong { font-size: 14px; }
+  .home-action-copy small { font-size: 10px; }
+  .game-mode-picker { grid-template-columns: 1fr; }
+}
+@media (max-height: 620px) {
+  body.game-active .game-screen:not(.hidden) { padding-top: 4px; padding-bottom: 4px; }
+  body.game-active .opponents { padding-top: 6px; }
+  body.game-active .table-center { padding-top: 4px; padding-bottom: 2px; }
+  body.game-active .player-area { padding-top: 5px; padding-bottom: 5px; }
+  body.game-active .hand { min-height: 92px; }
+}
+
+.opponents {
+  align-content: start;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 16px 4px;
+}
+.opponent {
+  min-height: 38px;
+  gap: 7px;
+  padding: 4px 9px;
+  border-color: #ffffff20;
+  background: #0b1710a6;
+  box-shadow: 0 2px 7px #00000020;
+}
+.opponent-cards { align-items: center; padding-left: 7px; }
+.opponent-back { width: 20px; height: 28px; }
+.table-center { gap: 3px; }
+#turn-message:empty { display: none; }
+.play-area {
+  width: min(100%, 480px);
+  min-height: 174px;
+  padding: 14px 20px;
+  border: 1px solid #ffffff20;
+  border-radius: 22px;
+  background: radial-gradient(ellipse at center, #0b171044, #0b17101a 72%);
+  box-shadow: inset 0 1px 0 #ffffff0a;
+}
+.player-area {
+  padding: 12px clamp(12px, 3vw, 26px) 14px;
+  border: 1px solid #ffffff1c;
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  background: linear-gradient(180deg, #17271d, #0e1a13);
+  box-shadow: 0 -10px 24px #05090726;
+}
+.hand {
+  border: 1px solid #ffffff20;
+  border-radius: 15px;
+  background: #08130e88;
+  box-shadow: inset 0 1px 0 #ffffff08;
+  scrollbar-color: #58cc02 #ffffff12;
+}
+
+@media (max-width: 760px) {
+  .opponents { padding: 9px 10px 3px; }
+  .opponent { gap: 5px; padding: 4px 7px; }
+  .opponent-back { width: 17px; height: 25px; }
+  .play-area { min-height: 154px; padding: 10px 8px; border-radius: 18px; }
+  .player-area { padding: 8px 8px 10px; border-radius: 16px 16px 0 0; }
+  .hand { border-radius: 13px; }
+}
+@media (max-height: 620px) {
+  body.game-active .player-area { padding-top: 5px; padding-bottom: 5px; }
+}
+
+.game-invite-alert {
+  position: fixed;
+  z-index: 26;
+  right: max(16px, calc((100vw - 1200px) / 2));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  width: min(390px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid #58cc0270;
+  border-radius: 18px;
+  color: #edf5ed;
+  background: linear-gradient(145deg, #1b3223, #101c14);
+  box-shadow: 0 8px 0 #07100b, 0 20px 46px #0009;
+}
+.game-invite-alert:not(.hidden) { animation: screen-enter 220ms ease-out both; }
+.game-invite-alert-heading { display: flex; align-items: center; gap: 11px; }
+.game-invite-alert-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #58cc024d;
+  border-radius: 12px;
+  color: #a7e83b;
+  background: #58cc0218;
+  font-size: 19px;
+}
+.game-invite-alert-heading strong, .game-invite-alert-heading span { display: block; }
+.game-invite-alert-heading strong { font: 800 15px "Outfit", sans-serif; }
+.game-invite-alert-heading div span { margin-top: 2px; color: #b7c8bb; font-size: 12px; }
+.game-invite-alert p { margin: 12px 0; color: #b7c8bb; font-size: 13px; }
+.game-invite-alert-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.game-invite-alert-actions button { min-height: 46px; }
+
+@media (max-width: 480px) {
+  .game-invite-alert { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: calc(100vw - 24px); padding: 14px; }
 }

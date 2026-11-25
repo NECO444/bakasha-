@@ -58,13 +58,26 @@
               <div class="setup-icon" aria-hidden="true">♣</div>
               <div><h2 id="setup-title">Choose your quest</h2><p>Pick a table and play with your people.</p></div>
             </div>
-            <button class="primary-button play-now-button" id="play-now-button" type="button">Play now <span aria-hidden="true">→</span></button>
+            <div class="home-action-grid" aria-label="Online games">
+              <button class="home-action-card home-action-find" id="browse-games-button" type="button">
+                <span class="home-action-icon" aria-hidden="true">⌕</span>
+                <span class="home-action-copy"><strong>Find a game</strong><small>Join a table that's waiting</small></span>
+                <span class="home-action-arrow" aria-hidden="true">→</span>
+              </button>
+              <button class="home-action-card home-action-create" id="one-v-one-button" type="button">
+                <span class="home-action-icon" aria-hidden="true">↗</span>
+                <span class="home-action-copy"><strong>Create a game</strong><small>Start a duel and invite a friend</small></span>
+                <span class="home-action-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+            <div class="home-more-heading">
+              <h3>More ways to play</h3>
+              <span>Pick your style</span>
+            </div>
             <div class="game-mode-picker" id="game-mode-picker" role="group" aria-label="Game type">
-              <button class="game-mode-option" id="one-v-one-button" type="button"><strong>Duel a friend</strong><span>Create a table and invite by link</span></button>
               <button class="game-mode-option" id="group-game-button" type="button" aria-expanded="false" aria-controls="group-game-options"><strong>Group quest</strong><span>Invite 2–5 players</span></button>
               <button class="game-mode-option training-mode-option" id="training-game-button" type="button"><strong>Solo play</strong><span>Practice against the system</span></button>
             </div>
-            <button class="text-button browse-games-button" id="browse-games-button" type="button">Browse open challenges</button>
             <div class="group-game-options hidden" id="group-game-options">
               <button class="text-button mode-back-button" id="cancel-group-setup" type="button">← Back to game modes</button>
               <span class="field-label">CHOOSE YOUR CREW SIZE</span>
@@ -325,6 +338,18 @@
         </section>
       </div>
     </div>
+
+    <aside class="game-invite-alert hidden" id="game-invite-alert" role="region" aria-label="Incoming game invite" aria-live="assertive">
+      <div class="game-invite-alert-heading">
+        <span class="game-invite-alert-icon" aria-hidden="true">♠</span>
+        <div><strong>Game invite</strong><span id="game-invite-from"></span></div>
+      </div>
+      <p id="game-invite-copy">invited you to play.</p>
+      <div class="game-invite-alert-actions">
+        <button class="primary-button" id="game-invite-accept" type="button" data-challenge-action="accept">Join game</button>
+        <button class="secondary-button" id="game-invite-decline" type="button" data-challenge-action="decline">Decline</button>
+      </div>
+    </aside>
 
     <section class="leaderboard-page hidden" id="leaderboard-modal" aria-labelledby="leaderboard-title">
       <div class="modal-card leaderboard-card">
