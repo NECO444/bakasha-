@@ -2,34 +2,41 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { handleAction, handleCreate, handleJoin, handleStart, handleState } from "../lib/rooms.js";
 import { HttpError } from "../lib/http.js";
+import { handleLeaderboard } from "../lib/leaderboard.js";
+import { loadRoom, saveRoom } from "../lib/store.js";
+import { accountRequest, createTestAccount } from "../test-helpers/auth.js";
 
-const req = (code, path, token) => ({
-  url: `https://example.test/api/rooms/${code}/${path}`,
-  headers: new Headers(token ? { authorization: `Bearer ${token}` } : {}),
-});
+const req = (code, path, token, account) => accountRequest(
+  `/api/rooms/${code}/${path}`,
+  account,
+  token ? { authorization: `Bearer ${token}` } : {},
+);
 
 test("full room flow: create, join, start, play, privacy, reconnect", async () => {
-  const created = await handleCreate({ body: { name: "  Ann  " } });
+  const host = await createTestAccount("ann");
+  const guest = await createTestAccount("ben");
+  const stranger = await createTestAccount("cy");
+  const created = await handleCreate({ request: accountRequest("/api/rooms", host), body: { name: "untrusted name" } });
   assert.equal(created.seat, 0);
   assert.match(created.roomCode, /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/);
   const code = created.roomCode;
 
-  await assert.rejects(handleStart({ request: req(code, "start", created.token) }), (e) => e instanceof HttpError && e.status === 409);
+  await assert.rejects(handleStart({ request: req(code, "start", created.token, host) }), (e) => e instanceof HttpError && e.status === 409);
 
-  const joined = await handleJoin({ request: req(code, "join"), body: { name: "Ben" } });
+  const joined = await handleJoin({ request: req(code, "join", null, guest), body: { name: "untrusted name" } });
   assert.equal(joined.seat, 1);
-  await assert.rejects(handleJoin({ request: req(code, "join"), body: { name: "Cy" } }), (e) => e.status === 403);
+  await assert.rejects(handleJoin({ request: req(code, "join", null, stranger), body: { name: "Cy" } }), (e) => e.status === 403);
 
-  // reconnect with a saved token needs no name
-  const again = await handleJoin({ request: req(code, "join"), body: { token: joined.token } });
+  const again = await handleJoin({ request: req(code, "join", null, guest), body: { token: joined.token } });
   assert.equal(again.seat, 1);
 
-  await assert.rejects(handleStart({ request: req(code, "start", joined.token) }), (e) => e.status === 403);
-  const started = await handleStart({ request: req(code, "start", created.token) });
+  await assert.rejects(handleStart({ request: req(code, "start", joined.token, guest) }), (e) => e.status === 403);
+  await assert.rejects(handleState({ request: req(code, "state", created.token, stranger) }), (e) => e.status === 403);
+  const started = await handleStart({ request: req(code, "start", created.token, host) });
   assert.equal(started.publicData.status, "playing");
   assert.equal(started.ownHand.length, 4);
 
-  const guestView = await handleState({ request: req(code, "state", joined.token) });
+  const guestView = await handleState({ request: req(code, "state", joined.token, guest) });
   const hostText = JSON.stringify(started.publicData);
   const guestText = JSON.stringify(guestView.publicData);
   for (const card of [...started.ownHand, ...guestView.ownHand]) {
@@ -39,26 +46,98 @@ test("full room flow: create, join, start, play, privacy, reconnect", async () =
   }
   assert.notDeepEqual(started.ownHand, guestView.ownHand);
 
-  await assert.rejects(handleState({ request: req(code, "state", "nope") }), (e) => e.status === 403);
-  await assert.rejects(handleAction({ request: req(code, "action", joined.token), body: { type: "draw", actionId: "a1" } }), (e) => e.status === 400);
+  await assert.rejects(handleState({ request: req(code, "state", "nope", guest) }), (e) => e.status === 403);
+  await assert.rejects(handleAction({ request: req(code, "action", joined.token, guest), body: { type: "draw", actionId: "a1" } }), (e) => e.status === 400);
 
-  const moved = await handleAction({ request: req(code, "action", created.token), body: { type: "draw", actionId: "a2" } });
+  const moved = await handleAction({ request: req(code, "action", created.token, host), body: { type: "draw", actionId: "a2" } });
   assert.equal(moved.ownHand.length >= 4, true);
-  const retried = await handleAction({ request: req(code, "action", created.token), body: { type: "draw", actionId: "a2" } });
+  const retried = await handleAction({ request: req(code, "action", created.token, host), body: { type: "draw", actionId: "a2" } });
   assert.equal(retried.publicData.version, moved.publicData.version, "retrying the same action id must not apply twice");
 });
 
-test("invalid room codes and names are rejected", async () => {
-  await assert.rejects(handleState({ request: req("short", "state", "x") }), (e) => e.status === 400);
-  await assert.rejects(handleCreate({ body: { name: "" } }), (e) => e.status === 400);
-  await assert.rejects(handleCreate({ body: { name: "x".repeat(17) } }), (e) => e.status === 400);
+test("room access requires a signed-in account", async () => {
+  await assert.rejects(handleCreate({ request: accountRequest("/api/rooms"), body: { name: "Guest" } }), (e) => e.status === 401);
+  await assert.rejects(handleState({ request: req("2345", "state", "token") }), (e) => e.status === 401);
+  await assert.rejects(handleState({ request: req("short", "state", "x", await createTestAccount()) }), (e) => e.status === 400);
+});
+
+test("online group rooms fill their selected capacity before the host can start", async () => {
+  const host = await createTestAccount("group_host");
+  const second = await createTestAccount("group_second");
+  const third = await createTestAccount("group_third");
+  const extra = await createTestAccount("group_extra");
+  const created = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { maxPlayers: 3 },
+  });
+  assert.equal(created.publicData.maxPlayers, 3);
+  await assert.rejects(
+    handleStart({ request: req(created.roomCode, "start", created.token, host) }),
+    (error) => error.status === 409,
+  );
+
+  const joinedSecond = await handleJoin({
+    request: req(created.roomCode, "join", null, second),
+    body: {},
+  });
+  const joinedThird = await handleJoin({
+    request: req(created.roomCode, "join", null, third),
+    body: {},
+  });
+  assert.equal(joinedSecond.seat, 1);
+  assert.equal(joinedThird.seat, 2);
+  await assert.rejects(
+    handleJoin({ request: req(created.roomCode, "join", null, extra), body: {} }),
+    (error) => error.status === 403,
+  );
+
+  const started = await handleStart({ request: req(created.roomCode, "start", created.token, host) });
+  assert.equal(started.publicData.players.length, 3);
+  assert.equal(started.publicData.game.round, 1);
+  assert.equal(started.ownHand.length, 4);
+
+  const room = await loadRoom(created.roomCode);
+  room.game.hands = [
+    [{ id: "hearts-3", suit: "hearts", rank: "3" }],
+    [{ id: "clubs-9", suit: "clubs", rank: "9" }],
+    [],
+  ];
+  room.game.discard = [{ id: "hearts-5", suit: "hearts", rank: "5" }];
+  room.game.activeSuit = "hearts";
+  room.game.current = 0;
+  room.game.pending = 0;
+  room.game.pendingType = null;
+  room.game.combo = null;
+  room.game.freeSuitPlay = false;
+  room.game.mustDrawSeat = null;
+  room.game.roundOut = [false, false, false];
+  room.game.eliminated = [false, false, true];
+  room.game.knocked = [false, false, false];
+  room.game.finished = false;
+  room.game.winner = null;
+  await saveRoom(created.roomCode, room);
+
+  const hostAction = req(created.roomCode, "action", created.token, host);
+  await handleAction({ request: hostAction, body: { type: "knock", actionId: "group-knock" } });
+  const finished = await handleAction({
+    request: hostAction,
+    body: { type: "play", cardId: "hearts-3", actionId: "group-final-play" },
+  });
+  assert.equal(finished.publicData.status, "finished");
+  assert.equal(finished.publicData.game.winner, host.username);
+  const standings = await handleLeaderboard();
+  assert.equal(standings.players.find((player) => player.username === host.username).wins, 1);
+  assert.equal(standings.players.find((player) => player.username === second.username).losses, 1);
+  assert.equal(standings.players.find((player) => player.username === third.username).losses, 1);
 });
 
 test("room presence becomes away after 30 seconds and reconnect restores the same seat", async () => {
-  const created = await handleCreate({ body: { name: "Ann" } });
+  const host = await createTestAccount("host");
+  const guest = await createTestAccount("guest");
+  const created = await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
   const code = created.roomCode;
-  const hostRequest = req(code, "state", created.token);
-  const joined = await handleJoin({ request: req(code, "join"), body: { name: "Ben" } });
+  const hostRequest = req(code, "state", created.token, host);
+  const joined = await handleJoin({ request: req(code, "join", null, guest), body: {} });
   const joinedAt = Date.now();
 
   const active = await handleState({ request: hostRequest });
@@ -67,7 +146,7 @@ test("room presence becomes away after 30 seconds and reconnect restores the sam
   const stale = await handleState({ request: hostRequest, now: joinedAt + 30_001 });
   assert.deepEqual(stale.publicData.players.map((player) => player.online), [true, false]);
 
-  const reconnected = await handleJoin({ request: req(code, "join"), body: { token: joined.token } });
+  const reconnected = await handleJoin({ request: req(code, "join", null, guest), body: { token: joined.token } });
   assert.equal(reconnected.seat, 1);
   assert.deepEqual(reconnected.publicData.players.map((player) => player.online), [true, true]);
 });

@@ -13,7 +13,6 @@ const elements = {
   setup: document.querySelector("#setup-screen"),
   online: document.querySelector("#online-screen"),
   game: document.querySelector("#game-screen"),
-  playerFields: document.querySelector("#player-fields"),
   start: document.querySelector("#start-button"),
   opponents: document.querySelector("#opponents"),
   hand: document.querySelector("#hand"),
@@ -25,7 +24,6 @@ const elements = {
   activeSuit: document.querySelector("#active-suit"),
   suitTitle: document.querySelector("#suit-title"),
   suitDescription: document.querySelector("#suit-description"),
-  agreeSuit: document.querySelector("#agree-suit"),
   rematchModal: document.querySelector("#rematch-modal"),
   rematchWinner: document.querySelector("#rematch-winner"),
   rematch: document.querySelector("#rematch-button"),
@@ -34,6 +32,7 @@ const elements = {
   avatar: document.querySelector("#player-avatar"),
   handCount: document.querySelector("#hand-count"),
   handHelp: document.querySelector("#hand-help"),
+  knockButton: document.querySelector("#knock-button"),
   timer: document.querySelector("#turn-timer"),
   clock: document.querySelector("#turn-clock"),
   turnNumber: document.querySelector("#turn-number"),
@@ -45,6 +44,7 @@ const elements = {
 const chatToggle = document.querySelector("#game-chat-toggle");
 
 let selectedCount = 4;
+let onlineRoomSize = 2;
 let game = null;
 let toastTimer = null;
 let turnTimer = null;
@@ -52,6 +52,7 @@ let onlineMode = false;
 let onlineSeat = -1;
 let accountUser = null;
 let accountMode = "login";
+let pendingInviteRoom = null;
 let publicRoomsTimer = null;
 let publicRoomsLoading = false;
 const online = {
@@ -72,25 +73,6 @@ const online = {
   version: 0,
   clockOffset: 0,
 };
-
-function renderPlayerFields() {
-  elements.playerFields.replaceChildren();
-  for (let index = 0; index < selectedCount; index += 1) {
-    const wrapper = document.createElement("label");
-    wrapper.className = "player-field";
-    const number = document.createElement("span");
-    number.className = "player-number";
-    number.textContent = String(index + 1).padStart(2, "0");
-    const input = document.createElement("input");
-    input.type = "text";
-    input.maxLength = 16;
-    input.autocomplete = "off";
-    input.placeholder = `Player ${index + 1}`;
-    input.setAttribute("aria-label", `Name for player ${index + 1}`);
-    wrapper.append(number, input);
-    elements.playerFields.append(wrapper);
-  }
-}
 
 function createDeck() {
   const cards = [];
@@ -113,11 +95,11 @@ function shuffle(cards) {
 }
 
 function startGame() {
-  const names = [...elements.playerFields.querySelectorAll("input")].map((input, index) => {
-    const value = input.value.trim().replace(/\s+/g, " ");
-    return value || `Player ${index + 1}`;
-  });
-  dealGame(names);
+  if (!accountUser) {
+    showAccountGate();
+    return;
+  }
+  openOnlineLobby("group");
 }
 
 function dealGame(names) {
@@ -149,11 +131,17 @@ function dealGame(names) {
     current: 0,
     direction: 1,
     activeSuit: firstDiscard.suit,
+    demandedSuit: null,
     pending: 0,
     pendingType: null,
     combo: null,
+    jumpSupport: false,
     freeSuitPlay: false,
-    jokerReduced: false,
+    mustDrawSeat: null,
+    knocked: names.map(() => false),
+    round: 1,
+    eliminated: names.map(() => false),
+    roundOut: names.map(() => false),
     turns: 1,
     finished: false,
     stagedCardIndex: null,
@@ -169,25 +157,95 @@ function dealGame(names) {
   startTurnTimer();
 }
 
+function completeLocalOut(seat) {
+  game.roundOut[seat] = true;
+  const stillPlaying = game.players
+    .map((player, index) => index)
+    .filter((index) => !game.eliminated[index] && !game.roundOut[index]);
+  if (stillPlaying.length > 1) {
+    showToast(`${game.players[seat].name} is safe for this round.`);
+    return false;
+  }
+
+  const eliminatedSeat = stillPlaying[0];
+  game.eliminated[eliminatedSeat] = true;
+  const survivors = game.players
+    .map((player, index) => index)
+    .filter((index) => !game.eliminated[index]);
+  showToast(`${game.players[eliminatedSeat].name} is eliminated.`);
+  if (survivors.length === 1) {
+    finishLocalGame(survivors[0]);
+    return true;
+  }
+  startPlayoffRound(survivors);
+  return true;
+}
+
+function finishLocalGame(winnerSeat) {
+  game.finished = true;
+  game.winner = game.players[winnerSeat].name;
+  window.clearInterval(turnTimer);
+  turnTimer = null;
+  renderGame();
+  elements.rematchWinner.textContent = game.winner;
+  document.querySelector("#rematch-status").textContent = "Last player standing wins the playoff.";
+  elements.rematchModal.classList.remove("hidden");
+  elements.rematch.focus();
+}
+
+function startPlayoffRound(survivors) {
+  const deck = createDeck();
+  for (const [index, player] of game.players.entries()) {
+    player.hand = [];
+    if (!game.eliminated[index]) {
+      for (let cardIndex = 0; cardIndex < 4; cardIndex += 1) player.hand.push(deck.pop());
+    }
+  }
+  let firstDiscardIndex = deck.findIndex((card) => !["A", "2", "8", "J", "JOKER"].includes(card.rank));
+  if (firstDiscardIndex < 0) firstDiscardIndex = 0;
+  const [firstDiscard] = deck.splice(firstDiscardIndex, 1);
+  game.deck = deck;
+  game.discard = [firstDiscard];
+  game.current = survivors[0];
+  game.direction = 1;
+  game.activeSuit = firstDiscard.suit;
+  game.demandedSuit = null;
+  game.pending = 0;
+  game.pendingType = null;
+  game.combo = null;
+  game.jumpSupport = false;
+  game.freeSuitPlay = false;
+  game.mustDrawSeat = null;
+  game.knocked = game.players.map(() => false);
+  game.roundOut = game.players.map(() => false);
+  game.round += 1;
+  game.turns += 1;
+  renderGame();
+  startTurnTimer();
+}
+
 function topCard() {
   return game.discard[game.discard.length - 1];
 }
 
 function isPlayable(card) {
+  if (game.mustDrawSeat === game.current) return false;
   if (game.pending > 0) {
     return game.pendingType === "draw-two"
       ? card.rank === "2"
       : card.rank === "JOKER" || card.rank === "2";
   }
   if (game.combo) {
-    if (card.rank === "J") return card.suit === game.combo.lastCard.suit || game.combo.lastCard.rank === "J";
-    if (card.rank === "8") return card.suit === game.combo.lastCard.suit || card.rank === game.combo.lastCard.rank;
-    return card.suit === game.combo.lastCard.suit;
+    return card.rank === "8" || card.suit === game.combo.lastCard.suit;
   }
+  if (game.jumpSupport) return !["A", "2", "8", "J", "JOKER"].includes(card.rank);
   if (game.freeSuitPlay) return true;
-  if (card.rank === "A") return card.suit === game.activeSuit || topCard().rank === "A";
-  if (card.rank === "J") return card.suit === game.activeSuit || topCard().rank === "J";
-  return card.rank === "JOKER" || card.suit === game.activeSuit || card.rank === topCard().rank;
+  if (game.demandedSuit) {
+    return card.rank === "A" || card.rank === "JOKER" || card.suit === game.demandedSuit;
+  }
+  return card.rank === "JOKER"
+    ? topCard().rank !== "2"
+    : card.suit === game.activeSuit || card.rank === topCard().rank;
 }
 
 function getCardColor(suit) {
@@ -277,14 +335,20 @@ function renderGame() {
   elements.avatar.textContent = player.name.trim().charAt(0).toUpperCase();
   elements.avatar.style.color = PLAYER_COLORS[viewIndex % PLAYER_COLORS.length];
   elements.handCount.textContent = `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`;
-  elements.turnNumber.textContent = `TURN ${game.turns}`;
+  elements.turnNumber.textContent = onlineMode ? `TURN ${game.turns}` : `ROUND ${game.round} · TURN ${game.turns}`;
   elements.timer.classList.toggle("timer-warning", game.timeLeft <= 10 && !game.finished);
   elements.clock.textContent = game.finished ? "—" : String(game.timeLeft);
   elements.timer.setAttribute("aria-label", game.finished ? "Game over" : `${game.timeLeft} seconds remaining`);
   elements.pileCount.textContent = `${game.deckCount === undefined ? game.deck.length : game.deckCount} LEFT`;
-  elements.drawPile.setAttribute("aria-label", game.pending > 0 ? `Draw ${game.pending} penalty cards` : "Draw a card");
+  elements.drawPile.setAttribute("aria-label", game.pending > 0
+    ? `Draw ${game.pending} penalty cards`
+    : game.mustDrawSeat === game.current ? "Draw one card" : "Draw a card");
   elements.drawPile.classList.toggle("is-drawing", online.movePending && online.pendingAction === "draw");
-  elements.drawPile.disabled = onlineMode && (game.current !== onlineSeat || online.movePending);
+  elements.drawPile.disabled = (onlineMode && (game.current !== onlineSeat || online.movePending))
+    || (player.hand.length === 1 && !game.knocked?.[viewIndex] && (!onlineMode || game.current === onlineSeat));
+  const canKnock = player.hand.length === 1 && !game.knocked?.[viewIndex] && !game.finished;
+  elements.knockButton.classList.toggle("hidden", !canKnock);
+  elements.knockButton.disabled = onlineMode && online.movePending;
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
   const previousDiscard = elements.discard.firstElementChild;
   const visibleTopCard = online.optimisticCard || topCard();
@@ -297,7 +361,7 @@ function renderGame() {
   winningCard.replaceChildren();
   winningCard.classList.toggle("hidden", !game.finished);
   if (game.finished) winningCard.append(createCardElement(topCard(), { interactive: false }));
-  const jokerSuitPending = game.pendingType === "draw-four" && !game.jokerReduced;
+  const jokerSuitPending = game.pendingType === "draw-four";
   if (game.freeSuitPlay || jokerSuitPending || game.activeSuit === "wild") {
     elements.activeSuit.classList.add("hidden");
   } else {
@@ -329,7 +393,11 @@ function renderOpponents() {
     }
     const count = document.createElement("span");
     count.className = "opponent-count";
-    count.textContent = `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`;
+    count.textContent = game.eliminated?.[index]
+      ? "Eliminated"
+      : game.roundOut?.[index]
+        ? "Round safe"
+        : `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`;
     opponent.append(name, cardRow, count);
     elements.opponents.append(opponent);
   });
@@ -341,8 +409,10 @@ function renderHand() {
   );
   elements.hand.replaceChildren();
   const hand = game.players[onlineMode ? onlineSeat : game.current].hand;
+  const seat = onlineMode ? onlineSeat : game.current;
   hand.forEach((card, index) => {
     const cardElement = createCardElement(card, { interactive: true, index });
+    if (hand.length === 1 && !game.knocked?.[seat]) cardElement.disabled = true;
     const spread = hand.length > 9 ? 0 : (index - (hand.length - 1) / 2) * 1.4;
     cardElement.style.setProperty("--tilt", `${spread}deg`);
     if (!previousCards.has(card.id)) {
@@ -376,12 +446,24 @@ function updateMessage() {
     elements.message.textContent = `Draw ${game.pending}`;
     return;
   }
+  if (game.mustDrawSeat === game.current) {
+    elements.message.textContent = `${player.name} must draw 1`;
+    return;
+  }
+  if (game.demandedSuit) {
+    elements.message.textContent = `Play ${SUITS[game.demandedSuit].name} or an Ace`;
+    return;
+  }
   if (game.freeSuitPlay) {
     elements.message.textContent = `${player.name}’s turn`;
     return;
   }
   if (game.combo) {
-    elements.message.textContent = `${player.name} · Chain`;
+    elements.message.textContent = `${player.name} · Add 8 support or draw 1`;
+    return;
+  }
+  if (game.jumpSupport) {
+    elements.message.textContent = `${player.name} · Play a normal support or draw 1`;
     return;
   }
   elements.message.textContent = `${player.name}’s turn`;
@@ -391,26 +473,15 @@ function selectCard(index) {
   if (!game || game.finished) return;
   if (onlineMode && (game.current !== onlineSeat || online.movePending)) return;
   const card = game.players[game.current].hand[index];
-  if (!card || !isPlayable(card)) return;
+  if (!card || !isPlayable(card) || (game.players[game.current].hand.length === 1 && !game.knocked[game.current])) return;
   if (card.rank === "A") {
     game.stagedCardIndex = index;
-    const aceOnAce = card.rank === "A" && topCard().rank === "A";
-    elements.suitTitle.textContent = aceOnAce ? "Agree or object?" : "Pick the next suit";
-    elements.suitDescription.textContent = aceOnAce
-      ? `Keep ${SUITS[game.activeSuit].name} as the active suit, or choose another suit.`
-      : "Which suit should everyone play next?";
-    elements.agreeSuit.classList.toggle("hidden", !aceOnAce);
-    for (const option of elements.suitModal.querySelectorAll(".suit-option")) {
-      option.disabled = aceOnAce && option.dataset.suit === game.activeSuit;
-    }
+    elements.suitTitle.textContent = "Name a suit";
+    elements.suitDescription.textContent = "The next player must play this suit or an Ace.";
+    for (const option of elements.suitModal.querySelectorAll(".suit-option")) option.disabled = false;
     elements.suitModal.classList.remove("hidden");
-    if (aceOnAce) {
-      elements.agreeSuit.textContent = `Agree — keep ${SUITS[game.activeSuit].name} ${SUITS[game.activeSuit].symbol}`;
-      elements.agreeSuit.focus();
-    } else {
-      const firstOption = elements.suitModal.querySelector(".suit-option");
-      if (firstOption) firstOption.focus();
-    }
+    const firstOption = elements.suitModal.querySelector(".suit-option");
+    if (firstOption) firstOption.focus();
     return;
   }
   if (onlineMode) {
@@ -422,149 +493,150 @@ function selectCard(index) {
   playLocalTurnCard(index);
 }
 
-function playCard(index, chosenSuit, aceAgreed) {
+function playCard(index, chosenSuit) {
   const player = game.players[game.current];
   const [card] = player.hand.splice(index, 1);
   if (!card) return;
   const counteringJoker = game.pending > 0 && game.pendingType === "draw-four";
   const counteringDrawTwo = game.pending > 0 && game.pendingType === "draw-two" && card.rank === "2";
+  const supportedEight = Boolean(game.combo);
+  const supportedJump = game.jumpSupport;
   game.discard.push(card);
   game.freeSuitPlay = false;
-  if (chosenSuit) game.activeSuit = chosenSuit;
-  else if (card.rank !== "JOKER") game.activeSuit = card.suit;
+  game.knocked[game.current] = false;
+  if (card.rank === "A") {
+    game.activeSuit = chosenSuit;
+    game.demandedSuit = chosenSuit;
+  } else if (card.rank !== "JOKER") game.activeSuit = card.suit;
 
-  if (player.hand.length === 0) {
-    game.finished = true;
-    game.winner = player.name;
-    window.clearInterval(turnTimer);
-    turnTimer = null;
-    renderGame();
-    elements.rematchWinner.textContent = player.name;
-    elements.rematchModal.classList.remove("hidden");
-    elements.rematch.focus();
-    return;
-  }
-
-  if (counteringJoker && card.rank === "2") {
-    game.pending = Math.max(0, game.pending - 2);
-    game.jokerReduced = true;
-    if (game.pending === 0) {
-      game.pendingType = null;
-      game.jokerReduced = false;
-      showToast(`${player.name} canceled the Joker penalty with 2s.`);
-      advanceTurn();
-      return;
-    }
-    showToast(`${player.name} reduced the penalty. Draw ${game.pending} or counter more.`);
-    renderGame();
-    return;
-  }
   if (counteringJoker && card.rank === "JOKER") {
     game.pending = 0;
     game.pendingType = null;
-    game.jokerReduced = false;
+    game.demandedSuit = null;
     game.freeSuitPlay = true;
-    showToast(`${player.name} canceled the Joker penalty.`);
+    if (player.hand.length === 0) game.mustDrawSeat = game.current;
+    showToast(`${player.name} canceled the Joker penalty. The next player may play anything.`);
+    advanceTurn();
+    return;
+  }
+  if (counteringJoker && card.rank === "2") {
+    game.pending = 0;
+    game.pendingType = null;
+    game.demandedSuit = null;
+    takeCards(player, 2);
+    if (player.hand.length === 0) game.mustDrawSeat = game.current;
+    showToast(`${player.name} blocked 2 of the Joker penalty and drew 2.`);
     advanceTurn();
     return;
   }
   if (counteringDrawTwo) {
     game.pending = 0;
     game.pendingType = null;
-    game.jokerReduced = false;
+    if (player.hand.length === 0) game.mustDrawSeat = game.current;
     showToast(`${player.name} canceled the 2-card penalty.`);
     advanceTurn();
     return;
   }
 
-  if (game.combo && (card.rank === "8" || card.rank === "J")) {
-    game.combo.lastCard = card;
-    if (card.rank === "8") game.combo.eightCount += 1;
-    if (card.rank === "J" && game.players.length > 2) {
-      const combo = game.combo;
-      game.combo = null;
-      showToast("Jack played. The next player is skipped.");
-      finishComboTurn(combo, true);
+  if (game.demandedSuit && card.rank !== "A" && card.rank !== "JOKER") game.demandedSuit = null;
+  if (card.rank === "JOKER") game.demandedSuit = null;
+
+  let reverseAfterSupport = false;
+
+  if (supportedEight) {
+    if (card.rank === "8") {
+      game.combo.lastCard = card;
+      game.combo.eightCount += 1;
+      if (player.hand.length === 0) game.mustDrawSeat = game.current;
+      showToast("Another 8 needs its own support.");
+      renderGame();
       return;
     }
-    showToast(`${card.rank === "8" ? "8" : "Jack"} added. Play another 8/Jack or the support card.`);
-    renderGame();
-    return;
-  }
-  if (game.combo) {
-    const combo = game.combo;
+    reverseAfterSupport = game.combo.eightCount % 2 === 1;
     game.combo = null;
-    if (card.rank === "2") {
-      game.pending += 2;
-      game.pendingType = "draw-two";
-      showToast("The 2-card penalty is on the table.");
-    } else {
-      showToast("Support added. Turn passed.");
-    }
-    finishComboTurn(combo);
+    if (reverseAfterSupport) game.direction *= -1;
+  } else if (supportedJump) {
+    game.jumpSupport = false;
+  }
+
+  if (player.hand.length === 0 && !["A", "2", "8", "J", "JOKER"].includes(card.rank)) {
+    if (completeLocalOut(game.current)) return;
+    advanceTurn();
     return;
   }
-  if (card.rank === "8" || card.rank === "J") {
-    game.combo = {
-      lastCard: card,
-      eightCount: card.rank === "8" ? 1 : 0,
-    };
-    if (card.rank === "J" && game.players.length > 2) {
-      const combo = game.combo;
-      game.combo = null;
-      showToast("Jack played. The next player is skipped.");
-      finishComboTurn(combo, true);
-      return;
-    }
-    showToast(`${card.rank === "8" ? "8" : "Jack"} played. Add a matching support card or draw one.`);
+
+  if (card.rank === "8") {
+    game.combo = { lastCard: card, eightCount: 1 };
+    if (player.hand.length === 0) game.mustDrawSeat = game.current;
+    showToast("8 played. Add support or draw one.");
     renderGame();
     return;
   }
-
-  if (card.rank === "2") {
-    game.pending += 2;
-    game.pendingType = "draw-two";
-    showToast("Draw two is on the table.");
-    advanceTurn();
-  } else if (card.rank === "JOKER") {
-    game.pending += 4;
-    game.pendingType = "draw-four";
-    game.jokerReduced = false;
-    showToast(game.pending === 4 ? "Joker! Draw four is on the table." : `Penalty stacked: ${game.pending} cards.`);
-    advanceTurn();
-  } else {
-    if (card.rank === "A") {
-      showToast(aceAgreed ? `${SUITS[game.activeSuit].name} stays active.` : `Next suit: ${SUITS[chosenSuit].name}.`);
+  if (card.rank === "J") {
+    if (player.hand.length === 0) game.mustDrawSeat = game.current;
+    if (game.players.length === 2) {
+      if (player.hand.length > 0) game.jumpSupport = true;
+      showToast(player.hand.length === 0
+        ? "Jack played. Draw one on your next turn."
+        : "Jack played. Play a normal support card or draw one.");
+      if (player.hand.length === 0) {
+        renderGame();
+        startTurnTimer();
+      }
+      else renderGame();
+      return;
     }
-    advanceTurn();
-  }
-}
-
-function playLocalTurnCard(index, chosenSuit, aceAgreed) {
-  playCard(index, chosenSuit, aceAgreed);
-}
-
-function finishComboTurn(combo, skipNext) {
-  if (combo.eightCount % 2 === 1) {
-    game.direction *= -1;
-    if (skipNext) showToast("The direction reversed; the next player is skipped.");
-    else showToast("The direction reversed.");
-  }
-  if (skipNext) {
+    showToast("Jack played. The next player is skipped.");
     advanceTurn(2);
     return;
   }
+  let message = `Played.${reverseAfterSupport ? " The direction reversed." : ""}`;
+  if (card.rank === "2") {
+    game.pending = 2;
+    game.pendingType = "draw-two";
+    if (player.hand.length === 0) game.mustDrawSeat = game.current;
+    message = "The next player must draw two.";
+  } else if (card.rank === "JOKER") {
+    game.pending = 4;
+    game.pendingType = "draw-four";
+    if (player.hand.length === 0) game.mustDrawSeat = game.current;
+    message = "Joker! The next player must draw four.";
+  } else {
+    if (card.rank === "A") {
+      message = `Next suit: ${SUITS[chosenSuit].name}.`;
+      if (player.hand.length === 0) game.mustDrawSeat = game.current;
+    }
+  }
+  if (reverseAfterSupport) message += " The direction reversed.";
+  showToast(message);
   advanceTurn();
+}
+
+function playLocalTurnCard(index, chosenSuit) {
+  playCard(index, chosenSuit);
 }
 
 function nextPlayerIndex(steps) {
   const count = game.players.length;
-  return (game.current + game.direction * steps % count + count) % count;
+  let index = game.current;
+  for (let step = 0; step < steps; step += 1) {
+    let attempts = 0;
+    do {
+      index = (index + game.direction + count) % count;
+      attempts += 1;
+    } while ((game.eliminated?.[index] || game.roundOut?.[index]) && attempts < count);
+  }
+  return index;
 }
 
 function advanceTurn(steps) {
   game.current = nextPlayerIndex(steps || 1);
   game.turns += 1;
+  if (game.mustDrawSeat === game.current) {
+    renderGame();
+    startTurnTimer();
+    return;
+  }
   renderGame();
   startTurnTimer();
 }
@@ -582,9 +654,10 @@ function takeCards(player, count) {
     if (game.deck.length === 0) break;
     player.hand.push(game.deck.pop());
   }
+  if (player.hand.length > 1) game.knocked[game.players.indexOf(player)] = false;
 }
 
-function drawCard() {
+function drawCard(timedOut = false) {
   if (!game || game.finished) return;
   if (onlineMode) {
     if (game.current === onlineSeat) {
@@ -594,32 +667,43 @@ function drawCard() {
     return;
   }
   const player = game.players[game.current];
+  const prefix = timedOut ? `${player.name} ran out of time and drew` : `${player.name} draws`;
+  if (game.mustDrawSeat === game.current) {
+    game.combo = null;
+    game.jumpSupport = false;
+    takeCards(player, 1);
+    game.mustDrawSeat = null;
+    showToast(`${prefix} one card.`);
+    advanceTurn();
+    return;
+  }
   if (game.pending > 0) {
     const amount = game.pending;
-    const resolvedJoker = game.pendingType === "draw-four";
     takeCards(player, amount);
     game.pending = 0;
     game.pendingType = null;
-    game.freeSuitPlay = resolvedJoker && !game.jokerReduced;
-    game.jokerReduced = false;
-    showToast(`${player.name} draws ${amount}.`);
+    game.freeSuitPlay = false;
+    showToast(`${prefix} ${amount}.`);
     advanceTurn();
     return;
   }
   if (game.combo) {
-    const combo = game.combo;
     game.combo = null;
     takeCards(player, 1);
-    showToast(`${player.name} draws one card. Turn passed.`);
-    finishComboTurn(combo);
+    showToast(`${prefix} one card. Turn passed.`);
+    advanceTurn();
+    return;
+  }
+  if (game.jumpSupport) {
+    game.jumpSupport = false;
+    takeCards(player, 1);
+    showToast(`${prefix} one card. Turn passed.`);
+    advanceTurn();
     return;
   }
   game.freeSuitPlay = false;
   takeCards(player, 1);
-  if (player.hand.length > 0) {
-    const drawn = player.hand[player.hand.length - 1];
-    showToast(isPlayable(drawn) ? `${player.name} drew a card. You can play it next turn.` : `${player.name} drew a card.`);
-  }
+  showToast(`${prefix} a card.`);
   advanceTurn();
 }
 
@@ -664,37 +748,7 @@ function timeOutTurn() {
   }
   hideModal(elements.suitModal);
   game.stagedCardIndex = null;
-  const player = game.players[game.current];
-  if (game.pending > 0) {
-    const amount = game.pending;
-    const resolvedJoker = game.pendingType === "draw-four";
-    takeCards(player, amount);
-    game.pending = 0;
-    game.pendingType = null;
-    game.freeSuitPlay = resolvedJoker && !game.jokerReduced;
-    game.jokerReduced = false;
-    showToast(`${player.name} ran out of time and drew ${amount}.`);
-    advanceTurn();
-    return;
-  }
-  if (game.freeSuitPlay) {
-    game.freeSuitPlay = false;
-    takeCards(player, 1);
-    showToast(`${player.name} ran out of time and drew a card.`);
-    advanceTurn();
-    return;
-  }
-  if (game.combo) {
-    const combo = game.combo;
-    game.combo = null;
-    takeCards(player, 1);
-    showToast(`${player.name} ran out of time and drew one card.`);
-    finishComboTurn(combo);
-    return;
-  }
-  takeCards(player, 1);
-  showToast(`${player.name} ran out of time and drew a card.`);
-  advanceTurn();
+  drawCard(true);
 }
 
 function hideModal(element) {
@@ -732,20 +786,32 @@ document.querySelector("#count-picker").addEventListener("click", (event) => {
   const button = event.target.closest("[data-count]");
   if (!button) return;
   selectedCount = Number(button.dataset.count);
-  for (const item of document.querySelectorAll(".count-button")) item.classList.toggle("active", item === button);
-  renderPlayerFields();
+  for (const item of document.querySelectorAll(".count-button")) {
+    item.classList.toggle("active", item === button);
+    item.setAttribute("aria-pressed", String(item === button));
+  }
 });
 elements.start.addEventListener("click", startGame);
-document.querySelector("#one-v-one-button").addEventListener("click", openOnlineLobby);
+document.querySelector("#one-v-one-button").addEventListener("click", () => openOnlineLobby("duel"));
 document.querySelector("#group-game-button").addEventListener("click", () => {
   document.querySelector("#group-game-options").classList.remove("hidden");
   document.querySelector("#group-game-button").classList.add("active");
   document.querySelector("#one-v-one-button").classList.remove("active");
-  const firstPlayerInput = elements.playerFields.querySelector("input");
-  if (firstPlayerInput) firstPlayerInput.focus();
 });
 elements.drawPile.addEventListener("click", () => {
   drawCard();
+});
+elements.knockButton.addEventListener("click", () => {
+  if (!game || game.finished) return;
+  if (onlineMode) {
+    submitOnlineMove({ type: "knock" });
+    return;
+  }
+  const seat = game.current;
+  if (game.players[seat].hand.length !== 1 || game.knocked[seat]) return;
+  game.knocked[seat] = true;
+  showToast(`${game.players[seat].name} knocked!`);
+  renderGame();
 });
 elements.rematch.addEventListener("click", async () => {
   if (!game) return;
@@ -763,23 +829,6 @@ elements.rematch.addEventListener("click", async () => {
   }
   const names = game.players.map((player) => player.name);
   dealGame(names);
-});
-elements.agreeSuit.addEventListener("click", () => {
-  if (!game || game.stagedCardIndex === null) return;
-  const index = game.stagedCardIndex;
-  animatePlayedCard(index);
-  game.stagedCardIndex = null;
-  hideModal(elements.suitModal);
-  if (onlineMode) {
-    submitOnlineMove({
-      type: "play",
-      cardId: game.players[game.current].hand[index].id,
-      chosenSuit: game.activeSuit,
-      aceAgreed: true,
-    });
-    return;
-  }
-  playLocalTurnCard(index, game.activeSuit, true);
 });
 document.querySelector("#close-suit").addEventListener("click", cancelSuitSelection);
 function returnToSetup() {
@@ -817,7 +866,6 @@ chatToggle.addEventListener("click", () => {
 });
 
 // ---------- Online play (Vercel API) ----------
-const NAME_KEY = "bakasha:name";
 const roomStorageKey = (code) => `bakasha:room:${code}`;
 
 function readStored(key) {
@@ -838,15 +886,22 @@ function readSavedRoom(code) {
   }
 }
 
-function openOnlineLobby() {
+function openOnlineLobby(mode = "duel") {
+  if (!accountUser) {
+    showAccountGate();
+    return;
+  }
+  onlineRoomSize = mode === "group" ? selectedCount : 2;
   elements.setup.classList.add("hidden");
   elements.online.classList.remove("hidden");
-  document.querySelector("#mode-label").textContent = "Online play";
+  document.querySelector("#mode-label").textContent = onlineRoomSize > 2 ? "Group quest" : "Quick duel";
+  document.querySelector("#online-title").textContent = onlineRoomSize > 2 ? `${onlineRoomSize}-player group` : "Quick duel";
+  document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
+    ? `Create a room for ${onlineRoomSize} players, then invite your crew.`
+    : "Create a table and send your friend a link.";
+  document.querySelector("#create-room-button").innerHTML = `Create ${onlineRoomSize === 2 ? "duel" : `${onlineRoomSize}-player room`} <span aria-hidden="true">→</span>`;
   refreshPublicRooms();
   schedulePublicRoomsRefresh();
-  const input = document.querySelector("#account-username");
-  if (!input.value) input.value = readStored(NAME_KEY) || "";
-  if (!input.value) input.focus();
 }
 
 function stopPublicRoomsRefresh() {
@@ -881,7 +936,8 @@ function renderPublicRooms(rooms) {
     const host = document.createElement("strong");
     host.textContent = room.hostName;
     const state = document.createElement("span");
-    state.textContent = "Waiting for a player";
+    const maxPlayers = Number.isInteger(room.maxPlayers) ? room.maxPlayers : 2;
+    state.textContent = `${room.playerCount}/${maxPlayers} players · waiting to start`;
     const join = document.createElement("button");
     join.className = "secondary-button public-room-join";
     join.type = "button";
@@ -921,13 +977,6 @@ function setOnlineStatus(message) {
 
 function onlineErrorMessage(error) {
   return (error && error.message) || "Online play could not connect. Check your connection and try again.";
-}
-
-function playerName() {
-  const name = document.querySelector("#account-username").value.trim().replace(/\s+/g, " ");
-  if (!name || name.length > 16) throw new Error("Choose a name between 1 and 16 characters.");
-  writeStored(NAME_KEY, name);
-  return name;
 }
 
 function extractRoomCode(value) {
@@ -1036,9 +1085,9 @@ function disconnectOnlineRoom() {
 
 async function callGameApi(path, method, body, token) {
   const headers = {};
-  const authToken = token || online.token;
+  const authToken = token || (path.startsWith("/api/rooms/") ? online.token : null);
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
-  const options = { method: method || "GET", headers, cache: "no-store" };
+  const options = { method: method || "GET", headers, cache: "no-store", credentials: "same-origin" };
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
@@ -1056,6 +1105,11 @@ async function callGameApi(path, method, body, token) {
     throw new Error("The game server returned an invalid response.");
   }
   if (!response.ok) {
+    if (response.status === 401 && accountUser && /^\/api\/(rooms|friends)/.test(path)) {
+      returnToSetup();
+      updateAccountUI(null);
+      setAccountStatus("Your sign-in expired. Sign in again to continue playing.");
+    }
     const failure = new Error(result.error || "The game server could not complete that request.");
     failure.status = response.status;
     throw failure;
@@ -1092,21 +1146,36 @@ function updateAccountUI(user) {
   const previousUser = accountUser;
   accountUser = user;
   const accountButton = document.querySelector("#account-button");
+  const friendsButton = document.querySelector("#friends-button");
+  const closeAccount = document.querySelector("#close-account");
+  const accountModal = document.querySelector("#account-modal");
   const formPanel = document.querySelector("#account-form-panel");
   const sessionPanel = document.querySelector("#account-session-panel");
   const roomNameInput = document.querySelector("#account-username");
   accountButton.textContent = user ? user.username : "Sign in";
   accountButton.title = user ? `Signed in as ${user.username}` : "Sign in or create an account";
+  friendsButton.classList.toggle("hidden", !user);
+  closeAccount.classList.toggle("hidden", !user);
   formPanel.classList.toggle("hidden", Boolean(user));
   sessionPanel.classList.toggle("hidden", !user);
   roomNameInput.disabled = Boolean(user);
   if (user) {
+    elements.setup.classList.remove("hidden");
+    elements.online.classList.add("hidden");
+    elements.game.classList.add("hidden");
+    accountModal.classList.add("hidden");
     roomNameInput.value = user.username;
     document.querySelector("#account-current-name").textContent = user.username;
-    document.querySelector("#score-note").textContent = "Signed in. Your opponent must also sign in before the game starts for it to count.";
+    document.querySelector("#score-note").textContent = "Your username identifies your seat and tracks your online results.";
+    if (pendingInviteRoom) openPendingInvite();
   } else {
-    document.querySelector("#score-note").textContent = "Guests can play. Sign in before the game starts; both players must be signed in for a match to count.";
-    if (previousUser) roomNameInput.value = readStored(NAME_KEY) || "";
+    elements.setup.classList.add("hidden");
+    elements.online.classList.add("hidden");
+    elements.game.classList.add("hidden");
+    document.querySelector("#friends-modal").classList.add("hidden");
+    accountModal.classList.remove("hidden");
+    document.querySelector("#score-note").textContent = "Sign in is required to play and track your results.";
+    if (previousUser) roomNameInput.value = "";
   }
 }
 
@@ -1136,9 +1205,10 @@ async function signOutAccount() {
   button.disabled = true;
   try {
     await callGameApi("/api/account", "DELETE");
+    returnToSetup();
     updateAccountUI(null);
     renderAccountMode();
-    setAccountStatus("You are signed out. You can still play as a guest.");
+    setAccountStatus("You are signed out. Sign in again to play.");
   } catch (error) {
     setAccountStatus(onlineErrorMessage(error));
   } finally {
@@ -1150,8 +1220,144 @@ async function loadAccount() {
   try {
     const result = await callGameApi("/api/account");
     updateAccountUI(result.user);
+    renderAccountMode();
   } catch (error) {
+    updateAccountUI(null);
+    renderAccountMode();
     setAccountStatus(onlineErrorMessage(error));
+  }
+}
+
+function showAccountGate() {
+  accountMode = "login";
+  renderAccountMode();
+  document.querySelector("#account-status").textContent = "";
+  document.querySelector("#account-modal").classList.remove("hidden");
+}
+
+function openPendingInvite() {
+  if (!accountUser || !pendingInviteRoom) return;
+  const invitedRoom = pendingInviteRoom;
+  pendingInviteRoom = null;
+  openOnlineLobby("invite");
+  const invitedCode = extractRoomCode(invitedRoom);
+  const inviteInput = document.querySelector("#invite-link-input");
+  if (/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(invitedCode)) {
+    inviteInput.value = makeInviteLink(invitedCode);
+    if (readSavedRoom(invitedCode)) joinOnlineRoom();
+    else inviteInput.focus();
+  } else {
+    setOnlineStatus("That invite link isn’t valid. Check it and try again.");
+  }
+}
+
+function setFriendsStatus(message) {
+  document.querySelector("#friends-status").textContent = message;
+}
+
+function renderFriendEntries(container, entries, section) {
+  container.replaceChildren();
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "friend-empty";
+    empty.textContent = section === "friends" ? "No friends yet." : "No pending requests.";
+    container.append(empty);
+    return;
+  }
+
+  for (const entry of entries) {
+    const row = document.createElement("div");
+    row.className = "friend-row";
+    const name = document.createElement("strong");
+    name.textContent = entry.username;
+    row.append(name);
+
+    if (section === "friends") {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "friend-action";
+      remove.dataset.friendAction = "remove";
+      remove.dataset.friendUsername = entry.username;
+      remove.textContent = "Remove";
+      row.append(remove);
+    } else if (section === "incoming") {
+      for (const [action, label] of [["accept", "Accept"], ["decline", "Decline"]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "friend-action";
+        button.dataset.friendAction = action;
+        button.dataset.friendUsername = entry.username;
+        button.textContent = label;
+        row.append(button);
+      }
+    } else {
+      const pending = document.createElement("span");
+      pending.className = "friend-pending";
+      pending.textContent = "Pending";
+      row.append(pending);
+    }
+    container.append(row);
+  }
+}
+
+async function loadFriends() {
+  const status = document.querySelector("#friends-status");
+  status.textContent = "Loading friends…";
+  try {
+    const result = await callGameApi("/api/friends");
+    for (const key of ["friends", "incoming", "outgoing"]) {
+      if (!Array.isArray(result[key])) throw new Error("The server returned an invalid friends list.");
+    }
+    renderFriendEntries(document.querySelector("#friend-list"), result.friends, "friends");
+    renderFriendEntries(document.querySelector("#friend-incoming"), result.incoming, "incoming");
+    renderFriendEntries(document.querySelector("#friend-outgoing"), result.outgoing, "outgoing");
+    status.textContent = "";
+  } catch (error) {
+    status.textContent = onlineErrorMessage(error);
+  }
+}
+
+function openFriends() {
+  if (!accountUser) {
+    showAccountGate();
+    return;
+  }
+  document.querySelector("#friends-modal").classList.remove("hidden");
+  setFriendsStatus("");
+  loadFriends();
+}
+
+async function submitFriendRequest(event) {
+  event.preventDefault();
+  const button = document.querySelector("#friend-submit");
+  const usernameInput = document.querySelector("#friend-username");
+  button.disabled = true;
+  setFriendsStatus("Sending request…");
+  try {
+    const result = await callGameApi("/api/friends", "POST", {
+      action: "request",
+      username: usernameInput.value,
+    });
+    usernameInput.value = "";
+    renderFriendEntries(document.querySelector("#friend-list"), result.friends, "friends");
+    renderFriendEntries(document.querySelector("#friend-incoming"), result.incoming, "incoming");
+    renderFriendEntries(document.querySelector("#friend-outgoing"), result.outgoing, "outgoing");
+    setFriendsStatus("Friend request sent.");
+  } catch (error) {
+    setFriendsStatus(onlineErrorMessage(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function updateFriendRequest(action, username) {
+  const method = action === "remove" ? "DELETE" : "POST";
+  try {
+    await callGameApi("/api/friends", method, { action, username });
+    setFriendsStatus(action === "accept" ? `You and ${username} are now friends.` : action === "decline" ? "Friend request declined." : "Friend removed.");
+    await loadFriends();
+  } catch (error) {
+    setFriendsStatus(onlineErrorMessage(error));
   }
 }
 
@@ -1184,10 +1390,13 @@ async function openLeaderboard() {
 }
 
 document.querySelector("#account-button").addEventListener("click", () => {
-  accountMode = "login";
-  renderAccountMode();
-  document.querySelector("#account-status").textContent = "";
-  document.querySelector("#account-modal").classList.remove("hidden");
+  if (accountUser) {
+    renderAccountMode();
+    document.querySelector("#account-status").textContent = "";
+    document.querySelector("#account-modal").classList.remove("hidden");
+    return;
+  }
+  showAccountGate();
 });
 document.querySelector("#account-login-tab").addEventListener("click", () => {
   accountMode = "login";
@@ -1201,12 +1410,23 @@ document.querySelector("#account-register-tab").addEventListener("click", () => 
 });
 document.querySelector("#account-form-panel").addEventListener("submit", submitAccountForm);
 document.querySelector("#account-signout").addEventListener("click", signOutAccount);
-document.querySelector("#close-account").addEventListener("click", () => document.querySelector("#account-modal").classList.add("hidden"));
+document.querySelector("#friends-button").addEventListener("click", openFriends);
+document.querySelector("#close-friends").addEventListener("click", () => document.querySelector("#friends-modal").classList.add("hidden"));
+document.querySelector("#friend-form").addEventListener("submit", submitFriendRequest);
+document.querySelector("#friends-modal").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-friend-action]");
+  if (button) updateFriendRequest(button.dataset.friendAction, button.dataset.friendUsername);
+});
+document.querySelector("#close-account").addEventListener("click", () => {
+  if (accountUser) document.querySelector("#account-modal").classList.add("hidden");
+});
 document.querySelector("#leaderboard-button").addEventListener("click", openLeaderboard);
 document.querySelector("#close-leaderboard").addEventListener("click", () => document.querySelector("#leaderboard-modal").classList.add("hidden"));
-for (const modalId of ["account-modal", "leaderboard-modal"]) {
+for (const modalId of ["account-modal", "leaderboard-modal", "friends-modal"]) {
   document.querySelector(`#${modalId}`).addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) event.currentTarget.classList.add("hidden");
+    if (event.target === event.currentTarget && (modalId !== "account-modal" || accountUser)) {
+      event.currentTarget.classList.add("hidden");
+    }
   });
 }
 
@@ -1264,7 +1484,9 @@ function applyRoomSnapshot(snapshot) {
   if (!changed) return;
   if (!first && data.lastMessage && data.lastMessage !== previousData.lastMessage) showToast(data.lastMessage);
   if (data.game) renderOnlineGame();
-  else setOnlineStatus(online.isHost ? "Room ready. Share the invite link with your friend." : "Joined. Waiting for the host to start.");
+  else setOnlineStatus(online.isHost
+    ? `Room ready. Share the invite with ${data.maxPlayers > 2 ? "your group" : "your friend"}.`
+    : "Joined. Waiting for the host to start.");
 }
 
 function updateRoomLobby(data) {
@@ -1284,13 +1506,14 @@ function updateRoomLobby(data) {
     row.append(name, presence);
     players.append(row);
   });
-  const hasGuest = data.players.length === 2;
-  startButton.classList.toggle("hidden", !online.isHost || !hasGuest || data.status === "playing");
+  const maxPlayers = data.maxPlayers || 2;
+  const isFull = data.players.length === maxPlayers;
+  startButton.classList.toggle("hidden", !online.isHost || !isFull || data.status !== "waiting");
   if (data.status === "waiting") {
     message.textContent = online.isHost
-      ? hasGuest
-        ? `${data.players[1].name} joined. Start when you’re ready.`
-        : "Waiting for your friend to join…"
+      ? isFull
+        ? "Everyone is here! Start when you’re ready."
+        : `Waiting for ${maxPlayers - data.players.length} more player${maxPlayers - data.players.length === 1 ? "" : "s"}…`
       : `Connected to ${data.players[0].name}’s room. Waiting for the host to start.`;
     return;
   }
@@ -1372,11 +1595,11 @@ function renderOnlineGame() {
     stagedCardIndex: previous ? previous.stagedCardIndex : null,
   };
   document.querySelector("#mode-label").textContent = "Online game";
-  document.querySelector("#round-mode-label").textContent = "ONLINE GAME";
+  document.querySelector("#round-mode-label").textContent = data.players.length > 2 ? "GROUP QUEST" : "ONLINE DUEL";
   elements.setup.classList.add("hidden");
   elements.online.classList.add("hidden");
   elements.game.classList.remove("hidden");
-  document.querySelector("#round-player-count").textContent = "2 PLAYERS";
+  document.querySelector("#round-player-count").textContent = `${data.players.length} PLAYERS · ROUND ${state.round || 1}`;
   if (state.current !== online.seat || state.finished) {
     hideModal(elements.suitModal);
     game.stagedCardIndex = null;
@@ -1402,18 +1625,27 @@ function renderOnlineGame() {
 }
 
 function updateRematchControls(data) {
-  const requests = Array.isArray(data.rematchRequests) ? data.rematchRequests : [false, false];
-  const otherSeat = online.seat === 0 ? 1 : 0;
+  const requests = Array.isArray(data.rematchRequests)
+    ? data.rematchRequests
+    : data.players.map(() => false);
   const button = elements.rematch;
   const message = document.querySelector("#rematch-status");
   if (requests[online.seat]) {
     button.textContent = "Rematch requested";
     button.disabled = true;
-    message.textContent = `Waiting for ${data.players[otherSeat].name} to accept.`;
-  } else if (requests[otherSeat]) {
+    const waitingOn = data.players
+      .filter((_, index) => index !== online.seat && !requests[index])
+      .map((player) => player.name);
+    message.textContent = waitingOn.length
+      ? `Waiting for ${waitingOn.join(", ")} to accept.`
+      : "Waiting for everyone to accept.";
+  } else if (requests.some(Boolean)) {
     button.textContent = "Accept rematch";
     button.disabled = false;
-    message.textContent = `${data.players[otherSeat].name} wants a rematch.`;
+    const requestedBy = data.players
+      .filter((_, index) => requests[index])
+      .map((player) => player.name);
+    message.textContent = `${requestedBy.join(", ")} want${requestedBy.length === 1 ? "s" : ""} a rematch.`;
   } else {
     button.textContent = "Rematch";
     button.disabled = false;
@@ -1425,6 +1657,10 @@ function beginRoomSession(snapshot, token) {
   disconnectOnlineRoom();
   online.roomCode = snapshot.roomCode;
   online.token = token;
+  onlineRoomSize = snapshot.publicData.maxPlayers || 2;
+  document.querySelector("#online-title").textContent = onlineRoomSize > 2
+    ? `${onlineRoomSize}-player group`
+    : "Quick duel";
   writeStored(roomStorageKey(snapshot.roomCode), JSON.stringify({ token }));
   const inviteLink = makeInviteLink(snapshot.roomCode);
   window.history.replaceState(null, "", inviteLink); // reloading this page reconnects you
@@ -1434,16 +1670,25 @@ function beginRoomSession(snapshot, token) {
   document.querySelector(".public-rooms").classList.add("hidden");
   document.querySelector("#join-room-panel").classList.add("hidden");
   applyRoomSnapshot(snapshot);
-  if (online.isHost) document.querySelector("#invite-result").classList.remove("hidden");
+  document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
+    ? online.isHost ? "Invite your crew to join the room." : `You joined a ${onlineRoomSize}-player group room.`
+    : online.isHost ? "Send your friend the invite link." : `You joined ${snapshot.publicData.players[0].name}’s room.`;
+  if (online.isHost) {
+    document.querySelector("#invite-result").classList.remove("hidden");
+    const headline = document.querySelector(".invite-ready-heading div > span");
+    headline.textContent = onlineRoomSize > 2 ? "Share the invite with your crew." : "Send your friend an invite.";
+  }
   schedulePoll();
 }
 
 async function createOnlineRoom() {
   try {
-    const name = playerName();
     const isPublic = document.querySelector("#public-room-checkbox").checked;
     setOnlineStatus("Creating your room…");
-    const snapshot = await callGameApi("/api/rooms", "POST", { name, isPublic });
+    const snapshot = await callGameApi("/api/rooms", "POST", {
+      maxPlayers: onlineRoomSize,
+      isPublic,
+    });
     beginRoomSession(snapshot, snapshot.token);
     setOnlineStatus(isPublic ? "Public room created." : "Private room created.");
   } catch (error) {
@@ -1468,7 +1713,6 @@ async function joinOnlineRoom(publicJoin = false) {
     const saved = readSavedRoom(roomCode);
     const body = publicJoin ? { publicJoin: true } : {};
     if (saved) body.token = saved.token; // you were already in this room: just reconnect
-    if (document.querySelector("#account-username").value.trim() || !saved) body.name = playerName();
     setOnlineStatus(saved ? "Reconnecting…" : publicJoin ? "Joining public game…" : "Joining your friend’s room…");
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
@@ -1518,7 +1762,7 @@ function retryTimeoutSoon() {
 
 async function submitOnlineMove(action) {
   if (!onlineMode || !online.roomCode || online.movePending) return;
-  if (action.type !== "timeout" && game.current !== onlineSeat) return;
+  if (action.type !== "timeout" && action.type !== "knock" && game.current !== onlineSeat) return;
   online.optimisticCard = action.type === "play"
     ? online.ownHand.find((card) => card.id === action.cardId) || null
     : null;
@@ -1609,25 +1853,12 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!elements.rulesModal.classList.contains("hidden")) closeRules();
   if (!elements.suitModal.classList.contains("hidden")) cancelSuitSelection();
-  for (const modalId of ["account-modal", "leaderboard-modal"]) {
+  for (const modalId of ["leaderboard-modal", "friends-modal"]) {
     document.querySelector(`#${modalId}`).classList.add("hidden");
   }
+  if (accountUser) document.querySelector("#account-modal").classList.add("hidden");
 });
 
-renderPlayerFields();
-document.querySelector("#account-username").value = readStored(NAME_KEY) || "";
 renderAccountMode();
+pendingInviteRoom = new URLSearchParams(window.location.search).get("room");
 loadAccount();
-const invitedRoom = new URLSearchParams(window.location.search).get("room");
-if (invitedRoom) {
-  openOnlineLobby();
-  const invitedCode = extractRoomCode(invitedRoom);
-  const inviteInput = document.querySelector("#invite-link-input");
-  if (/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(invitedCode)) {
-    inviteInput.value = makeInviteLink(invitedCode);
-    if (readSavedRoom(invitedCode)) joinOnlineRoom(); // reload or return visit: reconnect automatically
-    else inviteInput.focus();
-  } else {
-    setOnlineStatus("That invite link isn’t valid. Check it and try again.");
-  }
-}

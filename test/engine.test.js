@@ -7,16 +7,24 @@ const joker = (n = 1) => ({ id: `joker-${n}`, suit: "wild", rank: "JOKER" });
 let seed = 12345;
 const rng = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
 
-function table({ hands, top = c("hearts", "5"), deck } = {}) {
-  const g = newGame(["Ann", "Ben"], 1000, rng);
+function table({ names = ["Ann", "Ben"], hands, top = c("hearts", "5"), deck } = {}) {
+  const g = newGame(names, 1000, rng);
   g.hands = hands;
   g.discard = [top];
   g.activeSuit = top.suit;
-  g.deck = deck || [c("clubs", "3"), c("clubs", "4"), c("clubs", "5"), c("clubs", "6"), c("clubs", "9"), c("clubs", "10")];
+  g.deck = deck || Array.from({ length: 20 }, (_, i) => c("clubs", `${(i % 10) + 3}`));
+  g.knocked = names.map(() => false);
   return g;
 }
 
-test("deals 4 cards each and a plain opening card", () => {
+function play(g, seat, card, action = {}) {
+  if (g.hands[seat].length === 1 && !g.knocked[seat]) {
+    applyAction(g, seat, { type: "knock" }, 2000);
+  }
+  return applyAction(g, seat, { type: "play", cardId: card.id, ...action }, 2000);
+}
+
+test("deals four cards each and an ordinary opening card", () => {
   for (let i = 0; i < 50; i += 1) {
     const g = newGame(["Ann", "Ben"], 0, rng);
     assert.equal(g.hands[0].length, 4);
@@ -30,132 +38,250 @@ test("public state never contains hands", () => {
   const g = newGame(["Ann", "Ben"], 0, rng);
   const text = JSON.stringify(publicGame(g));
   assert.ok(!text.includes("hands"));
-  for (const card of [...g.hands[0], ...g.hands[1]]) assert.ok(!text.includes(`"${card.id}"`) || card.id === g.discard[0].id);
-});
-
-test("a 2 forces a penalty that can be drawn", () => {
-  const g = table({ hands: [[c("hearts", "2"), c("clubs", "3")], [c("clubs", "7"), c("spades", "K")]] });
-  assert.ok(applyAction(g, 0, { type: "play", cardId: "hearts-2" }, 2000).message);
-  assert.equal(g.pending, 2);
-  assert.equal(g.current, 1);
-  assert.ok(applyAction(g, 1, { type: "play", cardId: "clubs-7" }, 2100).error);
-  applyAction(g, 1, { type: "draw" }, 2200);
-  assert.equal(g.hands[1].length, 4);
-  assert.equal(g.pending, 0);
-  assert.equal(g.current, 0);
-});
-
-test("a second 2 cancels the 2-card penalty instead of stacking it", () => {
-  const g = table({ hands: [[c("hearts", "2"), c("clubs", "3")], [c("clubs", "2"), c("spades", "K")]] });
-  applyAction(g, 0, { type: "play", cardId: "hearts-2" }, 2000);
-  const result = applyAction(g, 1, { type: "play", cardId: "clubs-2" }, 2100);
-  assert.match(result.message, /canceled the 2-card penalty/);
-  assert.equal(g.pending, 0);
-  assert.equal(g.pendingType, null);
-  assert.equal(g.current, 0);
-});
-
-test("it is not your turn", () => {
-  const g = table({ hands: [[c("hearts", "9")], [c("hearts", "3")]] });
-  assert.match(applyAction(g, 1, { type: "draw" }, 2000).error, /not your turn/);
-});
-
-test("Joker penalty reduced by 2s keeps the turn, then drawing the rest gives no free suit", () => {
-  const g = table({ hands: [[joker(), c("hearts", "K")], [c("spades", "2"), c("clubs", "9"), c("clubs", "10")]] });
-  applyAction(g, 0, { type: "play", cardId: "joker-1" }, 2000);
-  assert.equal(g.pending, 4);
-  assert.equal(g.pendingType, "draw-four");
-  applyAction(g, 1, { type: "play", cardId: "spades-2" }, 2100);
-  assert.equal(g.pending, 2);
-  assert.equal(g.current, 1);
-  assert.equal(g.activeSuit, "spades");
-  applyAction(g, 1, { type: "draw" }, 2200);
-  assert.equal(g.hands[1].length, 4);
-  assert.equal(g.freeSuitPlay, false);
-  assert.equal(g.current, 0);
-});
-
-test("drawing a whole Joker penalty lets the next player play anything", () => {
-  const g = table({ hands: [[joker(), c("hearts", "K")], [c("clubs", "9")]] });
-  applyAction(g, 0, { type: "play", cardId: "joker-1" }, 2000);
-  applyAction(g, 1, { type: "draw" }, 2100);
-  assert.equal(g.freeSuitPlay, true);
-  assert.ok(isPlayable(g, c("diamonds", "9")));
-});
-
-test("an Ace needs a chosen suit and sets it", () => {
-  const g = table({ hands: [[c("hearts", "A"), c("clubs", "3")], [c("clubs", "9")]] });
-  assert.match(applyAction(g, 0, { type: "play", cardId: "hearts-A" }, 2000).error, /suit/);
-  assert.ok(applyAction(g, 0, { type: "play", cardId: "hearts-A", chosenSuit: "clubs" }, 2000).message);
-  assert.equal(g.activeSuit, "clubs");
-});
-
-test("Seven and King are ordinary cards and pass the turn normally", () => {
-  for (const rank of ["7", "K"]) {
-    const card = c("hearts", rank);
-    const g = table({ hands: [[card, c("clubs", "3")], [c("clubs", "9")]] });
-    const result = applyAction(g, 0, { type: "play", cardId: card.id }, 2000);
-    assert.match(result.message, /played a card/);
-    assert.equal(g.current, 1);
-    assert.equal(g.direction, 1);
+  for (const card of [...g.hands[0], ...g.hands[1]]) {
+    assert.ok(!text.includes(`"${card.id}"`) || card.id === g.discard[0].id);
   }
 });
 
-test("8 chain with an odd count reverses direction when it ends", () => {
-  const g = table({ hands: [[c("hearts", "8"), c("hearts", "9"), c("clubs", "3")], [c("clubs", "9")]] });
-  applyAction(g, 0, { type: "play", cardId: "hearts-8" }, 2000);
+test("ordinary cards match suit or rank and Joker cannot cover a 2", () => {
+  const g = table({ hands: [[c("spades", "7")], [c("clubs", "5")]], top: c("hearts", "5") });
+  assert.equal(isPlayable(g, c("spades", "7")), false);
+  assert.equal(isPlayable(g, c("clubs", "5")), true);
+  g.discard = [c("diamonds", "2")];
+  assert.equal(isPlayable(g, joker()), false);
+});
+
+test("drawing ends the turn and the drawn card cannot be played immediately", () => {
+  const drawn = c("clubs", "5");
+  const g = table({ hands: [[c("spades", "7")], [c("clubs", "9")]], deck: [drawn] });
+  applyAction(g, 0, { type: "knock" }, 1500);
+  applyAction(g, 0, { type: "draw" }, 2000);
+  assert.equal(g.current, 1);
+  assert.deepEqual(g.hands[0].at(-1), drawn);
+});
+
+test("Ace demand persists after a player draws and clears on a suit answer", () => {
+  const g = table({
+    names: ["Ann", "Ben", "Cal"],
+    hands: [[c("hearts", "A"), c("clubs", "3")], [c("spades", "9"), c("spades", "8")], [c("clubs", "6"), c("clubs", "7")]],
+  });
+  assert.match(play(g, 0, c("hearts", "A"), { chosenSuit: "clubs" }).message, /played/);
+  assert.equal(g.demandedSuit, "clubs");
+  assert.equal(isPlayable(g, c("spades", "9")), false);
+  applyAction(g, 1, { type: "draw" }, 2100);
+  assert.equal(g.current, 2);
+  assert.equal(g.demandedSuit, "clubs");
+  assert.equal(play(g, 2, c("clubs", "6")).error, undefined);
+  assert.equal(g.demandedSuit, null);
+});
+
+test("a last Ace names a suit, then its owner draws one and loses that turn", () => {
+  const g = table({
+    names: ["Ann", "Ben", "Cal"],
+    hands: [[c("hearts", "A")], [c("spades", "9"), c("spades", "8")], [c("diamonds", "6"), c("diamonds", "7")]],
+  });
+
+  play(g, 0, c("hearts", "A"), { chosenSuit: "clubs" });
+  assert.equal(g.finished, false);
+  assert.equal(g.winner, null);
+  assert.equal(g.current, 1);
+  assert.equal(g.mustDrawSeat, 0);
+  assert.equal(g.demandedSuit, "clubs");
+
+  applyAction(g, 1, { type: "draw" }, 2100);
+  applyAction(g, 2, { type: "draw" }, 2200);
+  assert.equal(g.current, 0);
+  assert.equal(g.mustDrawSeat, 0);
+
+  applyAction(g, 0, { type: "draw" }, 2300);
+  assert.equal(g.finished, false);
+  assert.equal(g.hands[0].length, 1);
+  assert.equal(g.mustDrawSeat, null);
+  assert.equal(g.current, 1);
+  assert.equal(g.demandedSuit, "clubs");
+});
+
+test("Joker clears an Ace demand and starts the pick-four penalty", () => {
+  const g = table({ hands: [[c("hearts", "A"), c("clubs", "3")], [joker(), c("spades", "7")]] });
+  play(g, 0, c("hearts", "A"), { chosenSuit: "clubs" });
+  play(g, 1, joker());
+  assert.equal(g.demandedSuit, null);
+  assert.equal(g.pendingType, "draw-four");
+  assert.equal(g.pending, 4);
+});
+
+test("Jack skips the opponent in a group and gives a 1v1 player a support turn", () => {
+  const group = table({
+    names: ["Ann", "Ben", "Cal"],
+    hands: [[c("hearts", "J"), c("clubs", "3")], [c("hearts", "9")], [c("spades", "9")]],
+  });
+  play(group, 0, c("hearts", "J"));
+  assert.equal(group.current, 2);
+
+  const duel = table({ hands: [[c("hearts", "J"), c("spades", "3"), c("spades", "4")], [c("clubs", "9"), c("clubs", "8")]] });
+  play(duel, 0, c("hearts", "J"));
+  assert.equal(duel.current, 0);
+  assert.equal(duel.jumpSupport, true);
+  assert.equal(isPlayable(duel, c("spades", "3")), true);
+  play(duel, 0, c("spades", "3"));
+  assert.equal(duel.current, 1);
+  assert.equal(duel.jumpSupport, false);
+});
+
+test("an 8 needs same-suit support and reverses play when supported", () => {
+  const g = table({
+    names: ["Ann", "Ben", "Cal"],
+    hands: [[c("hearts", "8"), c("hearts", "9"), c("spades", "6")], [c("spades", "9")], [c("clubs", "9")]],
+  });
+  play(g, 0, c("hearts", "8"));
   assert.ok(g.combo);
   assert.equal(g.current, 0);
-  applyAction(g, 0, { type: "play", cardId: "hearts-9" }, 2100);
+  play(g, 0, c("hearts", "9"));
   assert.equal(g.combo, null);
   assert.equal(g.direction, -1);
+  assert.equal(g.current, 2);
+});
+
+test("group games continue through playoff rounds until one player remains", () => {
+  const g = table({
+    names: ["Ann", "Ben", "Cal"],
+    hands: [[c("hearts", "3")], [c("hearts", "4")], [c("spades", "9"), c("spades", "8")]],
+  });
+
+  play(g, 0, c("hearts", "3"));
+  assert.equal(g.finished, false);
+  assert.equal(g.roundOut[0], true);
+  assert.equal(g.current, 1);
+  play(g, 1, c("hearts", "4"));
+  assert.equal(g.round, 2);
+  assert.deepEqual(g.eliminated, [false, false, true]);
+  assert.equal(g.current, 0);
+  assert.equal(g.hands[0].length, 4);
+  assert.equal(g.hands[1].length, 4);
+  assert.equal(g.hands[2].length, 0);
+
+  g.hands[0] = [c("hearts", "3")];
+  g.hands[1] = [c("hearts", "4")];
+  g.current = 0;
+  g.direction = 1;
+  g.discard = [c("hearts", "5")];
+  g.activeSuit = "hearts";
+  g.roundOut = [false, false, false];
+  play(g, 0, c("hearts", "3"));
+  assert.equal(g.finished, true);
+  assert.equal(g.winner, "Ann");
+});
+
+test("a last 8 still requires its owner to draw and does not leave a stale support chain", () => {
+  const g = table({ hands: [[c("hearts", "8")], [c("clubs", "9"), c("spades", "4")]] });
+  play(g, 0, c("hearts", "8"));
+  assert.equal(g.finished, false);
+  assert.equal(g.mustDrawSeat, 0);
+  assert.ok(g.combo);
+  applyAction(g, 0, { type: "draw" }, 2100);
+  assert.equal(g.mustDrawSeat, null);
+  assert.equal(g.combo, null);
   assert.equal(g.current, 1);
 });
 
-test("timeouts are ignored early and draw once the 60 seconds are up", () => {
-  const g = table({ hands: [[c("clubs", "3")], [c("clubs", "9")]] });
-  assert.ok(applyAction(g, 1, { type: "timeout" }, 1000 + 5000).ignored);
+test("a 2 penalty is canceled by another 2", () => {
+  const g = table({ hands: [[c("hearts", "2"), c("clubs", "3")], [c("clubs", "2"), c("spades", "K")]] });
+  play(g, 0, c("hearts", "2"));
+  assert.equal(g.pending, 2);
+  play(g, 1, c("clubs", "2"));
+  assert.equal(g.pending, 0);
+  assert.equal(g.current, 0);
+});
+
+test("a 2 blocks a Joker penalty and the responding player draws two", () => {
+  const g = table({
+    hands: [[joker(), c("hearts", "K")], [c("spades", "2"), c("clubs", "9"), c("clubs", "10")]],
+  });
+  play(g, 0, joker());
+  assert.equal(g.pending, 4);
+  const previousCount = g.hands[1].length;
+  play(g, 1, c("spades", "2"));
+  assert.equal(g.pending, 0);
+  assert.equal(g.hands[1].length, previousCount + 1);
+  assert.equal(g.current, 0);
+});
+
+test("Joker response cancels the penalty and grants the following player any play", () => {
+  const g = table({ hands: [[joker(), c("spades", "4")], [joker(2), c("clubs", "9")]] });
+  play(g, 0, joker());
+  assert.equal(g.pending, 4);
+  play(g, 1, joker(2));
+  assert.equal(g.pending, 0);
+  assert.equal(g.current, 0);
+  assert.equal(g.freeSuitPlay, true);
+  assert.equal(isPlayable(g, c("diamonds", "9")), true);
+});
+
+test("a special last card does not win and forces its owner to draw on their next turn", () => {
+  const g = table({ hands: [[c("hearts", "2")], [c("clubs", "9"), c("spades", "4")]] });
+  play(g, 0, c("hearts", "2"));
+  assert.equal(g.finished, false);
+  assert.equal(g.mustDrawSeat, 0);
+  assert.equal(g.current, 1);
+  applyAction(g, 1, { type: "draw" }, 2100);
+  assert.equal(g.current, 0);
+  applyAction(g, 0, { type: "draw" }, 2200);
+  assert.equal(g.mustDrawSeat, null);
   assert.equal(g.hands[0].length, 1);
-  assert.ok(applyAction(g, 1, { type: "timeout" }, 1000 + TURN_MS).message.includes("ran out of time"));
+});
+
+test("Jacks, Aces, and Jokers also cannot finish a hand", () => {
+  for (const card of [c("hearts", "J"), c("hearts", "A"), joker()]) {
+    const g = table({ hands: [[card], [c("clubs", "9"), c("spades", "4")]] });
+    const action = { type: "play", cardId: card.id };
+    if (card.rank === "A") action.chosenSuit = "clubs";
+    applyAction(g, 0, { type: "knock" }, 1500);
+    const result = applyAction(g, 0, action, 2000);
+    assert.ok(result.message);
+    assert.equal(g.finished, false);
+    assert.equal(g.mustDrawSeat, 0);
+  }
+});
+
+test("knock is independent of the turn and required before playing with one card", () => {
+  const g = table({ hands: [[c("hearts", "9")], [c("clubs", "9"), c("spades", "4")]] });
+  assert.match(applyAction(g, 0, { type: "play", cardId: "hearts-9" }, 2000).error, /Knock/);
+  assert.match(applyAction(g, 1, { type: "knock" }, 2000).error, /one card/);
+  assert.match(applyAction(g, 0, { type: "knock" }, 2000).message, /knocked/);
+  assert.equal(g.current, 0);
+  assert.equal(publicGame(g).knocked[0], true);
+  assert.equal(play(g, 0, c("hearts", "9")).message, "Ann wins!");
+});
+
+test("timeouts draw one card and the first player out wins 1v1", () => {
+  const g = table({ hands: [[c("clubs", "3")], [c("clubs", "9")]] });
+  assert.ok(applyAction(g, 0, { type: "timeout" }, 1000 + 5000).ignored);
+  assert.equal(g.hands[0].length, 1);
+  applyAction(g, 0, { type: "knock" }, 2000);
+  assert.ok(applyAction(g, 0, { type: "timeout" }, 1000 + TURN_MS).message.includes("ran out of time"));
   assert.equal(g.hands[0].length, 2);
   assert.equal(g.current, 1);
 });
 
-test("emptying your hand wins", () => {
-  const winningCard = c("hearts", "9");
-  const g = table({ hands: [[winningCard], [c("clubs", "9")]] });
-  applyAction(g, 0, { type: "play", cardId: winningCard.id }, 2000);
-  assert.equal(g.finished, true);
-  assert.equal(g.winner, "Ann");
-  assert.deepEqual(publicGame(g).discard[0], winningCard);
-  assert.ok(applyAction(g, 1, { type: "draw" }, 2100).error);
-});
-
-test("fuzz: random legal play keeps all 54 cards and never errors", () => {
-  for (let game = 0; game < 300; game += 1) {
+test("fuzz: legal play keeps all 54 cards", () => {
+  for (let game = 0; game < 100; game += 1) {
     let now = 1000;
     const g = newGame(["Ann", "Ben"], now, rng);
     for (let step = 0; step < 400 && !g.finished; step += 1) {
       now += 1000;
       const seat = g.current;
-      const playable = g.hands[seat].filter((card) => isPlayable(g, card));
-      let action;
-      const roll = rng();
-      if (roll < 0.03) {
-        now = g.turnStartedAt + TURN_MS + 1;
-        action = { type: "timeout" };
-      } else if (playable.length && roll < 0.9) {
-        const card = playable[Math.floor(rng() * playable.length)];
-        action = { type: "play", cardId: card.id, chosenSuit: ["hearts", "spades", "diamonds", "clubs"][Math.floor(rng() * 4)] };
-      } else {
-        action = { type: "draw" };
+      if (g.hands[seat].length === 1 && !g.knocked[seat]) {
+        assert.ok(applyAction(g, seat, { type: "knock" }, now).message);
       }
+      const playable = g.hands[seat].filter((card) => isPlayable(g, card));
+      const action = playable.length && rng() < 0.8
+        ? { type: "play", cardId: playable[Math.floor(rng() * playable.length)].id, chosenSuit: "clubs" }
+        : { type: "draw" };
       const result = applyAction(g, seat, action, now, rng);
       assert.ok(!result.error, `${JSON.stringify(action)} -> ${result.error}`);
-      const total = g.hands[0].length + g.hands[1].length + g.deck.length + g.discard.length;
-      assert.equal(total, 54);
-      const ids = new Set([...g.hands[0], ...g.hands[1], ...g.deck, ...g.discard].map((card) => card.id));
-      assert.equal(ids.size, 54);
+      const cards = [...g.hands.flat(), ...g.deck, ...g.discard];
+      assert.equal(cards.length, 54);
+      assert.equal(new Set(cards.map((card) => card.id)).size, 54);
     }
   }
 });

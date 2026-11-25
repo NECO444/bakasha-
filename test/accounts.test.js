@@ -10,6 +10,12 @@ const username = () => `p${Date.now().toString(36)}${randomBytes(2).toString("he
 const requestWithCookie = (path, cookie) => new Request(`https://example.test${path}`, {
   headers: cookie ? { cookie } : {},
 });
+const roomRequest = (path, cookie, token) => new Request(`https://example.test${path}`, {
+  headers: {
+    ...(cookie ? { cookie } : {}),
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+  },
+});
 const cookieFrom = (response) => response.headers.get("set-cookie").split(";")[0];
 
 test("username-only accounts sign in securely and bind room seats to the account", async () => {
@@ -43,19 +49,10 @@ test("username-only accounts sign in securely and bind room seats to the account
   });
   assert.equal(created.publicData.players[0].name, firstName);
 
-  const guestRoom = await handleCreate({
-    request: requestWithCookie("/api/rooms"),
-    body: { name: "guest-name" },
-  });
-  const linkedGuest = await handleState({
-    request: new Request(`https://example.test/api/rooms/${guestRoom.roomCode}/state`, {
-      headers: {
-        authorization: `Bearer ${guestRoom.token}`,
-        cookie: firstCookie,
-      },
-    }),
-  });
-  assert.equal(linkedGuest.publicData.players[0].name, firstName);
+  await assert.rejects(
+    handleCreate({ request: requestWithCookie("/api/rooms"), body: { name: "guest-name" } }),
+    (error) => error.status === 401,
+  );
 
   const secondName = username();
   const secondResponse = await handleRegister({
@@ -77,10 +74,12 @@ test("username-only accounts sign in securely and bind room seats to the account
   );
 
   const started = await handleStart({
-    request: new Request(`https://example.test/api/rooms/${created.roomCode}/start`, {
-      headers: { authorization: `Bearer ${created.token}` },
-    }),
+    request: roomRequest(`/api/rooms/${created.roomCode}/start`, firstCookie, created.token),
   });
+  await assert.rejects(
+    handleState({ request: roomRequest(`/api/rooms/${created.roomCode}/state`, cookieFrom(secondResponse), created.token) }),
+    (error) => error.status === 403,
+  );
   const room = await loadRoom(created.roomCode);
   room.game.hands = [
     [{ id: "hearts-3", suit: "hearts", rank: "3" }],
@@ -98,8 +97,10 @@ test("username-only accounts sign in securely and bind room seats to the account
   room.game.turnStartedAt = Date.now();
   await saveRoom(created.roomCode, room);
 
-  const finishRequest = new Request(`https://example.test/api/rooms/${created.roomCode}/action`, {
-    headers: { authorization: `Bearer ${created.token}` },
+  const finishRequest = roomRequest(`/api/rooms/${created.roomCode}/action`, firstCookie, created.token);
+  await handleAction({
+    request: finishRequest,
+    body: { type: "knock", actionId: "knock-ranked-match" },
   });
   const action = { type: "play", cardId: "hearts-3", actionId: "finish-ranked-match" };
   const finished = await handleAction({ request: finishRequest, body: action });

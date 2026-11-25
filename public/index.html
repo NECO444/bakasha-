@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#e94339">
-    <meta name="description" content="Play BAKASHA with friends around one table or online.">
+    <meta name="theme-color" content="#08130e">
+    <meta name="description" content="Play BAKASHA online with friends.">
     <title>BAKASHA — Play together</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,32 +28,32 @@
         <div class="topbar-right">
           <span class="mode-badge"><span class="mode-dot"></span> <span id="mode-label">Choose game</span></span>
           <button class="text-button" id="leaderboard-button" type="button" aria-label="Open public leaderboard">Scores</button>
+          <button class="text-button hidden" id="friends-button" type="button">Friends</button>
           <button class="text-button" id="account-button" type="button">Sign in</button>
         </div>
       </header>
 
       <main>
-        <section class="setup-screen" id="setup-screen" aria-label="Choose a game">
+        <section class="setup-screen hidden" id="setup-screen" aria-label="Choose a game">
           <section class="setup-card" aria-labelledby="setup-title">
             <div class="setup-card-head">
               <div class="setup-icon" aria-hidden="true">♣</div>
-              <div><h2 id="setup-title">Choose a game</h2></div>
+              <div><h2 id="setup-title">Choose your quest</h2><p>Pick a table and play with your people.</p></div>
             </div>
             <div class="game-mode-picker" id="game-mode-picker" role="group" aria-label="Game type">
-              <button class="game-mode-option" id="one-v-one-button" type="button"><strong>1v1</strong><span>Play online</span></button>
-              <button class="game-mode-option" id="group-game-button" type="button"><strong>Group</strong><span>Play together</span></button>
+              <button class="game-mode-option" id="one-v-one-button" type="button"><strong>Quick duel</strong><span>Find a friend online</span></button>
+              <button class="game-mode-option" id="group-game-button" type="button"><strong>Group quest</strong><span>Invite 2–5 players</span></button>
             </div>
             <div class="group-game-options hidden" id="group-game-options">
-              <label class="field-label" for="player-count">PLAYERS</label>
+              <span class="field-label">CHOOSE YOUR CREW SIZE</span>
               <div class="count-picker" id="count-picker" role="group" aria-label="Number of players">
-                <button type="button" class="count-button" data-count="3">3</button>
-                <button type="button" class="count-button active" data-count="4">4</button>
-                <button type="button" class="count-button" data-count="5">5</button>
-                <button type="button" class="count-button" data-count="6">6</button>
+                <button type="button" class="count-button" data-count="3" aria-pressed="false">3</button>
+                <button type="button" class="count-button active" data-count="4" aria-pressed="true">4</button>
+                <button type="button" class="count-button" data-count="5" aria-pressed="false">5</button>
+                <button type="button" class="count-button" data-count="6" aria-pressed="false">6</button>
               </div>
-              <span class="sr-only" id="player-count">Choose between three and six players</span>
-              <div class="player-fields" id="player-fields"></div>
-              <button type="button" class="primary-button start-button" id="start-button">Start group game <span aria-hidden="true">→</span></button>
+              <p class="group-mode-note">Everyone joins online. The host starts the game when every seat is filled.</p>
+              <button type="button" class="primary-button start-button" id="start-button">Create group room <span aria-hidden="true">→</span></button>
             </div>
           </section>
         </section>
@@ -62,13 +62,13 @@
           <section class="setup-card online-card" aria-labelledby="online-title">
             <div class="setup-card-head">
               <div class="setup-icon" aria-hidden="true">↗</div>
-              <div><h2 id="online-title">Play together</h2><p>Create a table and send your friend a link.</p></div>
+              <div><h2 id="online-title">Play together</h2><p id="online-subtitle">Create a table and send your friend a link.</p></div>
             </div>
 
             <section class="account-panel" aria-label="Your name">
-              <label class="field-label" for="account-username">YOUR NAME</label>
+              <label class="field-label" for="account-username">PLAYING AS</label>
               <input class="online-input" id="account-username" type="text" maxlength="16" autocomplete="nickname" placeholder="What should your friend call you?">
-              <p class="score-note" id="score-note">No account needed to play. Sign in to save your scores.</p>
+              <p class="score-note" id="score-note">Your account name labels your seat and tracks your online results.</p>
             </section>
 
             <label class="room-visibility" for="public-room-checkbox">
@@ -159,6 +159,7 @@
                   <span class="timer-unit">SEC</span>
                 </div>
                 <div class="hand-count" id="hand-count">4 cards</div>
+                <button class="secondary-button knock-button hidden" id="knock-button" type="button">KNOCK</button>
               </div>
               <div class="hand" id="hand" aria-label="Your cards"></div>
               <div class="hand-help hidden" id="hand-help"></div>
@@ -168,7 +169,7 @@
           </div>
           <section class="game-chat hidden" id="game-chat" aria-label="Game chat">
             <div class="game-chat-heading">
-              <div><h2>Table chat</h2><p>Only you and your opponent can see these messages.</p></div>
+                <div><h2>Table chat</h2><p>Only players at this table can see these messages.</p></div>
               <div class="game-chat-tools">
                 <div class="game-invite-actions">
                   <a class="secondary-button whatsapp-invite" id="game-whatsapp-invite" href="https://wa.me/" target="_blank" rel="noopener noreferrer">Invite</a>
@@ -189,11 +190,11 @@
       </main>
     </div>
 
-    <div class="modal-backdrop account-backdrop hidden" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
+    <div class="modal-backdrop account-backdrop" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
       <div class="account-dialog">
-        <p class="account-prompt">Challenge your friends.<br>Winner takes the pot.</p>
+        <p class="account-prompt">Sign in or create an account<br>to play BAKASHA.</p>
         <div class="modal-card account-card">
-          <button class="modal-close" id="close-account" type="button" aria-label="Close account">×</button>
+          <button class="modal-close hidden" id="close-account" type="button" aria-label="Close account">×</button>
           <div class="account-tabs" id="account-tabs" role="group" aria-label="Account type">
             <button class="account-tab active" id="account-login-tab" type="button" aria-pressed="true">Sign in</button>
             <button class="account-tab" id="account-register-tab" type="button" aria-pressed="false">New player</button>
@@ -209,11 +210,38 @@
           </form>
           <section class="account-session hidden" id="account-session-panel">
             <strong id="account-current-name"></strong>
-            <p>Win or lose, every finished match with two signed-in players updates your record.</p>
+            <p>Your username identifies you in games and on the leaderboard.</p>
             <button class="secondary-button" id="account-signout" type="button">Sign out</button>
           </section>
           <p class="account-status" id="account-status" role="status" aria-live="polite"></p>
         </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop hidden" id="friends-modal" role="dialog" aria-modal="true" aria-labelledby="friends-title">
+      <div class="modal-card friends-card">
+        <button class="modal-close" id="close-friends" type="button" aria-label="Close friends">×</button>
+        <div class="eyebrow">PLAY TOGETHER</div>
+        <h2 id="friends-title">Friends</h2>
+        <p>Add players by username. They must accept your request before they appear as a friend.</p>
+        <form class="friend-form" id="friend-form">
+          <label class="field-label" for="friend-username">BAKASHA USERNAME</label>
+          <input class="online-input" id="friend-username" type="text" minlength="3" maxlength="16" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Enter a username">
+          <button class="primary-button" id="friend-submit" type="submit">Send request</button>
+        </form>
+        <p class="account-status" id="friends-status" role="status" aria-live="polite"></p>
+        <section class="friend-section" aria-labelledby="friend-list-title">
+          <h3 id="friend-list-title">Your friends</h3>
+          <div class="friend-list" id="friend-list"></div>
+        </section>
+        <section class="friend-section" aria-labelledby="friend-incoming-title">
+          <h3 id="friend-incoming-title">Requests for you</h3>
+          <div class="friend-list" id="friend-incoming"></div>
+        </section>
+        <section class="friend-section" aria-labelledby="friend-outgoing-title">
+          <h3 id="friend-outgoing-title">Requests you sent</h3>
+          <div class="friend-list" id="friend-outgoing"></div>
+        </section>
       </div>
     </div>
 
@@ -238,7 +266,6 @@
         <button class="modal-close" id="close-suit" type="button" aria-label="Cancel card play">×</button>
         <h2 id="suit-title">Pick the next color</h2>
         <p class="sr-only" id="suit-description">Choose a suit for the next turn.</p>
-        <button type="button" class="agree-option hidden" id="agree-suit"></button>
         <div class="suit-options">
           <button type="button" class="suit-option suit-choice-red" data-suit="hearts"><span>♥</span> Hearts</button>
           <button type="button" class="suit-option suit-choice-blue" data-suit="spades"><span>♠</span> Spades</button>
@@ -265,16 +292,17 @@
         <button class="modal-close" id="close-rules" type="button" aria-label="Close rules">×</button>
         <div class="eyebrow">THE QUICK VERSION</div>
         <h2 id="rules-title">How to play</h2>
-        <p>Each player starts with 4 cards. The opening card is never an Ace, 2, 8, Jack, or Joker. On a normal turn, match the active suit or rank, or play a Joker. If you have no legal play, draw 1. Penalties and 8/Jack chains have special rules below.</p>
+        <p>Each player starts with 4 cards. The opening card is never an Ace, 2, 8, Jack, or Joker. On your turn, play a card matching the top card by suit or number. If you cannot or do not want to play, draw 1; your turn ends, and you cannot play the card you drew.</p>
+        <p>Suits: ♠ Spades, ♥ Hearts, ♣ Clubs, ♦ Diamonds.</p>
         <ul class="rules-list">
-          <li><span class="rule-icon hearts">A</span><span><strong>Ace</strong> — Normally, its suit must match the active suit. On an Ace, any Ace may follow: agree to keep the active suit, or object and choose a different suit.</span></li>
-          <li><span class="rule-icon diamonds">2</span><span><strong>Two</strong> — Normally gives the next player a 2-card penalty. They may play another 2 to cancel the penalty, or draw 2 cards. Against a Joker penalty, a 2 reduces it by 2 instead.</span></li>
-          <li><span class="rule-icon wild">✳</span><span><strong>Joker</strong> — Gives the next player a 4-card penalty. While it is pending, a 2 reduces it by 2; that player may reduce it again or draw the remainder. Another Joker cancels the remainder. If the full penalty is drawn without any 2s reducing it, or a Joker cancels it, the following player may play any card. After a 2 reduces the penalty, play follows the last 2’s suit.</span></li>
-          <li><span class="rule-icon clubs">8/J</span><span><strong>Eight / Jack</strong> — Chain 8s that match the previous card by suit or rank. An odd number of 8s reverses direction when the chain ends; an even number does not. On a normal turn, a Jack must match the active suit; in a chain, it must match the last card’s suit unless that card was a Jack. With 3+ players, a Jack ends the chain and skips the next player, after any 8 reversal. Otherwise, finish the chain with same-suit support (an 8 or Jack extends it) or draw 1. In a 2-player game, a Jack needs same-suit support; a Jack can extend another Jack but cannot be support. A support 2 also gives the next player a 2-card penalty.</span></li>
-          <li><span class="rule-icon spades">K</span><span><strong>King</strong> — A normal card; it has no special effect.</span></li>
-          <li><span class="rule-icon clubs">7</span><span><strong>Seven</strong> — A normal card; it has no special effect.</span></li>
+          <li><span class="rule-icon hearts">A</span><span><strong>Ace — “I want”</strong> — Play on the same suit or another Ace, then name a suit. The next player must play that suit or an Ace. If they cannot, they draw 1 and the next player must answer the demand. A Joker clears the demand.</span></li>
+          <li><span class="rule-icon diamonds">2</span><span><strong>Two — Pick 2</strong> — Play on the same suit or another 2. The next player draws 2 and misses their turn, unless they answer with another 2, which cancels the penalty.</span></li>
+          <li><span class="rule-icon wild">✳</span><span><strong>Joker — Pick 4</strong> — Play on anything except a 2. The next player draws 4 and misses their turn, unless they answer with a Joker (cancels it; the following player may play anything) or a 2 (blocks 2, so they draw 2). A Joker also clears an Ace’s demand.</span></li>
+          <li><span class="rule-icon clubs">J</span><span><strong>Jack — Jump</strong> — Play on the same suit or another Jack. The next player is skipped. In a 2-player game, the jump comes back to you: play a normal support card or draw 1.</span></li>
+          <li><span class="rule-icon spades">8</span><span><strong>Eight — Needs support</strong> — Play again straight away with a card of the 8’s suit, or another 8 (which needs its own support). If you have no support, draw 1. Completing the support turns play around.</span></li>
         </ul>
-        <p class="rules-note">Each turn has a 60-second timer. If time runs out, you draw the active penalty, or 1 card if there is none; your turn then ends. First player to empty their hand wins!</p>
+        <p class="rules-note">You cannot go out on a Jack, Ace, 8, 2, or Joker; if it is your last card, you must draw 1 on your next turn. Knock when you have one card; it does not use your turn. In 1v1, the first player out wins. In group play, the last player holding cards each round is eliminated; play new rounds until one player remains.</p>
+        <p class="rules-note">Each turn has a 60-second timer. If time runs out, draw the active penalty, or 1 card if there is none; your turn then ends.</p>
       </div>
     </div>
 
