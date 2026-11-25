@@ -725,6 +725,13 @@ function selectCard(index) {
     showToast("Not quite! Pick a card that matches the suit or number.");
     return;
   }
+  const selectedCard = [...elements.hand.querySelectorAll("[data-card-id]")]
+    .find((item) => item.dataset.cardId === card.id);
+  selectedCard?.scrollIntoView({
+    inline: "center",
+    block: "nearest",
+    behavior: "smooth",
+  });
   if (card.rank === "A") {
     game.stagedCardIndex = index;
     elements.suitTitle.textContent = "Name a suit";
