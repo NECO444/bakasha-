@@ -6,6 +6,7 @@ import {
   handleCreate,
   handleJoin,
   handleListActiveRooms,
+  handleReaction,
   handleStart,
   handleState,
 } from "../lib/rooms.js";
@@ -69,6 +70,43 @@ test("room access requires a signed-in account", async () => {
   await assert.rejects(handleCreate({ request: accountRequest("/api/rooms"), body: { name: "Guest" } }), (e) => e.status === 401);
   await assert.rejects(handleState({ request: req("2345", "state", "token") }), (e) => e.status === 401);
   await assert.rejects(handleState({ request: req("short", "state", "x", await createTestAccount()) }), (e) => e.status === 400);
+});
+
+test("quick reactions are validated, stored, and rate-limited per player", async () => {
+  const host = await createTestAccount("react_host");
+  const guest = await createTestAccount("react_guest");
+  const created = await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
+  const joined = await handleJoin({
+    request: req(created.roomCode, "join", null, guest),
+    body: {},
+  });
+  await handleStart({ request: req(created.roomCode, "start", created.token, host) });
+
+  const sent = await handleReaction({
+    request: req(created.roomCode, "reaction", created.token, host),
+    body: { reaction: "👏" },
+  });
+  assert.equal(sent.publicData.chatMessages.at(-1).text, "👏");
+  assert.equal(sent.publicData.chatMessages.at(-1).seat, 0);
+  await assert.rejects(
+    handleReaction({
+      request: req(created.roomCode, "reaction", created.token, host),
+      body: { reaction: "🔥" },
+    }),
+    (error) => error.status === 429,
+  );
+  const otherSeat = await handleReaction({
+    request: req(created.roomCode, "reaction", joined.token, guest),
+    body: { reaction: "GG" },
+  });
+  assert.equal(otherSeat.publicData.chatMessages.at(-1).text, "GG");
+  await assert.rejects(
+    handleReaction({
+      request: req(created.roomCode, "reaction", joined.token, guest),
+      body: { reaction: "not-an-emoji" },
+    }),
+    (error) => error.status === 400,
+  );
 });
 
 test("an account can keep two active rooms, but cannot create or join a third", async () => {

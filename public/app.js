@@ -1,6 +1,7 @@
 import { enableAudioUnlock, isMuted, playSound, setMuted } from "./sound.js";
 
 "use strict";
+const PAGE_TITLE = "BAKASHA — Play together";
 
 const SUITS = {
   hearts: { symbol: "♥", name: "Hearts" },
@@ -9,6 +10,7 @@ const SUITS = {
   clubs: { symbol: "♣", name: "Clubs" },
 };
 const SUIT_ORDER = ["hearts", "spades", "diamonds", "clubs"];
+const QUICK_REACTION_TEXTS = new Set(["👏", "😂", "🔥", "😮", "GG"]);
 const PLAYER_COLORS = ["#d3f36b", "#70a9f6", "#f17474", "#f0c95e", "#c39aef", "#6bcf9d"];
 const elements = {
   setup: document.querySelector("#setup-screen"),
@@ -60,6 +62,7 @@ let publicRoomsTimer = null;
 let publicRoomsLoading = false;
 let activeRoomsLoading = false;
 let friendChallengesTimer = null;
+let presenceTimer = null;
 let friendsLoading = false;
 let knownFriendChallengeIds = new Set();
 let friendChallengesInitialized = false;
@@ -67,8 +70,13 @@ let soundMuted = isMuted();
 let tutorialIndex = 0;
 let tutorialShown = false;
 let tutorialDismissed = false;
+let tutorialOpener = null;
 let statsPeriod = "all";
 let renderedHandSeat = null;
+let duelSheetOpener = null;
+let optimisticConnectionOpener = null;
+let leaderboardPeriod = "weekly";
+let leaderboardPreviousScreen = null;
 const online = {
   roomCode: null,
   token: null,
@@ -82,6 +90,7 @@ const online = {
   movePending: false,
   pendingAction: null,
   chatSending: false,
+  reactionSending: false,
   chatOpen: false,
   optimisticCard: null,
   timeoutSentAt: null,
@@ -89,6 +98,10 @@ const online = {
   version: 0,
   clockOffset: 0,
   chatUnreadCount: 0,
+  reactionsOpen: false,
+  recentReactions: new Map(),
+  reconnectAttempts: 0,
+  lastAlertedTurn: null,
 };
 
 function createDeck() {
@@ -240,11 +253,42 @@ function presentGameResult(winner) {
   document.querySelector("#result-word").textContent = won ? "won!" : "wins!";
   document.querySelector("#rematch-modal .eyebrow").textContent = won ? "YOU DID IT!" : "GOOD GAME";
   updateResultScore();
+  updateTurnNotificationControl();
   if (won) {
     playSound("win");
     showConfetti();
   } else {
     playSound("lose");
+  }
+
+  function updateTurnNotificationControl() {
+    const button = document.querySelector("#turn-notifications-button");
+    const status = document.querySelector("#turn-notifications-status");
+    const supported = "Notification" in window;
+    button.classList.toggle(
+      "hidden",
+      !game?.finished || !accountUser || !supported || Notification.permission !== "default",
+    );
+    if (!supported) status.textContent = "";
+    else if (Notification.permission === "granted") status.textContent = "Turn notifications are enabled.";
+    else if (Notification.permission === "denied") status.textContent = "Notifications are blocked in your browser settings.";
+  }
+
+  function alertForTurn(state) {
+    if (!state || state.finished || state.current !== online.seat) {
+      online.lastAlertedTurn = null;
+      document.title = PAGE_TITLE;
+      return;
+    }
+    const turnKey = `${online.roomCode}:${state.turnStartedAt}:${state.current}`;
+    if (!document.hidden || online.lastAlertedTurn === turnKey) return;
+    online.lastAlertedTurn = turnKey;
+    document.title = "Your turn! | BAKASHA";
+    if (!soundMuted) playSound("turn");
+    if (typeof navigator.vibrate === "function") navigator.vibrate([120, 80, 120]);
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Your turn in BAKASHA", { body: "Tap to return to your game." });
+    }
   }
 }
 
@@ -443,12 +487,17 @@ function animateDrawnCard(cardElement) {
 function renderGame() {
   if (!game) return;
   document.body.classList.toggle("game-active", !game.finished);
+  const liveOnlineGame = onlineMode && !game.finished;
   chatToggle.classList.toggle("hidden", !onlineMode);
+  chatToggle.disabled = !liveOnlineGame;
+  chatToggle.setAttribute("aria-label", online.reactionsOpen ? "Close quick reactions" : "Open quick reactions");
+  chatToggle.setAttribute("aria-expanded", String(liveOnlineGame && online.reactionsOpen));
+  document.querySelector("#game-reactions").classList.toggle("hidden", !liveOnlineGame || !online.reactionsOpen);
   if (!onlineMode) {
     online.chatOpen = false;
     document.querySelector("#game-chat").classList.add("hidden");
     chatToggle.setAttribute("aria-expanded", "false");
-    chatToggle.setAttribute("aria-label", "Open table chat");
+    chatToggle.setAttribute("aria-label", "Open quick reactions");
   }
   const viewIndex = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
   const player = game.players[viewIndex];
@@ -458,6 +507,10 @@ function renderGame() {
     : onlineMode && game.current === onlineSeat ? "YOUR TURN" : "YOUR HAND";
   elements.avatar.textContent = player.name.trim().charAt(0).toUpperCase();
   elements.avatar.style.color = PLAYER_COLORS[viewIndex % PLAYER_COLORS.length];
+  const ownReaction = online.recentReactions.get(onlineSeat);
+  const ownReactionElement = document.querySelector("#player-reaction");
+  ownReactionElement.textContent = ownReaction ? ownReaction.emoji : "";
+  ownReactionElement.classList.toggle("hidden", !ownReaction);
   elements.handCount.textContent = `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`;
   elements.turnNumber.textContent = onlineMode ? `TURN ${game.turns}` : `ROUND ${game.round} · TURN ${game.turns}`;
   elements.timer.classList.toggle("timer-warning", game.timeLeft <= 10 && !game.finished);
@@ -510,6 +563,13 @@ function renderOpponents() {
     if (index === viewerSeat) return;
     const opponent = document.createElement("div");
     opponent.className = "opponent";
+    const reaction = online.recentReactions.get(index);
+    if (reaction) {
+      const reactionBadge = document.createElement("span");
+      reactionBadge.className = "opponent-reaction";
+      reactionBadge.textContent = reaction.emoji;
+      opponent.append(reactionBadge);
+    }
     const name = document.createElement("span");
     name.className = "opponent-name";
     name.textContent = player.name;
@@ -531,6 +591,25 @@ function renderOpponents() {
     opponent.append(name, cardRow, count);
     elements.opponents.append(opponent);
   });
+}
+
+function showQuickReaction(seat, emoji) {
+  const id = window.crypto && window.crypto.randomUUID
+    ? window.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  online.recentReactions.set(seat, { emoji, id });
+  if (game && onlineMode) {
+    if (seat === onlineSeat) renderGame();
+    else renderOpponents();
+  }
+  window.setTimeout(() => {
+    if (online.recentReactions.get(seat)?.id !== id) return;
+    online.recentReactions.delete(seat);
+    if (game && onlineMode) {
+      if (seat === onlineSeat) renderGame();
+      else renderOpponents();
+    }
+  }, 2600);
 }
 
 function renderHand() {
@@ -1010,7 +1089,11 @@ document.querySelector("#count-picker").addEventListener("click", (event) => {
 });
 elements.start.addEventListener("click", startGame);
 document.querySelector("#one-v-one-button").addEventListener("click", startQuickDuel);
-document.querySelector("#browse-games-button").addEventListener("click", () => openOnlineLobby("duel"));
+document.querySelector("#play-now-button").addEventListener("click", startQuickDuel);
+document.querySelector("#browse-games-button").addEventListener("click", () => {
+  openOnlineLobby("duel");
+  setDuelTab("join");
+});
 document.querySelector("#training-game-button").addEventListener("click", startTrainingGame);
 document.querySelector("#group-game-button").addEventListener("click", () => {
   const options = document.querySelector("#group-game-options");
@@ -1026,6 +1109,12 @@ document.querySelector("#group-game-button").addEventListener("click", () => {
 });
 document.querySelector("#cancel-group-setup").addEventListener("click", closeGroupOptions);
 document.querySelector("#online-back-button").addEventListener("click", returnToSetup);
+document.querySelector("#close-online").addEventListener("click", closeDuelSheet);
+document.querySelector("#duel-create-tab").addEventListener("click", () => setDuelTab("create"));
+document.querySelector("#duel-join-tab").addEventListener("click", () => setDuelTab("join"));
+document.querySelector("#online-screen").addEventListener("click", (event) => {
+  if (event.target === elements.online && !online.roomCode) closeDuelSheet();
+});
 elements.drawPile.addEventListener("click", () => {
   drawCard();
 });
@@ -1048,6 +1137,7 @@ elements.rematch.addEventListener("click", async () => {
 });
 document.querySelector("#close-suit").addEventListener("click", cancelSuitSelection);
 function returnToSetup() {
+  hideOptimisticConnection();
   window.clearInterval(turnTimer);
   turnTimer = null;
   window.clearTimeout(trainingTurnTimer);
@@ -1064,6 +1154,7 @@ function returnToSetup() {
   online.chatOpen = false;
   online.optimisticCard = null;
   document.querySelector("#mode-label").textContent = "Choose game";
+  document.title = PAGE_TITLE;
   document.querySelector("#round-mode-label").textContent = "ONLINE GAME";
   game = null;
   document.body.classList.remove("game-active");
@@ -1071,18 +1162,80 @@ function returnToSetup() {
   hideModal(elements.rematchModal);
   elements.game.classList.add("hidden");
   elements.online.classList.add("hidden");
+  elements.online.classList.remove("is-duel-sheet");
+  elements.online.removeAttribute("role");
+  elements.online.removeAttribute("aria-modal");
   elements.setup.classList.remove("hidden");
+  document.querySelector("#leaderboard-modal").classList.add("hidden");
+  setActiveNavigation("nav-play-button");
   document.querySelector("#group-game-options").classList.add("hidden");
   document.querySelector("#group-game-button").classList.remove("active");
   document.querySelector("#group-game-button").setAttribute("aria-expanded", "false");
   document.querySelector("#one-v-one-button").classList.remove("active");
   document.querySelector("#training-game-button").classList.remove("active");
 }
+function setDuelTab(tab) {
+  const createTab = document.querySelector("#duel-create-tab");
+  const joinTab = document.querySelector("#duel-join-tab");
+  const createPanel = document.querySelector("#duel-create-panel");
+  const joinPanel = document.querySelector("#duel-join-panel");
+  const isCreate = tab === "create";
+  createTab.classList.toggle("active", isCreate);
+  joinTab.classList.toggle("active", !isCreate);
+  createTab.setAttribute("aria-selected", String(isCreate));
+  joinTab.setAttribute("aria-selected", String(!isCreate));
+  createPanel.classList.toggle("hidden", !isCreate);
+  joinPanel.classList.toggle("hidden", isCreate);
+}
+function closeDuelSheet() {
+  if (online.roomCode || !elements.online.classList.contains("is-duel-sheet")) return;
+  stopPublicRoomsRefresh();
+  elements.online.classList.add("hidden");
+  elements.online.classList.remove("is-duel-sheet");
+  elements.online.removeAttribute("role");
+  elements.online.removeAttribute("aria-modal");
+  if (duelSheetOpener instanceof HTMLElement) duelSheetOpener.focus();
+}
 function closeGroupOptions() {
   document.querySelector("#group-game-options").classList.add("hidden");
   document.querySelector("#group-game-button").classList.remove("active");
   document.querySelector("#group-game-button").setAttribute("aria-expanded", "false");
   document.querySelector("#group-game-button").focus();
+}
+function showOptimisticConnection() {
+  optimisticConnectionOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  elements.setup.classList.add("hidden");
+  elements.online.classList.add("hidden");
+  elements.game.classList.remove("hidden");
+  document.querySelector(".game-heading").classList.add("hidden");
+  document.querySelector(".table-surface").classList.add("hidden");
+  document.querySelector(".game-chat").classList.add("hidden");
+  document.querySelector(".game-footer").classList.add("hidden");
+  document.querySelector("#reconnecting-banner").classList.add("hidden");
+  document.querySelector("#optimistic-connection").classList.remove("hidden");
+  document.querySelector("#optimistic-connection h2").focus();
+}
+function hideOptimisticConnection(restoreFocus = false) {
+  const placeholder = document.querySelector("#optimistic-connection");
+  if (!placeholder) return false;
+  const wasConnecting = !placeholder.classList.contains("hidden");
+  placeholder.classList.add("hidden");
+  document.querySelector(".game-heading").classList.remove("hidden");
+  document.querySelector(".table-surface").classList.remove("hidden");
+  document.querySelector(".game-footer").classList.remove("hidden");
+  if (restoreFocus && optimisticConnectionOpener?.isConnected && !optimisticConnectionOpener.closest(".hidden")) {
+    optimisticConnectionOpener.focus();
+  }
+  optimisticConnectionOpener = null;
+  return wasConnecting;
+}
+function setActiveNavigation(activeId) {
+  for (const button of document.querySelectorAll(".primary-nav .nav-link")) {
+    const active = button.id === activeId;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
 }
 document.querySelector("#back-button").addEventListener("click", returnToSetup);
 document.querySelector("#new-table-button").addEventListener("click", returnToSetup);
@@ -1094,9 +1247,8 @@ document.querySelector("#brand-home-link").addEventListener("click", (event) => 
 chatToggle.addEventListener("click", () => {
   const data = online.publicData;
   if (!data || data.status !== "playing" || !data.game || data.game.finished) return;
-  online.chatOpen = !online.chatOpen;
+  online.reactionsOpen = !online.reactionsOpen;
   renderGameChat(data);
-  if (online.chatOpen) document.querySelector("#chat-input").focus();
 });
 
 // ---------- Online play (Vercel API) ----------
@@ -1125,19 +1277,38 @@ function openOnlineLobby(mode = "duel") {
     showAccountGate();
     return;
   }
+  const isDuel = mode !== "group";
+  if (isDuel && elements.online.classList.contains("hidden")) duelSheetOpener = document.activeElement;
   onlineRoomSize = mode === "group" ? selectedCount : 2;
-  elements.setup.classList.add("hidden");
+  elements.setup.classList.toggle("hidden", !isDuel);
   elements.online.classList.remove("hidden");
-  document.querySelector("#online-back-button").classList.remove("hidden");
-  document.querySelector("#mode-label").textContent = onlineRoomSize > 2 ? "Group quest" : "Quick duel";
-  document.querySelector("#online-title").textContent = onlineRoomSize > 2 ? `${onlineRoomSize}-player group` : "Quick duel";
+  elements.online.classList.toggle("is-duel-sheet", isDuel);
+  if (isDuel) {
+    elements.online.setAttribute("role", "dialog");
+    elements.online.setAttribute("aria-modal", "true");
+    elements.online.setAttribute("aria-labelledby", "online-title");
+  } else {
+    elements.online.removeAttribute("role");
+    elements.online.removeAttribute("aria-modal");
+    elements.online.removeAttribute("aria-labelledby");
+  }
+  document.querySelector("#online-back-button").classList.toggle("hidden", isDuel);
+  document.querySelector("#close-online").classList.toggle("hidden", !isDuel);
+  document.querySelector("#duel-tabs").classList.toggle("hidden", !isDuel);
+  document.querySelector("#duel-create-panel").classList.remove("hidden");
+  document.querySelector("#duel-join-panel").classList.toggle("hidden", isDuel);
+  if (isDuel) setDuelTab("create");
+  document.querySelector("#mode-label").textContent = onlineRoomSize > 2 ? "Group quest" : "Duel a friend";
+  document.querySelector("#online-title").textContent = onlineRoomSize > 2 ? `${onlineRoomSize}-player group` : "Duel a friend";
   document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
     ? `Create a game for ${onlineRoomSize} players, then invite your crew.`
-    : "Create a table and send your friend a link.";
+    : "Create a table and invite a friend by link.";
   document.querySelector("#create-room-button").innerHTML = `Create ${onlineRoomSize === 2 ? "duel" : `${onlineRoomSize}-player game`} <span aria-hidden="true">→</span>`;
+  document.querySelector("#share-invite-button").classList.toggle("hidden", typeof navigator.share !== "function");
   refreshPublicRooms();
   refreshActiveRooms();
   schedulePublicRoomsRefresh();
+  if (isDuel) document.querySelector("#duel-create-tab").focus();
 }
 
 function stopPublicRoomsRefresh() {
@@ -1187,13 +1358,14 @@ function renderPublicRooms(rooms) {
 
 function renderActiveRooms(rooms) {
   const list = document.querySelector("#active-game-list");
+  const section = document.querySelector(".active-games");
+  const homeResume = document.querySelector("#home-resume-card");
+  section.classList.toggle("hidden", rooms.length === 0);
+  homeResume.classList.toggle("hidden", rooms.length === 0);
   document.querySelector("#active-game-count").textContent = `${rooms.length}/2`;
   list.replaceChildren();
+  renderHomeResume(rooms);
   if (rooms.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "public-room-empty active-game-empty";
-    empty.textContent = "No active games yet. Create a game or join one below.";
-    list.append(empty);
     return;
   }
   for (const room of rooms) {
@@ -1219,7 +1391,7 @@ function renderActiveRooms(rooms) {
     rejoin.className = "secondary-button";
     rejoin.type = "button";
     rejoin.dataset.activeRoomCode = room.roomCode;
-    rejoin.textContent = "Rejoin";
+    rejoin.textContent = "Resume";
     actions.append(rejoin);
     if (room.canEnd || room.canLeave) {
       const finish = document.createElement("button");
@@ -1235,11 +1407,30 @@ function renderActiveRooms(rooms) {
   }
 }
 
+function renderHomeResume(rooms) {
+  const card = document.querySelector("#home-resume-card");
+  const button = document.querySelector("#home-resume-button");
+  const details = document.querySelector("#home-resume-details");
+  const room = rooms[0];
+  if (!room) {
+    card.classList.add("hidden");
+    button.removeAttribute("data-active-room-code");
+    return;
+  }
+  details.textContent = room.status === "playing"
+    ? `Your game with ${room.playerCount} player${room.playerCount === 1 ? "" : "s"} is in progress.`
+    : room.status === "finished"
+      ? "Your last game has a rematch ready."
+      : "Your game is waiting for players.";
+  button.dataset.activeRoomCode = room.roomCode;
+  card.classList.remove("hidden");
+}
+
 async function refreshActiveRooms() {
   if (
     activeRoomsLoading
     || online.roomCode
-    || elements.online.classList.contains("hidden")
+    || (elements.online.classList.contains("hidden") && elements.setup.classList.contains("hidden"))
     || !accountUser
   ) return;
   activeRoomsLoading = true;
@@ -1250,10 +1441,8 @@ async function refreshActiveRooms() {
   } catch (error) {
     const list = document.querySelector("#active-game-list");
     list.replaceChildren();
-    const failure = document.createElement("p");
-    failure.className = "public-room-empty active-game-empty";
-    failure.textContent = onlineErrorMessage(error);
-    list.append(failure);
+    document.querySelector(".active-games").classList.add("hidden");
+    setOnlineStatus(onlineErrorMessage(error));
   } finally {
     activeRoomsLoading = false;
   }
@@ -1379,17 +1568,29 @@ function disconnectOnlineRoom() {
     clockOffset: 0,
     chatUnreadCount: 0,
     chatOpen: false,
+    reactionsOpen: false,
+    recentReactions: new Map(),
+    reconnectAttempts: 0,
+    lastAlertedTurn: null,
   });
   updateChatUnreadBadge();
   document.querySelector("#room-wait-panel").classList.add("hidden");
   document.querySelector("#invite-result").classList.add("hidden");
   document.querySelector("#create-room-controls").classList.remove("hidden");
+  document.querySelector(".account-panel").classList.remove("hidden");
   document.querySelector(".room-visibility").classList.remove("hidden");
   document.querySelector(".public-rooms").classList.remove("hidden");
   document.querySelector(".active-games").classList.remove("hidden");
-  document.querySelector("#online-back-button").classList.remove("hidden");
+  document.querySelector("#duel-tabs").classList.toggle("hidden", !elements.online.classList.contains("is-duel-sheet"));
+  document.querySelector("#online-back-button").classList.toggle("hidden", elements.online.classList.contains("is-duel-sheet"));
+  document.querySelector("#close-online").classList.toggle("hidden", !elements.online.classList.contains("is-duel-sheet"));
   document.querySelector("#join-room-panel").classList.remove("hidden");
-  document.querySelector("#copy-invite-button").textContent = "Share invite link";
+  document.querySelector("#copy-invite-button").textContent = "Copy link";
+  if (elements.online.classList.contains("is-duel-sheet")) setDuelTab("create");
+  else {
+    document.querySelector("#duel-create-panel").classList.remove("hidden");
+    document.querySelector("#duel-join-panel").classList.remove("hidden");
+  }
 }
 
 async function callGameApi(path, method, body, token) {
@@ -1453,30 +1654,53 @@ function renderAccountMode() {
 
 const tutorialSteps = [
   {
-    title: "Match the top card",
-    copy: "Play a card with the same suit or number as the card in the middle. If you cannot play, draw one card and your turn ends.",
+    title: "Match suit or rank",
+    copy: "The top card is 7♥. Choose either a heart (same suit) or another 7 (same rank).",
+    options: [
+      { label: "Play 4♥", valid: true },
+      { label: "Play 7♣", valid: true },
+      { label: "Play 9♣", valid: false },
+    ],
   },
   {
-    title: "Joker: pick four",
-    copy: "A Joker can go on almost any card except a 2. The next player draws four; after that, the following player may play any card, ignoring the old suit. A Joker can cancel the penalty.",
+    title: "Draw when you cannot play",
+    copy: "Your hand has no match for the top card. Drawing one card ends your turn; you cannot play that drawn card right away.",
+    options: [{ label: "Draw one card", valid: true }],
   },
   {
-    title: "Two: pick two",
-    copy: "Play a 2 to make the next player draw two and miss their turn. They can answer with another 2 to cancel the penalty.",
+    title: "A 2 starts a draw penalty",
+    copy: "The top card is 5♦. A 2 can match by suit or rank and makes the next player draw two; another 2 can cancel it.",
+    options: [
+      { label: "Play 2♦", valid: true },
+      { label: "Play 2♠", valid: false },
+    ],
   },
   {
-    title: "Ace: name a suit",
-    copy: "When you play an Ace, choose the suit the next player must follow. They can also answer with an Ace. A Joker clears an Ace’s suit demand.",
+    title: "Joker: draw four",
+    copy: "A Joker can be played on most cards, but not on a 2. The next player draws four; another Joker can cancel that penalty.",
+    options: [{ label: "Play Joker", valid: true }],
   },
   {
-    title: "Jack: jump or support",
-    copy: "In a group, a Jack skips the next player. In solo or 1v1, you get a support turn: play a card in the Jack’s suit or draw one. An 8 also needs support in its suit.",
+    title: "Ace: choose a suit",
+    copy: "Playing an Ace lets you name the suit the next player must follow. Choose the suit you want.",
+    options: [
+      { label: "Choose ♥ Hearts", valid: true },
+      { label: "Choose ♠ Spades", valid: true },
+      { label: "Choose ♦ Diamonds", valid: true },
+      { label: "Choose ♣ Clubs", valid: true },
+    ],
   },
   {
-    title: "One card left",
-    copy: "When you have one card, you are automatically marked. You cannot finish on a special card—if your last card is an Ace, 2, 8, Jack, or Joker, draw one on your next turn.",
+    title: "Jack: skip or support",
+    copy: "In a group, a Jack skips the next player. In solo or 1v1, play a card in the Jack’s suit to support it, or draw one card.",
+    options: [
+      { label: "Play 3♥", valid: true },
+      { label: "Draw one card", valid: true },
+      { label: "Play 5♠", valid: false },
+    ],
   },
 ];
+let tutorialActionComplete = false;
 
 function renderProgress() {
   const dashboard = document.querySelector("#progress-dashboard");
@@ -1498,22 +1722,62 @@ function renderProgress() {
   document.querySelector("#progress-streak").textContent = `${streak} win streak`;
   document.querySelector("#streak-chip").setAttribute("aria-label", `${streak} consecutive wins. View your stats.`);
   document.querySelector("#progress-wins-label").textContent = `${wins} wins · online results`;
+  const unlocked = new Set(Array.isArray(progress && progress.unlockedRewards) ? progress.unlockedRewards : []);
+  const rewardList = document.querySelector("#progress-reward-list");
+  rewardList.replaceChildren();
+  for (const reward of [
+    { id: "avatar", level: 2, label: "New avatar" },
+    { id: "card-back", level: 3, label: "Card back" },
+    { id: "title", level: 5, label: "Player title" },
+  ]) {
+    const item = document.createElement("li");
+    const isUnlocked = unlocked.has(reward.id);
+    item.classList.toggle("is-unlocked", isUnlocked);
+    item.textContent = `Level ${reward.level}: ${reward.label} · ${isUnlocked ? "Unlocked" : "Locked"}`;
+    rewardList.append(item);
+  }
 }
 
 function renderTutorialStep() {
   const step = tutorialSteps[tutorialIndex];
+  tutorialActionComplete = false;
   document.querySelector("#tutorial-step").textContent = `CARD ${tutorialIndex + 1} OF ${tutorialSteps.length}`;
   document.querySelector("#tutorial-title").textContent = step.title;
   document.querySelector("#tutorial-copy").textContent = step.copy;
-  document.querySelector("#tutorial-next").innerHTML = tutorialIndex === tutorialSteps.length - 1
-    ? "Let’s play! <span aria-hidden=\"true\">→</span>"
+  const next = document.querySelector("#tutorial-next");
+  next.innerHTML = tutorialIndex === tutorialSteps.length - 1
+    ? "Finish practice <span aria-hidden=\"true\">→</span>"
     : "Next <span aria-hidden=\"true\">→</span>";
+  next.disabled = true;
+  const practice = document.querySelector("#tutorial-practice");
+  practice.replaceChildren();
+  for (const option of step.options) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tutorial-practice-choice";
+    button.dataset.valid = String(option.valid);
+    button.textContent = option.label;
+    practice.append(button);
+  }
   const progress = document.querySelector("#tutorial-progress");
   progress.setAttribute("aria-valuemax", String(tutorialSteps.length));
   progress.setAttribute("aria-valuenow", String(tutorialIndex + 1));
   document.querySelector("#tutorial-progress-fill").style.width =
     `${((tutorialIndex + 1) / tutorialSteps.length) * 100}%`;
+  document.querySelector("#tutorial-status").textContent = "Choose a move to continue.";
 }
+
+document.querySelector("#tutorial-practice").addEventListener("click", (event) => {
+  const button = event.target instanceof Element ? event.target.closest(".tutorial-practice-choice") : null;
+  if (!button || tutorialActionComplete) return;
+  if (button.dataset.valid !== "true") {
+    document.querySelector("#tutorial-status").textContent = "That move does not match. Try again.";
+    return;
+  }
+  tutorialActionComplete = true;
+  document.querySelector("#tutorial-status").textContent = "Nice move. Continue when you are ready.";
+  document.querySelector("#tutorial-next").disabled = false;
+});
 
 function startTutorial(force = false) {
   if (!accountUser) return;
@@ -1521,11 +1785,15 @@ function startTutorial(force = false) {
   if (!force && (!accountUser.progress || accountUser.progress.tutorialCompleted)) return;
   tutorialShown = true;
   tutorialDismissed = false;
+  const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  tutorialOpener = activeElement && activeElement !== document.body && !activeElement.closest(".hidden")
+    ? activeElement
+    : null;
   tutorialIndex = 0;
   document.querySelector("#tutorial-status").textContent = "";
   renderTutorialStep();
   document.querySelector("#tutorial-modal").classList.remove("hidden");
-  document.querySelector("#tutorial-next").focus();
+  document.querySelector("#tutorial-practice .tutorial-practice-choice")?.focus();
 }
 
 async function completeTutorial() {
@@ -1538,6 +1806,10 @@ async function completeTutorial() {
     tutorialDismissed = true;
     document.querySelector("#tutorial-modal").classList.add("hidden");
     renderProgress();
+    const returnTarget = tutorialOpener;
+    tutorialOpener = null;
+    if (returnTarget && returnTarget.isConnected && !returnTarget.closest(".hidden")) returnTarget.focus();
+    else document.querySelector("#game-rules-button").focus();
   } catch (error) {
     document.querySelector("#tutorial-status").textContent = onlineErrorMessage(error);
     if (error.status === 401) {
@@ -1565,49 +1837,12 @@ async function refreshAccountProgress() {
   return accountUser.progress;
 }
 
-function filterMatches(history, period) {
-  if (period === "all") return history;
-  const now = new Date();
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  if (period === "week") start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-  else if (period === "month") start.setDate(1);
-  return history.filter((match) => Number.isFinite(match.finishedAt) && match.finishedAt >= start.getTime());
-}
-
-function renderStats() {
-  const history = accountUser && accountUser.progress && accountUser.progress.history || [];
-  const matches = filterMatches(history, statsPeriod)
-    .slice()
-    .sort((left, right) => right.finishedAt - left.finishedAt);
-  const wins = matches.filter((match) => match.result === "win").length;
-  const losses = matches.filter((match) => match.result === "loss").length;
-  document.querySelector("#stats-wins").textContent = String(wins);
-  document.querySelector("#stats-losses").textContent = String(losses);
-  document.querySelector("#stats-played").textContent = String(matches.length);
-  const list = document.querySelector("#match-history");
-  list.replaceChildren();
-  if (!matches.length) {
-    const empty = document.createElement("li");
-    empty.textContent = "No online matches in this period yet.";
-    list.append(empty);
-  }
-  for (const match of matches.slice(0, 50)) {
-    const item = document.createElement("li");
-    const detail = document.createElement("div");
-    const title = document.createElement("strong");
-    const opponents = Array.isArray(match.opponents) ? match.opponents : [];
-    title.textContent = opponents.length ? `vs ${opponents.join(", ")}` : "Online match";
-    const date = document.createElement("time");
-    date.dateTime = new Date(match.finishedAt).toISOString();
-    date.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" })
-      .format(new Date(match.finishedAt));
-    detail.append(title, date);
-    const result = document.createElement("span");
-    result.className = `match-result${match.result === "loss" ? " is-loss" : ""}`;
-    result.textContent = match.result === "win" ? "WIN" : "LOSS";
-    item.append(detail, result);
-    list.append(item);
+async function renderStats() {
+  try {
+    const { renderStats: renderStatsView } = await import("./stats-ui.js");
+    renderStatsView(accountUser && accountUser.progress, statsPeriod);
+  } catch (error) {
+    document.querySelector("#stats-status").textContent = onlineErrorMessage(error);
   }
 }
 
@@ -1622,7 +1857,7 @@ async function openStats() {
   document.querySelector("#stats-status").textContent = "Loading your matches…";
   try {
     await refreshAccountProgress();
-    renderStats();
+    await renderStats();
     document.querySelector("#stats-status").textContent = "";
   } catch (error) {
     document.querySelector("#stats-status").textContent = onlineErrorMessage(error);
@@ -1659,13 +1894,25 @@ function updateAccountUI(user) {
     elements.game.classList.add("hidden");
     accountModal.classList.add("hidden");
     roomNameInput.value = user.username;
+    document.querySelector("#duel-playing-name").textContent = user.username;
     document.querySelector("#account-current-name").textContent = user.username;
-    document.querySelector("#score-note").textContent = "Your username identifies your seat and tracks your online results.";
+    void refreshActiveRooms();
+    void heartbeatPresence();
+    schedulePresenceHeartbeat();
     if (pendingInviteRoom) openPendingInvite();
-    else startTutorial();
+    else if (
+      user.progress
+      && user.progress.wins + user.progress.losses === 0
+      && !user.progress.tutorialCompleted
+    ) {
+      startTrainingGame();
+      startTutorial();
+    } else startTutorial();
     startFriendChallengePolling();
   } else {
     stopFriendChallengePolling();
+    window.clearTimeout(presenceTimer);
+    presenceTimer = null;
     elements.setup.classList.add("hidden");
     elements.online.classList.add("hidden");
     elements.game.classList.add("hidden");
@@ -1747,6 +1994,7 @@ function openPendingInvite() {
   const invitedCode = extractRoomCode(invitedRoom);
   const inviteInput = document.querySelector("#invite-link-input");
   if (/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(invitedCode)) {
+    setDuelTab("join");
     inviteInput.value = makeInviteLink(invitedCode);
     if (readSavedRoom(invitedCode)) joinOnlineRoom();
     else inviteInput.focus();
@@ -1781,6 +2029,11 @@ function renderFriendEntries(container, entries, section) {
     row.append(name);
 
     if (section === "friends") {
+      const presence = document.createElement("span");
+      presence.className = `friend-presence${entry.online ? " is-online" : ""}`;
+      presence.setAttribute("aria-label", entry.online ? "Online" : "Offline");
+      presence.title = entry.online ? "Online" : "Offline";
+      row.append(presence);
       const challenge = document.createElement("button");
       challenge.type = "button";
       challenge.className = "friend-action friend-challenge-action";
@@ -1839,6 +2092,32 @@ function updateFriendChallengeBadge(challenges) {
   badge.textContent = challenges.length ? String(challenges.length) : "";
   badge.classList.toggle("hidden", challenges.length === 0);
   badge.setAttribute("aria-label", `${challenges.length} incoming game challenge${challenges.length === 1 ? "" : "s"}`);
+}
+
+async function heartbeatPresence() {
+  if (!accountUser) return;
+  try {
+    const result = await callGameApi("/api/presence", "POST", {});
+    if (!Number.isSafeInteger(result.onlineCount) || result.onlineCount < 1) {
+      throw new Error("The server returned an invalid online count.");
+    }
+    document.querySelector("#online-now-count").textContent = String(result.onlineCount);
+    document.querySelector("#presence-status").textContent = "";
+  } catch (error) {
+    if (error.status !== 429) {
+      document.querySelector("#online-now-count").textContent = "—";
+      document.querySelector("#presence-status").textContent = onlineErrorMessage(error);
+    }
+  }
+}
+
+function schedulePresenceHeartbeat() {
+  window.clearTimeout(presenceTimer);
+  if (!accountUser) return;
+  presenceTimer = window.setTimeout(async () => {
+    await heartbeatPresence();
+    schedulePresenceHeartbeat();
+  }, 25_000);
 }
 
 async function loadFriends(silent = false) {
@@ -1945,6 +2224,7 @@ async function respondToFriendChallenge(button) {
   if (action === "accept") {
     document.querySelector("#friends-modal").classList.add("hidden");
     openOnlineLobby("duel");
+    setDuelTab("join");
     document.querySelector("#invite-link-input").value = makeInviteLink(roomCode);
     const joined = await joinOnlineRoom(false);
     if (joined) {
@@ -2001,32 +2281,48 @@ async function updateFriendRequest(action, username) {
   }
 }
 
-async function openLeaderboard() {
+async function openLeaderboard(period = leaderboardPeriod) {
   const modal = document.querySelector("#leaderboard-modal");
-  const rows = document.querySelector("#leaderboard-rows");
-  const status = document.querySelector("#leaderboard-status");
-  modal.classList.remove("hidden");
-  rows.replaceChildren();
-  status.textContent = "Loading the last four weeks…";
-  try {
-    const result = await callGameApi("/api/leaderboard");
-    if (!result.players.length) {
-      status.textContent = "No ranked matches in the last four weeks yet.";
-      return;
-    }
-    for (const player of result.players) {
-      const row = document.createElement("tr");
-      for (const value of [player.rank, player.username, player.wins, player.losses, `${player.winRate}%`]) {
-        const cell = document.createElement("td");
-        cell.textContent = String(value);
-        row.append(cell);
-      }
-      rows.append(row);
-    }
-    status.textContent = `Rolling 28-day standings · Updated ${new Date(result.updatedAt).toLocaleString()}`;
-  } catch (error) {
-    status.textContent = onlineErrorMessage(error);
+  if (modal.classList.contains("hidden")) {
+    leaderboardPreviousScreen = elements.game.classList.contains("hidden")
+      ? elements.online.classList.contains("hidden") ? "setup" : "online"
+      : "game";
   }
+  leaderboardPeriod = period;
+  for (const screen of [elements.setup, elements.online, elements.game]) screen.classList.add("hidden");
+  modal.classList.remove("hidden");
+  setActiveNavigation("leaderboard-button");
+  document.querySelector("#leaderboard-eyebrow").textContent = period === "all-time"
+    ? "ALL-TIME STANDINGS"
+    : period === "friends"
+      ? "YOUR FRIEND CIRCLE"
+      : "ROLLING 28-DAY STANDINGS";
+  document.querySelector("#leaderboard-description").textContent = period === "friends"
+    ? "Your friends and your own results, ranked by wins and win rate."
+    : "Ranked by wins, with win rate as the tiebreaker. Anyone can view these standings.";
+  for (const tab of document.querySelectorAll(".leaderboard-tab")) {
+    const active = tab.dataset.period === period;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+  }
+  try {
+    const { renderLeaderboard } = await import("./leaderboard-ui.js");
+    await renderLeaderboard({ period, callGameApi });
+  } catch (error) {
+    document.querySelector("#leaderboard-status").textContent = onlineErrorMessage(error);
+  }
+}
+
+function closeLeaderboard() {
+  document.querySelector("#leaderboard-modal").classList.add("hidden");
+  const screen = leaderboardPreviousScreen === "game" && game
+    ? elements.game
+    : leaderboardPreviousScreen === "online" && online.roomCode
+      ? elements.online
+      : elements.setup;
+  screen.classList.remove("hidden");
+  setActiveNavigation("nav-play-button");
+  document.querySelector("#leaderboard-button").focus();
 }
 
 document.querySelector("#account-button").addEventListener("click", () => {
@@ -2037,6 +2333,12 @@ document.querySelector("#account-button").addEventListener("click", () => {
     return;
   }
   showAccountGate();
+});
+document.querySelector("#change-duel-name").addEventListener("click", () => {
+  renderAccountMode();
+  document.querySelector("#account-status").textContent = "Your username is fixed to your account. Sign out to use another account.";
+  document.querySelector("#account-modal").classList.remove("hidden");
+  document.querySelector("#account-signout").focus();
 });
 document.querySelector("#account-login-tab").addEventListener("click", () => {
   accountMode = "login";
@@ -2072,7 +2374,32 @@ document.querySelector("#close-account").addEventListener("click", () => {
   if (accountUser) document.querySelector("#account-modal").classList.add("hidden");
 });
 document.querySelector("#leaderboard-button").addEventListener("click", openLeaderboard);
-document.querySelector("#close-leaderboard").addEventListener("click", () => document.querySelector("#leaderboard-modal").classList.add("hidden"));
+document.querySelector("#close-leaderboard").addEventListener("click", closeLeaderboard);
+document.querySelector("#leaderboard-tabs").addEventListener("click", (event) => {
+  const tab = event.target instanceof Element ? event.target.closest("[data-period]") : null;
+  if (tab && tab.dataset.period !== leaderboardPeriod) void openLeaderboard(tab.dataset.period);
+});
+document.querySelector("#leaderboard-invite-button").addEventListener("click", () => {
+  closeLeaderboard();
+  openOnlineLobby("duel");
+});
+document.querySelector("#turn-notifications-button").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const permission = await Notification.requestPermission();
+    document.querySelector("#turn-notifications-status").textContent = permission === "granted"
+      ? "Turn notifications are enabled."
+      : permission === "denied"
+        ? "Notifications are blocked in your browser settings."
+        : "Notifications were not enabled.";
+    updateTurnNotificationControl();
+  } catch (error) {
+    document.querySelector("#turn-notifications-status").textContent = onlineErrorMessage(error);
+  } finally {
+    button.disabled = false;
+  }
+});
 document.querySelector("#stats-button").addEventListener("click", openStats);
 document.querySelector("#streak-chip").addEventListener("click", openStats);
 document.querySelector("#close-stats").addEventListener("click", () => document.querySelector("#stats-modal").classList.add("hidden"));
@@ -2117,7 +2444,7 @@ document.addEventListener("click", (event) => {
 document.querySelector("#sound-toggle").textContent = soundMuted ? "🔇" : "🔊";
 document.querySelector("#sound-toggle").setAttribute("aria-label", soundMuted ? "Turn sounds on" : "Mute sounds");
 document.querySelector("#sound-toggle").setAttribute("aria-pressed", String(soundMuted));
-for (const modalId of ["account-modal", "leaderboard-modal", "friends-modal", "stats-modal"]) {
+for (const modalId of ["account-modal", "friends-modal", "stats-modal"]) {
   document.querySelector(`#${modalId}`).addEventListener("click", (event) => {
     if (event.target === event.currentTarget && (modalId !== "account-modal" || accountUser)) {
       event.currentTarget.classList.add("hidden");
@@ -2127,6 +2454,9 @@ for (const modalId of ["account-modal", "leaderboard-modal", "friends-modal", "s
 
 // Waiting for the opponent needs fresher data than your own turn, so poll less when it is yours.
 function pollDelay() {
+  if (online.reconnectAttempts > 0) {
+    return Math.min(30_000, 1000 * (2 ** Math.min(online.reconnectAttempts - 1, 5)));
+  }
   const data = online.publicData;
   if (!data || !data.game) return 3000; // lobby: waiting for a friend or for the host to start
   if (data.game.finished) return 1500;
@@ -2148,14 +2478,27 @@ async function refreshRoomState() {
   const code = online.roomCode;
   try {
     const snapshot = await callGameApi(`/api/rooms/${code}/state`);
-    if (online.roomCode === code) applyRoomSnapshot(snapshot);
+    if (online.roomCode === code) {
+      online.reconnectAttempts = 0;
+      document.querySelector("#reconnecting-banner").classList.add("hidden");
+      applyRoomSnapshot(snapshot);
+    }
   } catch (error) {
     if (error.status === 404 || error.status === 403) {
+      online.reconnectAttempts = 0;
+      document.querySelector("#reconnecting-banner").classList.add("hidden");
       removeStored(roomStorageKey(code));
       returnToSetup();
       setOnlineStatus("That game has expired or no longer exists. Create another game.");
     } else {
-      setOnlineStatus(onlineErrorMessage(error));
+      online.reconnectAttempts += 1;
+      if (!elements.game.classList.contains("hidden")) {
+        document.querySelector("#reconnecting-banner").classList.remove("hidden");
+        document.querySelector("#reconnecting-banner").textContent =
+          `Reconnecting… (attempt ${online.reconnectAttempts})`;
+      } else {
+        setOnlineStatus(onlineErrorMessage(error));
+      }
     }
   } finally {
     online.polling = false;
@@ -2173,6 +2516,8 @@ function applyRoomSnapshot(snapshot) {
     return;
   }
   if (online.publicData && data.version < online.version) return; // an older response arrived late
+  online.reconnectAttempts = 0;
+  document.querySelector("#reconnecting-banner").classList.add("hidden");
   const previousData = online.publicData;
   const first = !online.publicData;
   const changed = first || data.version !== online.version;
@@ -2205,10 +2550,12 @@ function applyRoomSnapshot(snapshot) {
     void startOnlineGame();
   }
   if (!changed) return;
-  if (incomingMessages.length && !online.chatOpen) {
-    online.chatUnreadCount += incomingMessages.length;
-    updateChatUnreadBadge();
-    const latestMessage = incomingMessages[incomingMessages.length - 1];
+  for (const message of newChatMessages) {
+    if (QUICK_REACTION_TEXTS.has(message.text)) showQuickReaction(message.seat, message.text);
+  }
+  const incomingChatMessages = incomingMessages.filter((message) => !QUICK_REACTION_TEXTS.has(message.text));
+  if (incomingChatMessages.length) {
+    const latestMessage = incomingChatMessages[incomingChatMessages.length - 1];
     const preview = latestMessage.text.length > 72
       ? `${latestMessage.text.slice(0, 69)}…`
       : latestMessage.text;
@@ -2235,11 +2582,17 @@ function applyRoomSnapshot(snapshot) {
     }
   }
   if (data.game) renderOnlineGame();
-  else setOnlineStatus(data.queuedForNextMatch
-    ? "You joined the game and are queued for the next match."
-    : online.isHost
-      ? `Game ready. Share the invite with ${data.maxPlayers > 2 ? "your group" : "your friend"}.`
-      : "Joined. Waiting for the host to start.");
+  else {
+    const wasConnecting = hideOptimisticConnection();
+    elements.game.classList.add("hidden");
+    elements.online.classList.remove("hidden");
+    if (wasConnecting) document.querySelector("#leave-online-room").focus();
+    setOnlineStatus(data.queuedForNextMatch
+      ? "You joined the game and are queued for the next match."
+      : online.isHost
+        ? `Game ready. Share the invite with ${data.maxPlayers > 2 ? "your group" : "your friend"}.`
+        : "Joined. Waiting for the host to start.");
+  }
 }
 
 function updateRoomLobby(data) {
@@ -2304,80 +2657,25 @@ function updateRoomLobby(data) {
 
 function renderGameChat(data) {
   const panel = document.querySelector("#game-chat");
-  const messages = document.querySelector("#chat-messages");
-  const previousMessageIds = new Set(
-    [...messages.querySelectorAll(".chat-message")].map((message) => message.dataset.messageId),
-  );
-  const input = document.querySelector("#chat-input");
-  const send = document.querySelector("#chat-send");
-  const status = document.querySelector("#chat-status");
   const active = data.status === "playing" && !data.game.finished;
-  if (!active) {
-    online.chatOpen = false;
-    online.chatUnreadCount = 0;
-  }
-  if (online.chatOpen) online.chatUnreadCount = 0;
-  updateChatUnreadBadge();
-  panel.classList.toggle("hidden", !active || !online.chatOpen);
+  if (!active) online.reactionsOpen = false;
+  panel.hidden = true;
+  panel.classList.add("hidden");
   chatToggle.classList.toggle("hidden", !active);
   chatToggle.disabled = !active;
-  chatToggle.setAttribute("aria-expanded", String(active && online.chatOpen));
-  chatToggle.setAttribute("aria-label", online.chatOpen
-    ? "Close table chat"
-    : online.chatUnreadCount
-      ? `Open table chat, ${online.chatUnreadCount} unread message${online.chatUnreadCount === 1 ? "" : "s"}`
-      : "Open table chat");
-  input.disabled = !active;
-  send.disabled = !active || online.chatSending;
-  status.textContent = active
-    ? "Messages are automatically deleted when the game ends."
-    : "The game has ended. Chat messages have been deleted.";
-  messages.replaceChildren();
-
-  const chatMessages = Array.isArray(data.chatMessages) ? data.chatMessages : [];
-  if (chatMessages.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "chat-empty";
-    empty.textContent = active ? "No messages yet. Say hello!" : "No messages remain.";
-    messages.append(empty);
-    return;
-  }
-
-  for (const chatMessage of chatMessages) {
-    const row = document.createElement("div");
-    row.className = `chat-message${chatMessage.seat === online.seat ? " is-own-message" : ""}`;
-    row.dataset.messageId = chatMessage.id;
-    if (!previousMessageIds.has(chatMessage.id)) row.classList.add("chat-message-enter");
-    const meta = document.createElement("div");
-    meta.className = "chat-message-meta";
-    const author = document.createElement("strong");
-    author.textContent = chatMessage.seat === online.seat ? "You" : chatMessage.name;
-    const time = document.createElement("time");
-    time.dateTime = new Date(chatMessage.sentAt).toISOString();
-    time.textContent = new Date(chatMessage.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const text = document.createElement("p");
-    text.textContent = chatMessage.text;
-    meta.append(author, time);
-    row.append(meta, text);
-    messages.append(row);
-  }
-  messages.scrollTop = messages.scrollHeight;
+  chatToggle.setAttribute("aria-expanded", String(active && online.reactionsOpen));
+  chatToggle.setAttribute("aria-label", online.reactionsOpen ? "Close quick reactions" : "Open quick reactions");
+  document.querySelector("#game-reactions").classList.toggle("hidden", !active || !online.reactionsOpen);
 }
 
 function updateChatUnreadBadge() {
   const badge = document.querySelector("#chat-unread-badge");
   if (!badge) return;
-  const unread = online.chatUnreadCount;
-  badge.textContent = unread > 9 ? "9+" : String(unread);
-  badge.classList.toggle("hidden", unread === 0);
-  chatToggle.setAttribute("aria-label", online.chatOpen
-    ? "Close table chat"
-    : unread
-      ? `Open table chat, ${unread} unread message${unread === 1 ? "" : "s"}`
-      : "Open table chat");
+  badge.classList.add("hidden");
 }
 
 function renderOnlineGame() {
+  const wasConnecting = hideOptimisticConnection();
   const data = online.publicData;
   if (!data || !data.game || online.seat < 0) return;
   const state = data.game;
@@ -2408,7 +2706,9 @@ function renderOnlineGame() {
     hideModal(elements.suitModal);
     game.stagedCardIndex = null;
   }
+  alertForTurn(state);
   renderGame();
+  if (wasConnecting) document.querySelector("#back-button").focus();
   renderGameChat(data);
   startTurnTimer();
   if (game.finished && !wasFinished) {
@@ -2474,16 +2774,23 @@ function beginRoomSession(snapshot, token) {
   onlineRoomSize = snapshot.publicData.maxPlayers || 2;
   document.querySelector("#online-title").textContent = onlineRoomSize > 2
     ? `${onlineRoomSize}-player group`
-    : "Quick duel";
+    : "Duel a friend";
   writeStored(roomStorageKey(snapshot.roomCode), JSON.stringify({ token }));
   const inviteLink = makeInviteLink(snapshot.roomCode);
   window.history.replaceState(null, "", inviteLink); // reloading this page reconnects you
   document.querySelector("#create-room-controls").classList.add("hidden");
+  document.querySelector(".account-panel").classList.add("hidden");
   document.querySelector(".room-visibility").classList.add("hidden");
   document.querySelector(".public-rooms").classList.add("hidden");
   document.querySelector(".active-games").classList.add("hidden");
   document.querySelector("#online-back-button").classList.add("hidden");
+  document.querySelector("#close-online").classList.add("hidden");
+  document.querySelector("#duel-tabs").classList.add("hidden");
+  document.querySelector("#duel-create-panel").classList.remove("hidden");
+  document.querySelector("#duel-join-panel").classList.add("hidden");
   document.querySelector("#join-room-panel").classList.add("hidden");
+  document.querySelector("#invite-whatsapp").href = `https://wa.me/?text=${encodeURIComponent(`Come play BAKASHA with me! ${inviteLink}`)}`;
+  document.querySelector("#invite-telegram").href = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent("Come play BAKASHA with me!")}`;
   applyRoomSnapshot(snapshot);
   document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
     ? online.isHost ? "Invite your crew to join the game." : `You joined a ${onlineRoomSize}-player group game.`
@@ -2502,6 +2809,7 @@ async function createOnlineRoom() {
     document.querySelector("#invite-room-note").textContent = isPublic
       ? "Your challenge stays open for 1 hour, even if you leave this screen. Stay in the waiting room to be notified when someone joins."
       : "This private game link stays open until the host ends the game or it has been inactive for 24 hours. Late arrivals wait for the next match.";
+    showOptimisticConnection();
     setOnlineStatus("Creating your game…");
     const snapshot = await callGameApi("/api/rooms", "POST", {
       maxPlayers: onlineRoomSize,
@@ -2510,6 +2818,9 @@ async function createOnlineRoom() {
     beginRoomSession(snapshot, snapshot.token);
     setOnlineStatus(isPublic ? "Your public challenge is live for 1 hour." : "Private game created.");
   } catch (error) {
+    elements.online.classList.remove("hidden");
+    hideOptimisticConnection(true);
+    elements.game.classList.add("hidden");
     setOnlineStatus(onlineErrorMessage(error));
   }
 }
@@ -2569,11 +2880,15 @@ async function joinOnlineRoom(publicJoin = false) {
     const saved = readSavedRoom(roomCode);
     const body = publicJoin ? { publicJoin: true } : {};
     if (saved) body.token = saved.token; // you were already in this room: just reconnect
+    showOptimisticConnection();
     setOnlineStatus(saved ? "Reconnecting…" : publicJoin ? "Joining public game…" : "Joining your friend’s game…");
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
     return true;
   } catch (error) {
+    elements.online.classList.remove("hidden");
+    hideOptimisticConnection(true);
+    elements.game.classList.add("hidden");
     if (publicJoin && error.status === 404) {
       setOnlineStatus("That game isn’t open for public play. Open games have been refreshed.");
       await refreshPublicRooms();
@@ -2716,6 +3031,19 @@ async function submitOnlineMove(action) {
 
 document.querySelector("#create-room-button").addEventListener("click", createOnlineRoom);
 document.querySelector("#join-room-button").addEventListener("click", () => joinOnlineRoom(false));
+document.querySelector("#invite-link-input").addEventListener("input", (event) => {
+  const inviteInput = event.currentTarget;
+  const value = inviteInput.value.trim();
+  const roomCode = extractInviteRoomCode(value);
+  if (
+    !value
+    || !roomCode
+    || !/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(roomCode)
+    || inviteInput.dataset.autoJoinValue === value
+  ) return;
+  inviteInput.dataset.autoJoinValue = value;
+  void joinOnlineRoom(false);
+});
 document.querySelector("#end-online-room").addEventListener("click", endOnlineRoom);
 document.querySelector("#end-room-from-game").addEventListener("click", endOnlineRoom);
 document.querySelector("#end-room-from-result").addEventListener("click", endOnlineRoom);
@@ -2733,6 +3061,14 @@ document.querySelector("#active-game-list").addEventListener("click", (event) =>
     joinOnlineRoom(false);
   }
 });
+document.querySelector("#home-resume-button").addEventListener("click", (event) => {
+  const code = event.currentTarget.dataset.activeRoomCode;
+  if (!code) return;
+  openOnlineLobby("duel");
+  setDuelTab("join");
+  document.querySelector("#invite-link-input").value = makeInviteLink(code);
+  void joinOnlineRoom(false);
+});
 document.querySelector("#public-room-list").addEventListener("click", (event) => {
   const button = event.target.closest("[data-public-room-code]");
   if (!button) return;
@@ -2741,6 +3077,28 @@ document.querySelector("#public-room-list").addEventListener("click", (event) =>
 });
 document.querySelector("#start-online-game").addEventListener("click", startOnlineGame);
 document.querySelector("#chat-form").addEventListener("submit", sendChatMessage);
+document.querySelector("#game-reactions").addEventListener("click", async (event) => {
+  const button = event.target instanceof Element ? event.target.closest("[data-reaction]") : null;
+  const reaction = button?.dataset.reaction;
+  if (!reaction || !online.roomCode || online.reactionSending) return;
+  online.reactionSending = true;
+  for (const reactionButton of document.querySelectorAll("#game-reactions button")) {
+    reactionButton.disabled = true;
+  }
+  try {
+    const snapshot = await callGameApi(`/api/rooms/${online.roomCode}/reaction`, "POST", { reaction });
+    applyRoomSnapshot(snapshot);
+    online.reactionsOpen = false;
+    renderGameChat(online.publicData);
+  } catch (error) {
+    showToast(onlineErrorMessage(error));
+  } finally {
+    online.reactionSending = false;
+    for (const reactionButton of document.querySelectorAll("#game-reactions button")) {
+      reactionButton.disabled = false;
+    }
+  }
+});
 document.querySelector("#leave-online-room").addEventListener("click", () => {
   const challengeIsLive = online.publicData?.status === "waiting"
     && Number.isFinite(online.publicData.publicChallengeExpiresAt)
@@ -2754,10 +3112,26 @@ document.querySelector("#leave-online-room").addEventListener("click", () => {
   schedulePublicRoomsRefresh();
 });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && online.roomCode) refreshRoomState(); // catch up right away when the tab returns
+  if (document.hidden) {
+    alertForTurn(online.publicData?.game);
+  } else {
+    document.title = PAGE_TITLE;
+    online.lastAlertedTurn = null;
+    if (online.roomCode) refreshRoomState();
+  }
 });
 document.querySelector("#copy-invite-button").addEventListener("click", () => {
-  shareInviteLink(document.querySelector("#copy-invite-button"));
+  const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
+  void copyTextToButton(
+    inviteLink,
+    document.querySelector("#copy-invite-button"),
+    "Copied!",
+    "Invite link copied. Send it to your friend.",
+    "Could not copy the invite link. Copy it from the address bar instead.",
+  );
+});
+document.querySelector("#share-invite-button").addEventListener("click", () => {
+  shareInviteLink(document.querySelector("#share-invite-button"));
 });
 for (const button of document.querySelectorAll("[data-share-invite]")) {
   button.addEventListener("click", () => shareInviteLink(button));
@@ -2805,10 +3179,31 @@ for (const modal of [elements.rulesModal, elements.suitModal]) {
   });
 }
 document.addEventListener("keydown", (event) => {
+  const activeDialogs = [...document.querySelectorAll('.modal-backdrop[role="dialog"][aria-modal="true"]:not(.hidden)')];
+  const activeDialog = activeDialogs[activeDialogs.length - 1];
+  if (event.key === "Tab" && activeDialog) {
+    const focusable = [...activeDialog.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => !element.closest(".hidden"));
+    if (focusable.length) {
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !activeDialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !activeDialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    return;
+  }
   if (event.key !== "Escape") return;
+  if (elements.online.classList.contains("is-duel-sheet") && !online.roomCode) closeDuelSheet();
   if (!elements.rulesModal.classList.contains("hidden")) closeRules();
   if (!elements.suitModal.classList.contains("hidden")) cancelSuitSelection();
-  for (const modalId of ["leaderboard-modal", "friends-modal", "stats-modal"]) {
+  if (!document.querySelector("#leaderboard-modal").classList.contains("hidden")) closeLeaderboard();
+  for (const modalId of ["friends-modal", "stats-modal"]) {
     document.querySelector(`#${modalId}`).classList.add("hidden");
   }
   if (!document.querySelector("#tutorial-modal").classList.contains("hidden")) void completeTutorial();

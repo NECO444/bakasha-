@@ -5,6 +5,7 @@ import {
   handleEnd,
   handleJoin,
   handleRematch,
+  handleReaction,
   handleStart,
   handleState,
 } from "../../../lib/rooms.js";
@@ -17,6 +18,7 @@ const routes = {
   end: { POST: handleEnd },
   action: { POST: handleAction },
   chat: { POST: handleChat },
+  reaction: { POST: handleReaction },
 };
 
 const dispatch = handle(({ request, body }) => {

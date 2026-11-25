@@ -8,6 +8,7 @@ const SOUND_PATTERNS = {
   win: { notes: [523, 659, 784, 1047], spacing: 0.085, duration: 0.18, volume: 0.05, type: "sine" },
   lose: { notes: [392, 330, 262], spacing: 0.1, duration: 0.2, volume: 0.035, type: "sine" },
   click: { notes: [740], spacing: 0, duration: 0.055, volume: 0.025, type: "sine" },
+  turn: { notes: [659, 784], spacing: 0.11, duration: 0.16, volume: 0.04, type: "sine" },
 };
 
 let audioContext = null;

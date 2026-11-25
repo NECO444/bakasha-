@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { handleLogin, handleLogout, handleRegister, getAuthenticatedAccount } from "../lib/accounts.js";
 import { handleAction, handleCreate, handleJoin, handleStart, handleState } from "../lib/rooms.js";
 import { handleLeaderboard } from "../lib/leaderboard.js";
-import { loadPlayerProgress, loadRoom, saveRoom } from "../lib/store.js";
+import { loadPlayerProgress, loadRoom, recordPlayerProgress, saveRoom } from "../lib/store.js";
 
 const username = () => `p${Date.now().toString(36)}${randomBytes(2).toString("hex")}`;
 const requestWithCookie = (path, cookie) => new Request(`https://example.test${path}`, {
@@ -17,6 +17,23 @@ const roomRequest = (path, cookie, token) => new Request(`https://example.test${
   },
 });
 const cookieFrom = (response) => response.headers.get("set-cookie").split(";")[0];
+
+test("player progress stores rewards unlocked at their XP thresholds", async () => {
+  const suffix = randomBytes(5).toString("hex");
+  const player = { id: `reward-player-${suffix}`, username: `reward${suffix}` };
+  const opponent = { id: `reward-opponent-${suffix}`, username: `other${suffix}` };
+  for (let index = 0; index < 17; index += 1) {
+    await recordPlayerProgress({
+      gameId: `${suffix}-${index}`,
+      finishedAt: Date.now(),
+      winnerId: player.id,
+      players: [player, opponent],
+    });
+  }
+  const progress = await loadPlayerProgress(player.id, player.username);
+  assert.equal(progress.xp, 204);
+  assert.deepEqual(progress.unlockedRewards, ["avatar", "card-back"]);
+});
 
 test("username-only accounts sign in securely and bind room seats to the account", async () => {
   const firstName = username();
