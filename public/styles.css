@@ -163,6 +163,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue-accent); o
 .table-surface::before { position: absolute; inset: 20px; border: 1px solid #ffffff12; border-radius: 50%; content: ""; pointer-events: none; }
 .opponents { z-index: 1; display: flex; min-height: 96px; align-items: flex-start; justify-content: center; gap: clamp(14px, 4vw, 42px); padding: 24px 20px 0; }
 .opponent { display: flex; min-width: 83px; flex-direction: column; align-items: center; gap: 7px; }
+.opponent .turn-timer { margin-top: 2px; }
 .opponent-name { max-width: 100px; overflow: hidden; color: #d3deea; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
 .opponent-cards { display: flex; justify-content: center; padding-left: 9px; }
 .opponent-back { width: 22px; height: 31px; margin-left: -9px; border: 1px solid #7794b2; border-radius: 4px; background: repeating-linear-gradient(45deg, #2a4057 0 3px, #6e8eaf 3px 4px, #2a4057 4px 7px); box-shadow: 0 2px 5px #08131f55; }
@@ -1727,28 +1728,6 @@ button, input, textarea, select { font-family: inherit; }
 }
 .sound-toggle:hover { transform: translateY(-1px); }
 .sound-toggle:active { transform: translateY(2px); box-shadow: 0 1px 0 #dce7dc; }
-.sound-volume-control {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #526168;
-  font-size: 10px;
-  font-weight: 800;
-}
-.sound-volume-control input {
-  width: 88px;
-  min-height: 36px;
-  margin: 0;
-  accent-color: #b7ee91;
-  cursor: pointer;
-}
-.sound-volume-control output {
-  min-width: 29px;
-  color: #d0dad1;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
 .progress-dashboard {
   width: 100%;
   padding: 17px 20px 14px;
@@ -1808,9 +1787,6 @@ button, input, textarea, select { font-family: inherit; }
   .topbar-right { gap: 8px; }
   .mode-badge { display: none; }
   .sound-toggle { width: 33px; height: 33px; font-size: 14px; }
-  .sound-volume-label { display: none; }
-  .sound-volume-control { gap: 3px; }
-  .sound-volume-control input { width: 64px; }
   .setup-screen, .online-screen { min-height: calc(100dvh - 67px); padding: 22px 0 70px; }
   .setup-card { padding: 21px 17px; }
   .game-mode-picker { grid-template-columns: 1fr; gap: 8px; }
@@ -1823,8 +1799,6 @@ button, input, textarea, select { font-family: inherit; }
   .brand { font-size: 13px; }
   .primary-nav .nav-link { padding: 0 6px; font-size: 9px; }
   #account-button { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
-  .sound-volume-control input { width: 50px; }
-  .sound-volume-control output { min-width: 25px; font-size: 9px; }
   .progress-dashboard { padding: 14px; }
   .progress-topline { align-items: flex-start; }
   .progress-topline > div { align-items: flex-start; flex-direction: column; gap: 3px; }
@@ -2049,7 +2023,6 @@ body {
 .streak-chip { color: #ffc800; background: #453711; }
 .sound-toggle { border-color: #3a493e; color: #d0dad1; background: #263129; box-shadow: 0 3px 0 #111813; }
 .sound-toggle:active { box-shadow: 0 1px 0 #111813; }
-.sound-volume-control { color: #aab5ac; }
 .toast { color: #e6ede6; background: #27342c; box-shadow: 0 5px 0 #111813, 0 12px 24px #00000066; }
 .toast.toast-special { color: #ffe16b; background: #554217; box-shadow: 0 5px 0 #352f22, 0 12px 24px #00000066; }
 .online-status { color: #b9c5bb; }
@@ -3446,9 +3419,6 @@ body {
 .rematch-card .result-score { color: #638bb1; }
 .rematch-card .rematch-status { color: #71869b; }
 .sound-toggle { border-color: #d3e1ee; color: #58718a; background: #f5f9fd; box-shadow: 0 2px 0 #d3e1ee; }
-.sound-volume-control { color: #71869b; }
-.sound-volume-control input { accent-color: #81a9ce; }
-.sound-volume-control output { color: #58718a; }
 .chat-send { color: #405a73; background: #c9deef; box-shadow: 0 2px 0 #abc7df; }
 .game-chat {
   border-color: #bfd2e3;
@@ -3702,9 +3672,6 @@ body {
 .rematch-card .rematch-mark { border-color: #456887; color: #a8c9e8; background: #203b58; }
 .rematch-card .rematch-status { color: #b6c8dc; }
 .sound-toggle { border-color: #35516d; color: #c3d5e7; background: #1b3047; box-shadow: 0 2px 0 #13253a; }
-.sound-volume-control { color: #b6c8dc; }
-.sound-volume-control input { accent-color: #79a8d4; }
-.sound-volume-control output { color: #c3d5e7; }
 .game-chat {
   border-color: #35516d;
   color: #e3edf8;
@@ -3942,8 +3909,6 @@ body {
 .xp-fill, .tutorial-progress span { background: linear-gradient(90deg, var(--palette-amalfi), var(--palette-sky)); box-shadow: 0 0 12px #86c5ff55; }
 .streak-chip { color: var(--palette-cream); background: #2e5aa7; }
 .sound-toggle { border-color: var(--line); color: var(--ink); background: #1d3d70; box-shadow: 0 2px 0 #142e56; }
-.sound-volume-control, .sound-volume-control output { color: var(--muted); }
-.sound-volume-control input { accent-color: var(--palette-orange); }
 .toast { color: #fff; background: #244a83; box-shadow: 0 3px 0 #142e56, 0 10px 24px #07162b66; }
 .toast.toast-special, .game-screen .toast.toast-special {
   color: #183664;
@@ -4104,6 +4069,33 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
   border-color: var(--line);
   color: var(--ink);
   background: #1d3d70;
+}
+#one-v-one-button.home-action-create,
+.home-action-create {
+  box-shadow: 0 4px 0 #c97912, 0 10px 22px #ffa62b30;
+}
+#one-v-one-button.home-action-create:hover,
+.home-action-create:hover {
+  border-color: #ffba52;
+  background: #ffba52;
+  box-shadow: 0 6px 0 #c97912, 0 14px 24px #ffa62b40;
+}
+#one-v-one-button.home-action-create:active,
+.home-action-create:active {
+  box-shadow: 0 2px 0 #c97912, 0 6px 14px #ffa62b30;
+}
+#start-button {
+  box-shadow: 0 5px 0 #c97912, 0 10px 24px #ffa62b30;
+}
+#start-button:hover:not(:disabled) {
+  box-shadow: 0 5px 0 #c97912, 0 12px 26px #ffa62b40;
+}
+#start-button:active:not(:disabled) { box-shadow: 0 2px 0 #c97912; }
+.playing-card[data-suit="hearts"],
+.playing-card[data-suit="diamonds"],
+.game-screen .playing-card[data-suit="hearts"],
+.game-screen .playing-card[data-suit="diamonds"] {
+  color: #d32f45;
 }
 @media (max-width: 700px) {
   .primary-nav {

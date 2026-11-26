@@ -125,23 +125,25 @@ test("Jack skips the opponent in a group and gives a 1v1 player a support turn",
   assert.equal(duel.jumpSupport, false);
 });
 
-test("a Jack supporting an 8 in 1v1 requires its suit and allows a matching Jack chain", () => {
+test("a Jack supporting an 8 in 1v1 allows another Jack regardless of suit", () => {
   const g = table({
-    hands: [[c("hearts", "8"), c("hearts", "J"), c("hearts", "J"), c("hearts", "9"), c("spades", "3")], [c("clubs", "9"), c("clubs", "8")]],
+    hands: [[c("hearts", "8"), c("hearts", "J"), c("clubs", "J"), c("clubs", "3"), c("hearts", "9")], [c("clubs", "9"), c("clubs", "8")]],
   });
   play(g, 0, c("hearts", "8"));
   assert.equal(isPlayable(g, c("hearts", "J")), true);
+  assert.equal(isPlayable(g, c("clubs", "J")), false);
   play(g, 0, c("hearts", "J"));
   assert.equal(g.direction, -1);
   assert.equal(g.jumpSupport, true);
   assert.equal(isPlayable(g, c("hearts", "9")), true);
-  assert.equal(isPlayable(g, c("spades", "3")), false);
-  assert.equal(isPlayable(g, c("hearts", "J")), true);
-
-  play(g, 0, c("hearts", "J"));
+  assert.equal(isPlayable(g, c("clubs", "3")), false);
+  assert.equal(isPlayable(g, c("clubs", "J")), true);
+  play(g, 0, c("clubs", "J"));
   assert.equal(g.jumpSupport, true);
   assert.equal(g.current, 0);
-  play(g, 0, c("hearts", "9"));
+  assert.equal(isPlayable(g, c("clubs", "3")), true);
+  assert.equal(isPlayable(g, c("hearts", "9")), false);
+  play(g, 0, c("clubs", "3"));
   assert.equal(g.jumpSupport, false);
   assert.equal(g.current, 1);
 });

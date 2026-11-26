@@ -1,4 +1,4 @@
-import { enableAudioUnlock, getVolume, isMuted, playSound, setMuted, setVolume } from "./sound.js";
+import { enableAudioUnlock, isMuted, playSound, setMuted } from "./sound.js";
 
 "use strict";
 const PAGE_TITLE = "BAKASHA — Play together";
@@ -33,6 +33,7 @@ const elements = {
   rematch: document.querySelector("#rematch-button"),
   currentName: document.querySelector("#current-player-name"),
   currentCaption: document.querySelector("#current-player-caption"),
+  playerBar: document.querySelector(".player-bar"),
   avatar: document.querySelector("#player-avatar"),
   handCount: document.querySelector("#hand-count"),
   handHelp: document.querySelector("#hand-help"),
@@ -360,7 +361,7 @@ function isPlayable(card) {
   if (game.combo) {
     return card.rank === "8" || card.suit === game.combo.lastCard.suit;
   }
-  if (game.jumpSupport) return game.players.length === 2 && card.suit === topCard().suit;
+  if (game.jumpSupport) return game.players.length === 2 && (card.rank === "J" || card.suit === topCard().suit);
   if (game.freeSuitPlay) return true;
   if (game.demandedSuit) {
     return card.rank === "A" || card.rank === "JOKER" || card.suit === game.demandedSuit;
@@ -572,6 +573,12 @@ function renderGame() {
     elements.activeSuit.style.color = getCardColor(game.activeSuit) === "red" || getCardColor(game.activeSuit) === "yellow" ? "#e83f37" : getCardColor(game.activeSuit) === "blue" ? "#70a9f6" : "#6bcf9d";
   }
   renderOpponents();
+  if (game.current === viewIndex) {
+    elements.playerBar.insertBefore(elements.timer, elements.handCount);
+  } else {
+    const activeOpponent = elements.opponents.querySelector(`[data-seat="${game.current}"]`);
+    if (activeOpponent) activeOpponent.append(elements.timer);
+  }
   renderHand();
   updateMessage();
   scheduleFundoTurn();
@@ -584,6 +591,7 @@ function renderOpponents() {
     if (index === viewerSeat) return;
     const opponent = document.createElement("div");
     opponent.className = "opponent";
+    opponent.dataset.seat = String(index);
     const reaction = online.recentReactions.get(index);
     if (reaction) {
       const reactionBadge = document.createElement("span");
@@ -876,7 +884,7 @@ function playCard(index, chosenSuit) {
       if (player.hand.length > 0) game.jumpSupport = true;
       showToast(player.hand.length === 0
         ? "Jack played. Draw one on your next turn."
-        : "Jack played. Play a card in the same suit or draw one.");
+        : "Jack played. Play another Jack or a card in the same suit, or draw one.");
       if (player.hand.length === 0) {
         renderGame();
         startTurnTimer();
@@ -2617,18 +2625,6 @@ document.querySelector("#sound-toggle").addEventListener("click", () => {
   toggle.setAttribute("aria-label", soundMuted ? "Turn sounds on" : "Mute sounds");
   toggle.setAttribute("aria-pressed", String(soundMuted));
   if (!soundMuted) playSound("click");
-});
-const soundVolumeControl = document.querySelector("#sound-volume");
-const soundVolumeValue = document.querySelector("#sound-volume-value");
-function updateSoundVolumeControl(value) {
-  const label = `${value}%`;
-  soundVolumeControl.value = String(value);
-  soundVolumeControl.setAttribute("aria-valuetext", label);
-  soundVolumeValue.value = label;
-}
-updateSoundVolumeControl(getVolume());
-soundVolumeControl.addEventListener("input", () => {
-  updateSoundVolumeControl(setVolume(Number(soundVolumeControl.value)));
 });
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : event.target.parentElement;

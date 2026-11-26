@@ -1,6 +1,5 @@
 const STORAGE_KEY = "bakasha:sound-muted";
-const VOLUME_STORAGE_KEY = "bakasha:sound-volume";
-const DEFAULT_VOLUME = 70;
+const SOUND_GAIN = 4;
 
 const SOUND_PATTERNS = {
   play: {
@@ -43,7 +42,6 @@ const SOUND_PATTERNS = {
 
 let audioContext = null;
 let muted = readMutePreference();
-let volume = readVolumePreference();
 
 function readMutePreference() {
   try {
@@ -53,32 +51,11 @@ function readMutePreference() {
   }
 }
 
-function readVolumePreference() {
-  try {
-    const storedVolume = window.localStorage.getItem(VOLUME_STORAGE_KEY);
-    if (storedVolume === null) return DEFAULT_VOLUME;
-    const savedVolume = Number(storedVolume);
-    return Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 100
-      ? savedVolume
-      : DEFAULT_VOLUME;
-  } catch {
-    return DEFAULT_VOLUME;
-  }
-}
-
 function persistMutePreference() {
   try {
     window.localStorage.setItem(STORAGE_KEY, String(muted));
   } catch {
     console.warn("Could not save the game sound preference.");
-  }
-}
-
-function persistVolumePreference() {
-  try {
-    window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
-  } catch {
-    console.warn("Could not save the game sound volume.");
   }
 }
 
@@ -107,17 +84,6 @@ export function enableAudioUnlock() {
 
 export function isMuted() {
   return muted;
-}
-
-export function getVolume() {
-  return volume;
-}
-
-export function setVolume(value) {
-  if (!Number.isFinite(value)) return volume;
-  volume = Math.max(0, Math.min(100, value));
-  persistVolumePreference();
-  return volume;
 }
 
 export function setMuted(value) {
@@ -155,12 +121,11 @@ function playNoise(context, start, burst, volumeScale) {
 
 export function playSound(name, options = {}) {
   const pattern = SOUND_PATTERNS[name];
-  if (!pattern || muted || volume === 0) return;
+  if (!pattern || muted) return;
   const volumeScale = Number.isFinite(options.volumeScale)
     ? Math.max(0, Math.min(1, options.volumeScale))
     : 1;
   if (volumeScale === 0) return;
-  const masterVolume = volume / 100;
 
   try {
     const context = getAudioContext();
@@ -169,7 +134,7 @@ export function playSound(name, options = {}) {
       context.resume().catch((error) => console.warn("Could not resume game audio.", error));
     }
     const start = context.currentTime;
-    for (const burst of pattern.noise || []) playNoise(context, start, burst, volumeScale * masterVolume);
+    for (const burst of pattern.noise || []) playNoise(context, start, burst, volumeScale * SOUND_GAIN);
     for (const [index, frequency] of (pattern.notes || []).entries()) {
       const noteStart = start + index * pattern.spacing;
       const oscillator = context.createOscillator();
@@ -178,7 +143,7 @@ export function playSound(name, options = {}) {
       oscillator.frequency.setValueAtTime(frequency, noteStart);
       gain.gain.setValueAtTime(0.0001, noteStart);
       gain.gain.exponentialRampToValueAtTime(
-        pattern.volume * volumeScale * masterVolume,
+        pattern.volume * volumeScale * SOUND_GAIN,
         noteStart + Math.min(pattern.attack || 0.012, pattern.duration / 3),
       );
       gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + pattern.duration);
