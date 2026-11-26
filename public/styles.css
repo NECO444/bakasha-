@@ -1281,9 +1281,9 @@ body {
   animation: table-sparkle 2.2s ease-in-out infinite alternate;
 }
 .decoration-one { color: var(--yellow); font-size: 22px; }
-.decoration-one::before { content: "âœ¦"; }
+.decoration-one::before { content: "\2726"; }
 .decoration-two { color: #b8f257; font-size: 13px; animation-delay: .6s; }
-.decoration-two::before { content: "âœ§"; }
+.decoration-two::before { content: "\2736"; }
 
 @keyframes support-pop {
   0% { opacity: 0; transform: translateY(8px) rotate(-8deg) scale(.7); }
@@ -1364,7 +1364,7 @@ body {
   border-radius: 50%;
   color: #c8f17f;
   background: #a7e83b15;
-  content: "âœ¦";
+  content: "\2726";
   font-size: 13px;
 }
 .game-chat-tools { flex-direction: row; align-items: center; gap: 9px; }
@@ -1435,7 +1435,7 @@ body {
   box-shadow: 0 2px 0 #527536;
   font-size: 0;
 }
-.chat-send::before { content: "âž¤"; font-size: 16px; }
+.chat-send::before { content: "\27A4"; font-size: 16px; }
 .chat-send:hover:not(:disabled) { transform: translateY(-2px) rotate(-8deg); background: #d0f49e; }
 .chat-send:active:not(:disabled) { transform: scale(.92); }
 .chat-status {
@@ -2146,7 +2146,7 @@ body {
   bottom: -5px;
   width: 8px;
   height: 8px;
-  content: "â™¦";
+  content: "\2666";
   color: var(--duo-amber);
   font-size: 8px;
 }
@@ -4564,45 +4564,6 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
 .game-screen .playing-card[data-suit="diamonds"] {
   color: #d32f45;
 }
-.topbar { border-bottom: 3px double var(--line); }
-.brand { font-family: Georgia, "Times New Roman", serif; letter-spacing: .04em; }
-.setup-card {
-  border-radius: 10px;
-  outline: 1px solid #ffa62b24;
-  outline-offset: -5px;
-}
-.setup-card h2, .modal-card h2, .home-side-card h2, .game-heading h1 {
-  font-family: Georgia, "Times New Roman", serif;
-}
-.playing-card {
-  border: 2px solid var(--palette-cream);
-  border-radius: 5px;
-}
-.playing-card .card-face { font-family: Georgia, "Times New Roman", serif; }
-.tutorial-replay {
-  flex: 0 0 auto;
-  padding: 5px 8px;
-  border: 1px solid var(--palette-orange);
-  border-radius: 6px;
-  color: var(--palette-cream);
-  font-family: Georgia, "Times New Roman", serif;
-  white-space: nowrap;
-  box-shadow: inset 0 0 0 1px #ffa62b24;
-}
-.tutorial-replay:hover {
-  border-color: var(--palette-orange);
-  color: var(--palette-orange);
-  background: #193969;
-}
-@media (max-width: 700px) {
-  .topbar-right { gap: 6px; }
-  .tutorial-replay { padding-right: 5px; padding-left: 5px; }
-  .primary-nav {
-    border-top-color: var(--line);
-    background: #193969f2;
-  }
-}
-
 @keyframes turn-pulse {
   0%, 100% { filter: drop-shadow(0 0 0 #ffa62b00); transform: scale(1); }
   50% { filter: drop-shadow(0 0 8px #ffa62b); transform: scale(1.12); }
@@ -4647,16 +4608,6 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
     radial-gradient(ellipse at 50% 0%, #86c5ff12, transparent 72%),
     linear-gradient(150deg, #244a83, #1d3d70);
 }
-.setup-screen > .setup-card::before {
-  position: absolute;
-  z-index: -1;
-  top: -34px;
-  right: 12px;
-  color: #86c5ff0a;
-  content: "â™ ";
-  font: 210px/1 Georgia, "Times New Roman", serif;
-  pointer-events: none;
-}
 .setup-card > .setup-card-head {
   min-height: 112px;
   justify-content: space-between;
@@ -4700,8 +4651,8 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
   background: #fffaf0;
   box-shadow: inset 0 0 0 2px #18366418, 0 2px 0 #cfccbd;
 }
-.home-fan-card b { font: 700 24px/.9 Georgia, "Times New Roman", serif; }
-.home-fan-card i { margin-top: 5px; font: normal 23px/1 Georgia, "Times New Roman", serif; }
+.home-fan-card b { font: 700 24px/.9 "Nunito", sans-serif; }
+.home-fan-card i { margin-top: 5px; font: normal 23px/1 "Nunito", sans-serif; }
 .home-fan-card-left { left: 3px; transform: rotate(-19deg) translateY(3px); }
 .home-fan-card-left i { color: #d32f45; }
 .home-fan-card-right { right: 3px; transform: rotate(19deg) translateY(3px); }
@@ -4799,7 +4750,7 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
   font-size: 18px;
 }
 .home-action-copy { gap: 3px; }
-.home-action-copy strong { font-family: Georgia, "Times New Roman", serif; font-size: 16px; }
+.home-action-copy strong { font-family: "Nunito", sans-serif; font-size: 16px; }
 .home-action-copy small { font-size: 11px; }
 .home-action-grid > .home-action-find {
   border-color: #86c5ff55;
@@ -4872,5 +4823,570 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
   .home-fan-card-back { left: 24px; }
   .home-fan-card-back > span { width: 30px; height: 30px; }
   .home-action-grid > .home-action-create .home-action-copy strong { font-size: 17px; }
+}
+
+/* Modern anime-inspired energy: original gradients and motion, no borrowed artwork. */
+:root {
+  color-scheme: light;
+  --anime-ink: #19253d;
+  --anime-indigo: #223b67;
+  --anime-blue: #2874e8;
+  --anime-cyan: #54d7d0;
+  --anime-coral: #f66b62;
+  --anime-gold: #ffd166;
+  --anime-line: #d7e1f1;
+  --ink: var(--anime-ink);
+  --muted: #64748b;
+  --blue-accent: var(--anime-cyan);
+  --blue: var(--anime-blue);
+  --green: #28a99f;
+  --yellow: var(--anime-gold);
+  --red: var(--anime-coral);
+}
+
+body {
+  color: var(--anime-ink);
+  background:
+    radial-gradient(ellipse at 9% 12%, rgba(84, 215, 208, .20), transparent 28rem),
+    radial-gradient(ellipse at 91% 8%, rgba(246, 107, 98, .16), transparent 25rem),
+    linear-gradient(145deg, #f8faff 0%, #eaf1ff 100%);
+  font-family: "Nunito", "Nunito Sans", sans-serif;
+}
+
+.topbar {
+  border-bottom: 1px solid var(--anime-line);
+  background: rgba(248, 250, 255, .92);
+  box-shadow: 0 5px 22px rgba(28, 47, 82, .07);
+}
+
+.brand,
+.brand-accent,
+.brand-mark {
+  color: var(--anime-ink);
+  font-family: "Nunito", "Nunito Sans", sans-serif;
+  font-weight: 900;
+  letter-spacing: -.04em;
+}
+
+.brand-accent { color: var(--anime-coral); }
+.brand-accent::after { display: none; }
+.brand-mark { transform: none; }
+.brand-mark span:nth-child(2) { color: var(--anime-coral); }
+.brand-mark span:nth-child(3) { color: var(--anime-gold); }
+.brand-mark span:nth-child(4) { color: var(--anime-cyan); }
+
+.primary-nav .nav-link {
+  border-radius: 12px;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.primary-nav .nav-link.active {
+  color: #fff;
+  background: var(--anime-blue);
+  box-shadow: 0 4px 0 #1d58b7;
+}
+
+.primary-nav .nav-link:hover:not(.active) {
+  color: var(--anime-blue);
+  background: #e8f1ff;
+}
+
+.mode-badge,
+.topbar-right .text-button,
+.game-heading,
+.round-label,
+.game-heading .back-button,
+.game-footer {
+  color: #64748b;
+}
+
+.tutorial-replay {
+  border: 1px solid #cbd9ee;
+  border-radius: 12px;
+  color: var(--anime-blue) !important;
+  background: #fff;
+  box-shadow: 0 3px 0 #dce5f2;
+  font-family: inherit;
+}
+
+.tutorial-replay:hover {
+  border-color: var(--anime-cyan);
+  color: #155e9b !important;
+  background: #e8fbfa;
+}
+
+.sound-toggle {
+  border-color: #cbd9ee;
+  color: var(--anime-blue);
+  background: #fff;
+  box-shadow: 0 3px 0 #dce5f2;
+}
+
+.setup-screen:not(.hidden) {
+  width: min(100%, 900px);
+  grid-template-columns: minmax(0, 1fr);
+  padding: clamp(20px, 5vh, 48px) 8px;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(40, 116, 232, .12), transparent 26rem);
+}
+
+.setup-screen > .setup-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  border: 1px solid rgba(133, 188, 255, .3);
+  border-radius: 28px;
+  outline: 0;
+  color: #f5f8ff;
+  background:
+    radial-gradient(ellipse at 95% 0%, rgba(84, 215, 208, .24), transparent 42%),
+    radial-gradient(ellipse at 0% 100%, rgba(246, 107, 98, .18), transparent 40%),
+    linear-gradient(145deg, #203b67 0%, #172b4d 62%, #182944 100%);
+  box-shadow: 0 8px 0 #101e37, 0 24px 58px rgba(27, 46, 81, .25);
+}
+
+.setup-screen > .setup-card::before {
+  position: absolute;
+  z-index: 0;
+  inset: -35% -8% auto 38%;
+  height: 85%;
+  border-radius: 50%;
+  background:
+    linear-gradient(122deg, transparent 38%, rgba(84, 215, 208, .2) 39% 43%, transparent 44% 52%, rgba(84, 215, 208, .12) 53% 56%, transparent 57%),
+    radial-gradient(ellipse at center, rgba(84, 215, 208, .16), transparent 67%);
+  content: "";
+  pointer-events: none;
+  animation: anime-current 5s ease-in-out infinite;
+}
+
+.setup-screen > .setup-card::after {
+  position: absolute;
+  z-index: 0;
+  right: -80px;
+  bottom: -135px;
+  width: 320px;
+  height: 240px;
+  border-radius: 50%;
+  background:
+    linear-gradient(155deg, transparent 43%, rgba(246, 107, 98, .34) 44% 46%, transparent 47% 54%, rgba(255, 209, 102, .2) 55% 57%, transparent 58%),
+    radial-gradient(ellipse, rgba(246, 107, 98, .17), transparent 68%);
+  content: "";
+  pointer-events: none;
+  animation: anime-current 6s ease-in-out infinite reverse;
+}
+
+.setup-screen > .setup-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.setup-card h2,
+.setup-card-head h2,
+.home-resume-card h2 {
+  color: #f5f8ff;
+  font-family: "Nunito", "Nunito Sans", sans-serif;
+  font-weight: 900;
+  letter-spacing: -.035em;
+}
+
+.modal-card h2,
+.home-side-card h2,
+.game-heading h1,
+.history-heading {
+  color: var(--anime-ink);
+  font-family: "Nunito", "Nunito Sans", sans-serif;
+  font-weight: 900;
+  letter-spacing: -.035em;
+}
+
+.setup-card-head h2 {
+  text-shadow: 0 3px 0 rgba(7, 18, 38, .28);
+}
+
+.setup-card-head p,
+.home-resume-card p,
+.online-player-limit,
+.setup-footnote,
+.home-more-heading h3,
+.game-mode-option span,
+.group-mode-note {
+  color: #c4d2e8;
+}
+
+.home-hero-eyebrow,
+.home-side-eyebrow,
+.eyebrow {
+  color: var(--anime-cyan);
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.home-card-fan {
+  filter: drop-shadow(0 13px 15px rgba(3, 12, 27, .38));
+}
+
+.home-fan-card {
+  border: 2px solid rgba(255, 255, 255, .9);
+  border-radius: 12px;
+  color: var(--anime-ink);
+  background: linear-gradient(150deg, #fff 0%, #e8f3ff 100%);
+  box-shadow: 0 5px 0 #b9c9de;
+}
+
+.home-fan-card b,
+.home-fan-card i,
+.playing-card .card-face,
+.playing-card .card-corner {
+  font-family: "Nunito", "Nunito Sans", sans-serif;
+  font-weight: 900;
+}
+
+.home-fan-card-left i,
+.home-fan-card-right i { color: var(--anime-coral); }
+
+.home-fan-card-back {
+  border-color: rgba(255,255,255,.92);
+  background:
+    linear-gradient(135deg, transparent 46%, rgba(84,215,208,.72) 47% 49%, transparent 50% 57%, rgba(246,107,98,.78) 58% 60%, transparent 61%),
+    linear-gradient(145deg, #347fe8, #214f9d);
+  box-shadow: 0 6px 0 #153c79;
+}
+
+.home-fan-card-back > span {
+  border-color: rgba(255,255,255,.76);
+  background: rgba(18, 42, 78, .35);
+}
+
+.home-fan-face i { background: #fff; }
+.home-fan-face i::after { background: var(--anime-coral); }
+.decoration-one::before { content: "\2726"; }
+.decoration-two::before { content: "\2736"; }
+.game-chat-heading h2::before { content: "\2726"; }
+.chat-send::before { content: "\27A4"; }
+
+.home-action-grid > .home-action-card,
+.home-action-card,
+.game-mode-option {
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 17px;
+  color: #f5f8ff;
+  background: rgba(255,255,255,.09);
+  box-shadow: 0 4px 0 rgba(7, 18, 38, .32);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.home-action-grid > .home-action-create,
+.home-action-create,
+.primary-button,
+.account-card .account-submit,
+.play-now-button,
+.invite-copy-button,
+.duel-tab.active,
+.leaderboard-tab.active,
+.friend-action.friend-challenge-action {
+  border: 0;
+  color: #fff;
+  background: linear-gradient(135deg, #ff8175 0%, var(--anime-coral) 70%, #e65159 100%);
+  box-shadow: 0 5px 0 #b9434d, 0 12px 25px rgba(246, 107, 98, .23);
+  font-weight: 900;
+}
+
+.home-action-grid > .home-action-create {
+  min-height: 78px;
+  border: 1px solid rgba(255,255,255,.6);
+  background:
+    linear-gradient(125deg, transparent 0 56%, rgba(255,255,255,.18) 57% 59%, transparent 60%),
+    linear-gradient(135deg, #ff8175 0%, var(--anime-coral) 70%, #e65159 100%);
+  box-shadow: 0 6px 0 #b9434d, 0 14px 28px rgba(246, 107, 98, .25);
+}
+
+.home-action-grid > .home-action-create::before { display: none; }
+.home-action-create .home-action-icon {
+  border: 1px solid rgba(255,255,255,.66);
+  color: #fff;
+  background: rgba(255,255,255,.16);
+}
+
+.home-action-create .home-action-copy strong,
+.home-action-create .home-action-copy small,
+.home-action-create .home-action-arrow { color: #fff; }
+.home-action-copy strong { font-family: inherit; font-weight: 900; }
+.home-action-copy small { color: #d5e0f2; }
+.home-action-arrow { color: var(--anime-cyan); }
+
+.home-action-card:not(.home-action-create):hover,
+.game-mode-option:hover,
+.game-mode-option.active {
+  border-color: rgba(84, 215, 208, .8);
+  color: #fff;
+  background: rgba(84, 215, 208, .14);
+  box-shadow: 0 6px 0 rgba(7, 18, 38, .36), 0 0 24px rgba(84, 215, 208, .12);
+  transform: translateY(-2px);
+}
+
+.home-action-grid > .home-action-find {
+  background: rgba(255,255,255,.09);
+}
+
+.home-action-grid > .home-action-find .home-action-icon,
+.home-action-icon {
+  border: 1px solid rgba(84, 215, 208, .42);
+  color: var(--anime-cyan);
+  background: rgba(84, 215, 208, .1);
+}
+
+.game-mode-picker .game-mode-option,
+.game-mode-picker .training-mode-option {
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 14px;
+  color: #f5f8ff;
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 3px 0 rgba(7,18,38,.22);
+}
+
+.game-mode-picker .game-mode-option strong { color: #fff; }
+.game-mode-picker .game-mode-option span { color: #c4d2e8; }
+.training-mode-option { border-color: rgba(255,209,102,.4); }
+
+.home-more-heading {
+  border-top: 1px solid rgba(255,255,255,.16);
+}
+
+.primary-button:hover:not(:disabled),
+.account-card .account-submit:hover:not(:disabled),
+.invite-copy-button:hover,
+.play-now-button:hover,
+.friend-action.friend-challenge-action:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff9185, #ff6c69 72%, #ee5962);
+  box-shadow: 0 7px 0 #b9434d, 0 15px 28px rgba(246, 107, 98, .3);
+  transform: translateY(-1px);
+}
+
+.primary-button:active:not(:disabled),
+.account-card .account-submit:active:not(:disabled),
+.invite-copy-button:active,
+.play-now-button:active,
+.friend-action.friend-challenge-action:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #b9434d;
+}
+
+.secondary-button,
+.public-rooms-refresh,
+.friend-action,
+.count-button,
+.online-input,
+.player-field,
+.suit-option {
+  border: 1px solid #cdd9eb;
+  border-radius: 13px;
+  color: var(--anime-ink);
+  background: #f5f8ff;
+  box-shadow: 0 3px 0 #cfdaeb;
+  font-weight: 800;
+}
+
+.count-button.active {
+  border-color: var(--anime-blue);
+  color: #fff;
+  background: var(--anime-blue);
+  box-shadow: 0 3px 0 #1d58b7;
+}
+
+.online-input:focus,
+.player-field:focus-within {
+  border-color: var(--anime-blue);
+  box-shadow: 0 0 0 3px rgba(40, 116, 232, .18);
+}
+
+.account-panel,
+.invite-result,
+.room-wait,
+.online-status,
+.public-room-item,
+.active-game-item,
+.friend-row {
+  border-color: #d9e3f1;
+  border-radius: 15px;
+  color: var(--anime-ink);
+  background: #f5f8ff;
+  box-shadow: 0 3px 0 #dce5f2;
+}
+
+.online-now-card,
+.home-resume-card {
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 17px;
+  color: #f5f8ff;
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 4px 0 rgba(7,18,38,.24);
+}
+
+.home-resume-card h2,
+.home-resume-card p,
+.online-now-card small,
+.presence-status { color: #d5e0f2; }
+.online-now-card strong { color: var(--anime-gold); }
+.online-now-dot,
+.mode-dot,
+.round-dot { background: var(--anime-cyan); box-shadow: 0 0 0 5px rgba(84,215,208,.16); }
+
+.table-surface {
+  border: 2px solid #477fbd;
+  border-radius: 26px;
+  background:
+    radial-gradient(ellipse at 50% 43%, rgba(84,215,208,.22), transparent 15rem),
+    linear-gradient(145deg, #24558a 0%, #1c416d 55%, #193657 100%);
+  box-shadow: 0 7px 0 #112944, 0 22px 48px rgba(22, 48, 83, .3);
+}
+
+.table-surface::before {
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 50%;
+}
+
+.table-surface::after {
+  border-color: rgba(84,215,208,.14);
+  box-shadow: inset 0 0 32px rgba(84,215,208,.08);
+}
+
+.opponent,
+.player-area,
+.hand {
+  border-color: rgba(255,255,255,.15);
+  background: rgba(15, 36, 64, .62);
+}
+
+.opponent-name,
+.player-name,
+.opponent-count,
+.player-caption,
+.hand-count,
+.turn-timer,
+.pile-label,
+.pile-count { color: #f5f8ff; }
+
+.turn-message {
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 999px;
+  color: var(--anime-ink);
+  background: #f7fbff;
+  box-shadow: 0 4px 0 #ccd9eb;
+}
+
+.turn-indicator,
+.turn-timer,
+.active-suit { color: var(--anime-gold); }
+
+.turn-indicator.is-your-turn { animation: anime-turn-pulse 1.45s ease-in-out infinite; }
+
+.back-card,
+.opponent-back {
+  border: 2px solid rgba(255,255,255,.9);
+  border-radius: 11px;
+  background:
+    linear-gradient(135deg, transparent 45%, rgba(84,215,208,.8) 46% 49%, transparent 50% 57%, rgba(246,107,98,.8) 58% 61%, transparent 62%),
+    linear-gradient(145deg, #357de2, #214a8d);
+  box-shadow: 0 5px 0 #163768, 0 9px 16px rgba(4,14,30,.28);
+}
+
+.back-mark {
+  border-color: rgba(255,255,255,.72);
+  color: var(--anime-gold);
+  background: var(--anime-indigo);
+}
+
+.playing-card,
+.game-screen .playing-card {
+  border: 2px solid rgba(255,255,255,.95);
+  border-radius: 13px;
+  background: linear-gradient(155deg, #fff 0%, #edf4ff 100%);
+  box-shadow: 0 5px 0 #bdcce1, 0 9px 17px rgba(5,20,42,.27);
+}
+
+.playing-card[data-suit="hearts"],
+.playing-card[data-suit="diamonds"] { color: #d84d59; }
+.playing-card[data-suit="spades"] { color: #243d64; }
+.playing-card[data-suit="clubs"] { color: #168d89; }
+.playing-card[data-suit="wild"] { color: var(--anime-ink); }
+
+.playing-card.is-playable {
+  box-shadow: 0 0 0 3px var(--anime-cyan), 0 5px 0 #168d89, 0 12px 22px rgba(5,20,42,.32);
+}
+
+.hand .playing-card:hover:not(:disabled),
+.hand .playing-card:focus-visible:not(:disabled) {
+  transform: translateY(-14px) rotate(0);
+}
+
+.toast {
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 15px;
+  color: #fff;
+  background: var(--anime-blue);
+  box-shadow: 0 4px 0 #1d58b7, 0 12px 24px rgba(16, 36, 67, .28);
+  font-weight: 900;
+}
+
+.toast.toast-special {
+  color: var(--anime-ink);
+  background: var(--anime-gold);
+  box-shadow: 0 4px 0 #c5922c, 0 12px 24px rgba(16, 36, 67, .25);
+}
+
+.modal-backdrop,
+.leaderboard-page:not(.hidden),
+.online-screen.is-duel-sheet { background: rgba(14, 25, 46, .74); }
+
+.game-reactions button {
+  border: 1px solid #d5dfed;
+  color: var(--anime-ink);
+  background: #f7faff;
+  box-shadow: 0 3px 0 #cbd7e7;
+}
+
+.game-reactions button:hover:not(:disabled) { background: #dff8f5; }
+.chat-send { color: #fff; background: var(--anime-blue); box-shadow: 0 3px 0 #1d58b7; }
+.chat-live-label,
+.chat-message-meta strong { color: #148d89; }
+
+.friends-challenge-badge:not(.hidden),
+.chat-unread-badge:not(.hidden) {
+  color: var(--anime-ink);
+  background: var(--anime-gold);
+  border-color: #fff;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--anime-cyan);
+  outline-offset: 3px;
+}
+
+@keyframes anime-current {
+  0%, 100% { opacity: .68; transform: translate3d(0, 0, 0) rotate(-2deg); }
+  50% { opacity: 1; transform: translate3d(-8px, 5px, 0) rotate(2deg); }
+}
+
+@keyframes anime-turn-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255,209,102,0)); transform: scale(1); }
+  50% { filter: drop-shadow(0 0 9px rgba(255,209,102,.86)); transform: scale(1.08); }
+}
+
+@media (max-width: 720px) {
+  .topbar { background: rgba(248,250,255,.96); }
+  .setup-screen:not(.hidden) { padding: 18px 0 54px; }
+  .setup-screen > .setup-card { border-radius: 22px; }
+  .table-surface { border-radius: 21px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-screen > .setup-card::before,
+  .setup-screen > .setup-card::after,
+  .turn-indicator.is-your-turn {
+    animation: none !important;
+  }
 }
 
