@@ -1,4 +1,4 @@
-import { enableAudioUnlock, isMuted, playSound, setMuted } from "./sound.js";
+import { enableAudioUnlock, getVolume, isMuted, playSound, setMuted, setVolume } from "./sound.js";
 
 "use strict";
 const PAGE_TITLE = "BAKASHA — Play together";
@@ -87,6 +87,7 @@ const online = {
   seat: -1,
   starting: false,
   publicData: null,
+  discardHistory: [],
   ownHand: null,
   isHost: false,
   pollTimer: null,
@@ -535,13 +536,30 @@ function renderGame() {
       : true;
   elements.turnIndicator.classList.toggle("is-your-turn", isViewerTurn && !game.finished);
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
-  const previousDiscard = elements.discard.firstElementChild;
+  const previousDiscard = elements.discard.lastElementChild;
   const visibleTopCard = online.optimisticCard || topCard();
-  const playedCard = createCardElement(visibleTopCard, { interactive: false });
-  if (previousDiscard && previousDiscard.dataset.cardId !== playedCard.dataset.cardId) {
-    playedCard.classList.add("card-play");
-  }
-  elements.discard.replaceChildren(playedCard);
+  const discardCards = (onlineMode
+    ? [...online.discardHistory.slice(-2), visibleTopCard]
+    : game.discard.slice(-3));
+  const discardElements = discardCards.map((card, index) => {
+    const cardElement = createCardElement(card, { interactive: false });
+    const isTopCard = index === discardCards.length - 1;
+    cardElement.classList.add("discard-stack-card");
+    cardElement.classList.toggle("discard-stack-top", isTopCard);
+    cardElement.disabled = true;
+    cardElement.setAttribute("aria-hidden", "true");
+    cardElement.style.zIndex = String(index + 1);
+    const depth = discardCards.length - 1 - index;
+    const side = index % 2 === 0 ? -1 : 1;
+    cardElement.style.setProperty("--stack-x", `${side * (4 + depth * 4)}px`);
+    cardElement.style.setProperty("--stack-y", `${depth * 2}px`);
+    cardElement.style.setProperty("--stack-tilt", `${side * (2 + depth * 2)}deg`);
+    if (isTopCard && previousDiscard && previousDiscard.dataset.cardId !== cardElement.dataset.cardId) {
+      cardElement.classList.add("card-play");
+    }
+    return cardElement;
+  });
+  elements.discard.replaceChildren(...discardElements);
   const winningCard = document.querySelector("#winning-card");
   winningCard.replaceChildren();
   winningCard.classList.toggle("hidden", !game.finished);
@@ -2601,6 +2619,18 @@ document.querySelector("#sound-toggle").addEventListener("click", () => {
   toggle.setAttribute("aria-pressed", String(soundMuted));
   if (!soundMuted) playSound("click");
 });
+const soundVolumeControl = document.querySelector("#sound-volume");
+const soundVolumeValue = document.querySelector("#sound-volume-value");
+function updateSoundVolumeControl(value) {
+  const label = `${value}%`;
+  soundVolumeControl.value = String(value);
+  soundVolumeControl.setAttribute("aria-valuetext", label);
+  soundVolumeValue.value = label;
+}
+updateSoundVolumeControl(getVolume());
+soundVolumeControl.addEventListener("input", () => {
+  updateSoundVolumeControl(setVolume(Number(soundVolumeControl.value)));
+});
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : event.target.parentElement;
   const control = target && target.closest("button, a");
@@ -2692,6 +2722,24 @@ function applyRoomSnapshot(snapshot) {
     ? []
     : (data.chatMessages || []).filter((message) => !previousChatIds.has(message.id));
   const incomingMessages = newChatMessages.filter((message) => message.seat !== snapshot.seat);
+  const previousGame = previousData && previousData.game;
+  const nextGame = data.game;
+  if (nextGame) {
+    if (!previousGame || previousGame.round !== nextGame.round) {
+      online.discardHistory = [];
+    } else {
+      const previousTopCard = previousGame.discard && previousGame.discard[0];
+      const nextTopCard = nextGame.discard && nextGame.discard[0];
+      if (
+        previousTopCard
+        && nextTopCard
+        && previousTopCard.id !== nextTopCard.id
+        && nextGame.turns > previousGame.turns
+      ) {
+        online.discardHistory = [...online.discardHistory, previousTopCard].slice(-2);
+      }
+    }
+  }
   const challengeJoiner = !first
     && online.isHost
     && previousData.isPublic
@@ -2717,8 +2765,6 @@ function applyRoomSnapshot(snapshot) {
   }
   if (!changed) return;
   if (!first && data.players.length > previousData.players.length) playSound("join");
-  const previousGame = previousData && previousData.game;
-  const nextGame = data.game;
   if (previousGame && nextGame) {
     const sameRound = previousGame.round === nextGame.round;
     if (sameRound && nextGame.deckCount > previousGame.deckCount) playSound("shuffle");
@@ -2993,6 +3039,7 @@ function beginRoomSession(snapshot, token) {
   disconnectOnlineRoom();
   online.roomCode = snapshot.roomCode;
   online.token = token;
+  online.discardHistory = [];
   onlineRoomSize = snapshot.publicData.maxPlayers || 2;
   document.querySelector("#online-title").textContent = onlineRoomSize > 2
     ? `${onlineRoomSize}-player group`

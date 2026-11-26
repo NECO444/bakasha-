@@ -33,6 +33,11 @@
         </nav>
         <div class="topbar-right">
           <span class="mode-badge"><span class="mode-dot"></span> <span id="mode-label">Choose game</span></span>
+          <label class="sound-volume-control" for="sound-volume">
+            <span class="sound-volume-label">Volume</span>
+            <input id="sound-volume" type="range" min="0" max="100" step="1" value="70" aria-label="Sound volume" aria-valuetext="70%">
+            <output id="sound-volume-value" for="sound-volume">70%</output>
+          </label>
           <button class="sound-toggle" id="sound-toggle" type="button" aria-label="Mute sounds" aria-pressed="false">🔊</button>
           <button class="text-button" id="account-button" type="button">Sign in</button>
         </div>

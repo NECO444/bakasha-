@@ -1,67 +1,49 @@
 const STORAGE_KEY = "bakasha:sound-muted";
+const VOLUME_STORAGE_KEY = "bakasha:sound-volume";
+const DEFAULT_VOLUME = 70;
 
 const SOUND_PATTERNS = {
   play: {
-    notes: [1047, 698],
-    spacing: 0.025,
-    duration: 0.065,
-    volume: 0.035,
-    type: "triangle",
-    noise: [{ duration: 0.035, volume: 0.018, frequency: 1500 }],
+    notes: [392],
+    duration: 0.075,
+    volume: 0.018,
+    type: "sine",
+    noise: [{ duration: 0.035, volume: 0.007, frequency: 900, filter: "lowpass" }],
   },
   draw: {
-    notes: [392, 262],
-    spacing: 0.045,
-    duration: 0.1,
-    volume: 0.025,
-    type: "sine",
-    noise: [{ duration: 0.15, volume: 0.026, frequency: 1800, endFrequency: 420 }],
+    noise: [{ duration: 0.16, volume: 0.012, frequency: 1400, endFrequency: 520, filter: "lowpass" }],
   },
   shuffle: {
     noise: [
-      { duration: 0.065, volume: 0.028, frequency: 1700 },
-      { offset: 0.09, duration: 0.06, volume: 0.025, frequency: 1450 },
-      { offset: 0.18, duration: 0.065, volume: 0.023, frequency: 1250 },
-      { offset: 0.27, duration: 0.08, volume: 0.02, frequency: 1050 },
+      { duration: 0.11, volume: 0.012, frequency: 1100, endFrequency: 760, filter: "lowpass" },
+      { offset: 0.13, duration: 0.11, volume: 0.011, frequency: 980, endFrequency: 680, filter: "lowpass" },
+      { offset: 0.26, duration: 0.11, volume: 0.01, frequency: 880, endFrequency: 610, filter: "lowpass" },
+      { offset: 0.39, duration: 0.12, volume: 0.009, frequency: 780, endFrequency: 540, filter: "lowpass" },
     ],
   },
   error: {
-    notes: [165, 110],
-    spacing: 0.045,
+    notes: [146],
     duration: 0.085,
-    volume: 0.035,
-    type: "triangle",
-    noise: [{ duration: 0.045, volume: 0.018, frequency: 350, filter: "lowpass" }],
+    volume: 0.012,
+    type: "sine",
+    noise: [{ duration: 0.035, volume: 0.005, frequency: 240, filter: "lowpass" }],
   },
-  jack: { notes: [220, 165, 130], spacing: 0.045, duration: 0.085, volume: 0.035, type: "sawtooth" },
-  two: {
-    notes: [165, 110, 82],
-    spacing: 0.045,
-    duration: 0.1,
-    volume: 0.045,
-    type: "triangle",
-    noise: [{ duration: 0.06, volume: 0.023, frequency: 420, filter: "lowpass" }],
-  },
-  joker: { notes: [587, 440, 293, 174], spacing: 0.075, duration: 0.18, volume: 0.045, type: "sawtooth" },
-  ace: { notes: [1174, 1568, 1976], spacing: 0.055, duration: 0.12, volume: 0.032, type: "sine" },
-  block: {
-    notes: [196, 392, 587],
-    spacing: 0.045,
-    duration: 0.1,
-    volume: 0.04,
-    type: "triangle",
-    noise: [{ duration: 0.07, volume: 0.022, frequency: 750 }],
-  },
-  lastCard: { notes: [370, 440, 554], spacing: 0.075, duration: 0.13, volume: 0.03, type: "sine" },
-  win: { notes: [523, 659, 784, 1047, 784, 1047, 1318], spacing: 0.075, duration: 0.22, volume: 0.06, type: "triangle" },
-  lose: { notes: [440, 349, 294, 220], spacing: 0.09, duration: 0.18, volume: 0.03, type: "sine" },
-  click: { notes: [740], spacing: 0, duration: 0.055, volume: 0.025, type: "sine" },
-  turn: { notes: [659, 784], spacing: 0.11, duration: 0.16, volume: 0.04, type: "sine" },
-  join: { notes: [523, 784, 1047], spacing: 0.055, duration: 0.12, volume: 0.032, type: "sine" },
+  jack: { notes: [440, 349], spacing: 0.12, duration: 0.17, volume: 0.022, type: "triangle" },
+  two: { notes: [196], duration: 0.22, volume: 0.026, type: "sine" },
+  joker: { notes: [130.81], duration: 0.28, volume: 0.028, type: "sine" },
+  ace: { notes: [523, 587, 659, 784, 880, 1047], spacing: 0.045, duration: 0.12, volume: 0.018, type: "sine" },
+  block: { notes: [392, 523, 440], spacing: 0.055, duration: 0.12, volume: 0.018, type: "sine" },
+  lastCard: { notes: [164.81, 146.83], spacing: 0.32, duration: 0.28, volume: 0.019, type: "sine" },
+  win: { notes: [392, 494, 587, 784], spacing: 0.09, duration: 0.25, volume: 0.035, type: "triangle" },
+  lose: { notes: [392, 330, 262], spacing: 0.13, duration: 0.22, volume: 0.022, type: "sine" },
+  click: { notes: [659], duration: 0.045, volume: 0.012, type: "sine" },
+  turn: { notes: [784], duration: 0.2, volume: 0.022, type: "sine" },
+  join: { notes: [392, 494, 587], spacing: 0.08, duration: 0.17, volume: 0.024, type: "sine" },
 };
 
 let audioContext = null;
 let muted = readMutePreference();
+let volume = readVolumePreference();
 
 function readMutePreference() {
   try {
@@ -71,11 +53,32 @@ function readMutePreference() {
   }
 }
 
+function readVolumePreference() {
+  try {
+    const storedVolume = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+    if (storedVolume === null) return DEFAULT_VOLUME;
+    const savedVolume = Number(storedVolume);
+    return Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 100
+      ? savedVolume
+      : DEFAULT_VOLUME;
+  } catch {
+    return DEFAULT_VOLUME;
+  }
+}
+
 function persistMutePreference() {
   try {
     window.localStorage.setItem(STORAGE_KEY, String(muted));
   } catch {
     console.warn("Could not save the game sound preference.");
+  }
+}
+
+function persistVolumePreference() {
+  try {
+    window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
+  } catch {
+    console.warn("Could not save the game sound volume.");
   }
 }
 
@@ -104,6 +107,17 @@ export function enableAudioUnlock() {
 
 export function isMuted() {
   return muted;
+}
+
+export function getVolume() {
+  return volume;
+}
+
+export function setVolume(value) {
+  if (!Number.isFinite(value)) return volume;
+  volume = Math.max(0, Math.min(100, value));
+  persistVolumePreference();
+  return volume;
 }
 
 export function setMuted(value) {
@@ -141,11 +155,12 @@ function playNoise(context, start, burst, volumeScale) {
 
 export function playSound(name, options = {}) {
   const pattern = SOUND_PATTERNS[name];
-  if (!pattern || muted) return;
+  if (!pattern || muted || volume === 0) return;
   const volumeScale = Number.isFinite(options.volumeScale)
     ? Math.max(0, Math.min(1, options.volumeScale))
     : 1;
   if (volumeScale === 0) return;
+  const masterVolume = volume / 100;
 
   try {
     const context = getAudioContext();
@@ -154,7 +169,7 @@ export function playSound(name, options = {}) {
       context.resume().catch((error) => console.warn("Could not resume game audio.", error));
     }
     const start = context.currentTime;
-    for (const burst of pattern.noise || []) playNoise(context, start, burst, volumeScale);
+    for (const burst of pattern.noise || []) playNoise(context, start, burst, volumeScale * masterVolume);
     for (const [index, frequency] of (pattern.notes || []).entries()) {
       const noteStart = start + index * pattern.spacing;
       const oscillator = context.createOscillator();
@@ -162,7 +177,10 @@ export function playSound(name, options = {}) {
       oscillator.type = pattern.type;
       oscillator.frequency.setValueAtTime(frequency, noteStart);
       gain.gain.setValueAtTime(0.0001, noteStart);
-      gain.gain.exponentialRampToValueAtTime(pattern.volume * volumeScale, noteStart + 0.015);
+      gain.gain.exponentialRampToValueAtTime(
+        pattern.volume * volumeScale * masterVolume,
+        noteStart + Math.min(pattern.attack || 0.012, pattern.duration / 3),
+      );
       gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + pattern.duration);
       oscillator.connect(gain);
       gain.connect(context.destination);
