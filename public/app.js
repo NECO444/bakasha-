@@ -733,11 +733,11 @@ function updateMessage() {
     return;
   }
   if (game.combo) {
-    elements.message.textContent = `${turnLabel} · Add 8 support or draw 1`;
+    elements.message.textContent = "SUPPORT!";
     return;
   }
   if (game.jumpSupport) {
-    elements.message.textContent = `${turnLabel} · Play a card in the same suit or draw 1`;
+    elements.message.textContent = "SUPPORT!";
     return;
   }
   elements.message.textContent = turnLabel;
