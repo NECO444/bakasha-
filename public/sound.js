@@ -1,19 +1,16 @@
 const STORAGE_KEY = "bakasha:sound-muted";
-const VOLUME_STORAGE_KEY = "bakasha:sound-volume";
-const DEFAULT_VOLUME = 0.3;
 const SOUND_GAIN = 4;
-const SOUND_BATCH_DELAY = 32;
 
 const SOUND_PATTERNS = {
   play: {
     notes: [392],
-    duration: 0.24,
+    duration: 0.075,
     volume: 0.018,
     type: "sine",
-    noise: [{ duration: 0.045, volume: 0.005, frequency: 850, filter: "lowpass" }],
+    noise: [{ duration: 0.035, volume: 0.007, frequency: 900, filter: "lowpass" }],
   },
   draw: {
-    noise: [{ duration: 0.22, volume: 0.012, frequency: 1400, endFrequency: 520, filter: "lowpass" }],
+    noise: [{ duration: 0.16, volume: 0.012, frequency: 1400, endFrequency: 520, filter: "lowpass" }],
   },
   shuffle: {
     noise: [
@@ -24,70 +21,33 @@ const SOUND_PATTERNS = {
     ],
   },
   error: {
-    notes: [146.83],
-    duration: 0.22,
+    notes: [146],
+    duration: 0.085,
     volume: 0.012,
     type: "sine",
-    noise: [{ duration: 0.035, volume: 0.004, frequency: 240, filter: "lowpass" }],
+    noise: [{ duration: 0.035, volume: 0.005, frequency: 240, filter: "lowpass" }],
   },
-  jack: { notes: [440, 392], spacing: 0.12, duration: 0.24, volume: 0.022, type: "triangle" },
-  two: { notes: [196], duration: 0.24, volume: 0.026, type: "sine" },
+  jack: { notes: [440, 349], spacing: 0.12, duration: 0.17, volume: 0.022, type: "triangle" },
+  two: { notes: [196], duration: 0.22, volume: 0.026, type: "sine" },
   joker: { notes: [130.81], duration: 0.28, volume: 0.028, type: "sine" },
-  ace: { notes: [523.25, 587.33, 659.25, 783.99, 880, 1046.5], spacing: 0.07, duration: 0.22, volume: 0.018, type: "sine" },
-  block: { notes: [392, 523.25, 440], spacing: 0.07, duration: 0.22, volume: 0.018, type: "sine" },
+  ace: { notes: [523, 587, 659, 784, 880, 1047], spacing: 0.045, duration: 0.12, volume: 0.018, type: "sine" },
+  block: { notes: [392, 523, 440], spacing: 0.055, duration: 0.12, volume: 0.018, type: "sine" },
   lastCard: { notes: [164.81, 146.83], spacing: 0.32, duration: 0.28, volume: 0.019, type: "sine" },
-  win: { notes: [392, 523.25, 587.33, 783.99], spacing: 0.11, duration: 0.28, volume: 0.035, type: "triangle" },
-  lose: { notes: [392, 329.63, 261.63], spacing: 0.15, duration: 0.24, volume: 0.022, type: "sine" },
-  click: { notes: [659.25], duration: 0.22, volume: 0.008, type: "sine" },
-  turn: { notes: [783.99], duration: 0.24, volume: 0.022, type: "sine" },
-  join: { notes: [392, 523.25, 587.33], spacing: 0.1, duration: 0.23, volume: 0.024, type: "sine" },
-};
-
-const SOUND_PRIORITY = {
-  click: 1,
-  play: 2,
-  draw: 3,
-  shuffle: 3,
-  join: 3,
-  turn: 4,
-  error: 4,
-  jack: 5,
-  two: 5,
-  joker: 5,
-  ace: 5,
-  block: 6,
-  lastCard: 7,
-  lose: 8,
-  win: 9,
+  win: { notes: [392, 494, 587, 784], spacing: 0.09, duration: 0.25, volume: 0.035, type: "triangle" },
+  lose: { notes: [392, 330, 262], spacing: 0.13, duration: 0.22, volume: 0.022, type: "sine" },
+  click: { notes: [659], duration: 0.045, volume: 0.012, type: "sine" },
+  turn: { notes: [784], duration: 0.2, volume: 0.022, type: "sine" },
+  join: { notes: [392, 494, 587], spacing: 0.08, duration: 0.17, volume: 0.024, type: "sine" },
 };
 
 let audioContext = null;
-let masterGain = null;
 let muted = readMutePreference();
-let volume = readVolumePreference();
-let audioUnlocked = false;
-let pendingSounds = [];
-let soundBatchTimer = null;
 
 function readMutePreference() {
   try {
     return window.localStorage.getItem(STORAGE_KEY) === "true";
   } catch {
     return false;
-  }
-}
-
-function readVolumePreference() {
-  try {
-    const storedVolume = Number(window.localStorage.getItem(VOLUME_STORAGE_KEY));
-    return window.localStorage.getItem(VOLUME_STORAGE_KEY) !== null
-      && Number.isFinite(storedVolume)
-      && storedVolume >= 0
-      && storedVolume <= 1
-      ? storedVolume
-      : DEFAULT_VOLUME;
-  } catch {
-    return DEFAULT_VOLUME;
   }
 }
 
@@ -99,46 +59,17 @@ function persistMutePreference() {
   }
 }
 
-function persistVolumePreference() {
-  try {
-    window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
-  } catch {
-    console.warn("Could not save the game sound volume.");
-  }
-}
-
 function getAudioContext() {
   const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextConstructor) return null;
-  if (!audioContext) {
-    const context = new AudioContextConstructor();
-    const gain = context.createGain();
-    const filter = context.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 2400;
-    filter.Q.value = 0.7;
-    gain.connect(filter);
-    filter.connect(context.destination);
-    audioContext = context;
-    masterGain = gain;
-    updateMasterGain();
-  }
+  if (!audioContext) audioContext = new AudioContextConstructor();
   return audioContext;
 }
 
-function updateMasterGain() {
-  if (!audioContext || !masterGain) return;
-  const targetGain = muted ? 0.0001 : volume / DEFAULT_VOLUME;
-  const now = audioContext.currentTime;
-  masterGain.gain.cancelScheduledValues(now);
-  masterGain.gain.setTargetAtTime(targetGain, now, 0.018);
-}
-
 function unlockAudio() {
-  audioUnlocked = true;
   try {
     const context = getAudioContext();
-    if (context && !muted && volume > 0 && context.state === "suspended") {
+    if (context && context.state === "suspended") {
       context.resume().catch((error) => console.warn("Could not resume game audio.", error));
     }
   } catch (error) {
@@ -147,48 +78,19 @@ function unlockAudio() {
 }
 
 export function enableAudioUnlock() {
-  const unlockOnFirstInput = () => {
-    document.removeEventListener("pointerdown", unlockOnFirstInput);
-    document.removeEventListener("keydown", unlockOnFirstInput);
-    unlockAudio();
-  };
-  document.addEventListener("pointerdown", unlockOnFirstInput, { once: true, passive: true });
-  document.addEventListener("keydown", unlockOnFirstInput, { once: true });
+  document.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
+  document.addEventListener("keydown", unlockAudio, { once: true });
 }
 
 export function isMuted() {
   return muted;
 }
 
-export function getVolume() {
-  return volume;
-}
-
 export function setMuted(value) {
   muted = Boolean(value);
   persistMutePreference();
-  updateMasterGain();
-  if (muted) {
-    pendingSounds = [];
-    window.clearTimeout(soundBatchTimer);
-    soundBatchTimer = null;
-  } else {
-    unlockAudio();
-  }
+  if (!muted) unlockAudio();
   return muted;
-}
-
-export function setVolume(value) {
-  volume = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : DEFAULT_VOLUME;
-  persistVolumePreference();
-  updateMasterGain();
-  if (!muted && volume > 0 && audioUnlocked) unlockAudio();
-  if (volume === 0) {
-    pendingSounds = [];
-    window.clearTimeout(soundBatchTimer);
-    soundBatchTimer = null;
-  }
-  return volume;
 }
 
 function playNoise(context, start, burst, volumeScale) {
@@ -202,23 +104,29 @@ function playNoise(context, start, burst, volumeScale) {
   const gain = context.createGain();
   const burstStart = start + (burst.offset || 0);
   source.buffer = buffer;
-  filter.type = burst.filter || "lowpass";
+  filter.type = burst.filter || "highpass";
   filter.frequency.setValueAtTime(burst.frequency, burstStart);
   if (burst.endFrequency) {
     filter.frequency.exponentialRampToValueAtTime(burst.endFrequency, burstStart + duration);
   }
   gain.gain.setValueAtTime(0.0001, burstStart);
-  gain.gain.exponentialRampToValueAtTime(burst.volume * volumeScale * SOUND_GAIN, burstStart + 0.012);
+  gain.gain.exponentialRampToValueAtTime(burst.volume * volumeScale, burstStart + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.0001, burstStart + duration);
   source.connect(filter);
   filter.connect(gain);
-  gain.connect(masterGain);
+  gain.connect(context.destination);
   source.start(burstStart);
   source.stop(burstStart + duration + 0.01);
 }
 
-function playPattern(name, volumeScale) {
+export function playSound(name, options = {}) {
   const pattern = SOUND_PATTERNS[name];
+  if (!pattern || muted) return;
+  const volumeScale = Number.isFinite(options.volumeScale)
+    ? Math.max(0, Math.min(1, options.volumeScale))
+    : 1;
+  if (volumeScale === 0) return;
+
   try {
     const context = getAudioContext();
     if (!context) return;
@@ -226,7 +134,7 @@ function playPattern(name, volumeScale) {
       context.resume().catch((error) => console.warn("Could not resume game audio.", error));
     }
     const start = context.currentTime;
-    for (const burst of pattern.noise || []) playNoise(context, start, burst, volumeScale);
+    for (const burst of pattern.noise || []) playNoise(context, start, burst, volumeScale * SOUND_GAIN);
     for (const [index, frequency] of (pattern.notes || []).entries()) {
       const noteStart = start + index * pattern.spacing;
       const oscillator = context.createOscillator();
@@ -236,41 +144,15 @@ function playPattern(name, volumeScale) {
       gain.gain.setValueAtTime(0.0001, noteStart);
       gain.gain.exponentialRampToValueAtTime(
         pattern.volume * volumeScale * SOUND_GAIN,
-        noteStart + Math.min(pattern.attack || 0.018, pattern.duration / 3),
+        noteStart + Math.min(pattern.attack || 0.012, pattern.duration / 3),
       );
       gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + pattern.duration);
       oscillator.connect(gain);
-      gain.connect(masterGain);
+      gain.connect(context.destination);
       oscillator.start(noteStart);
       oscillator.stop(noteStart + pattern.duration + 0.01);
     }
   } catch (error) {
     console.warn("Could not play a game sound.", error);
-  }
-}
-
-function flushPendingSounds() {
-  soundBatchTimer = null;
-  if (muted || volume === 0 || !audioUnlocked || pendingSounds.length === 0) {
-    pendingSounds = [];
-    return;
-  }
-  const selectedSound = pendingSounds.reduce((selected, sound) =>
-    SOUND_PRIORITY[sound.name] > SOUND_PRIORITY[selected.name] ? sound : selected,
-  );
-  pendingSounds = [];
-  playPattern(selectedSound.name, selectedSound.volumeScale);
-}
-
-export function playSound(name, options = {}) {
-  if (!SOUND_PATTERNS[name] || muted || volume === 0 || !audioUnlocked) return;
-  const volumeScale = Number.isFinite(options.volumeScale)
-    ? Math.max(0, Math.min(1, options.volumeScale))
-    : 1;
-  if (volumeScale === 0) return;
-
-  pendingSounds.push({ name, volumeScale });
-  if (soundBatchTimer === null) {
-    soundBatchTimer = window.setTimeout(flushPendingSounds, SOUND_BATCH_DELAY);
   }
 }

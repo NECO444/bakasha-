@@ -1,4 +1,4 @@
-import { enableAudioUnlock, getVolume, isMuted, playSound, setMuted, setVolume } from "./sound.js";
+import { enableAudioUnlock, isMuted, playSound, setMuted } from "./sound.js";
 
 "use strict";
 const PAGE_TITLE = "BAKASHA — Play together";
@@ -10,31 +10,7 @@ const SUITS = {
   clubs: { symbol: "♣", name: "Clubs" },
 };
 const SUIT_ORDER = ["hearts", "spades", "diamonds", "clubs"];
-const SPECIAL_CARD_RANKS = new Set(["2", "8", "J", "A", "JOKER"]);
 const QUICK_REACTION_TEXTS = new Set(["👏", "😂", "🔥", "😮", "GG"]);
-const VOICE = Object.freeze({
-  thinking: (name) => `${name} is thinking`,
-  reactions: Object.freeze({ "👏": "Nice one", "😮": "Ouch", GG: "Again?" }),
-  cardEffects: Object.freeze({
-    two: "Draw 2. Another 2 can block it.",
-    twoBlocked: "A 2 cancels the draw-two penalty.",
-    twoBlocksJoker: "A 2 blocks the Joker penalty. Draw two instead.",
-    eight: "An 8 turns play around. Play that suit, another 8, or draw one.",
-    eightSupport: "Another 8 needs its own support.",
-    jackDuel: "In a duel, a Jack gives you another play. Back it with a Jack or same-suit card.",
-    jackDuelLast: "No cards left after that Jack. Draw one on your next turn.",
-    jackSupportsEightDuel: "Jack supports the 8. In a duel, follow with its suit or another Jack.",
-    jackGroup: "Jack skips the next player.",
-    jackGroupLast: "Jack skips the next player. No cards left? Draw one next turn.",
-    jackSupportsEightGroup: "Jack supports the 8 and skips the next player.",
-    joker: "Joker passes four cards to the next player. A 2 or Joker can block it.",
-    jokerBlocked: "Joker clears the four-card penalty.",
-    ace: (suit) => `Next suit: ${suit}. Play that suit, an Ace, or a Joker.`,
-    directionReversed: " The direction reversed.",
-  }),
-  rematchButton: "Rematch?",
-  rematchPrompt: "Keep the table going?",
-});
 const PLAYER_COLORS = ["#d3f36b", "#70a9f6", "#f17474", "#f0c95e", "#c39aef", "#6bcf9d"];
 const elements = {
   setup: document.querySelector("#setup-screen"),
@@ -68,9 +44,6 @@ const elements = {
   suitModal: document.querySelector("#suit-modal"),
   rulesModal: document.querySelector("#rules-modal"),
   toast: document.querySelector("#toast"),
-  soundToggle: document.querySelector("#sound-toggle"),
-  soundVolume: document.querySelector("#sound-volume"),
-  reactions: document.querySelector("#game-reactions"),
 };
 const chatToggle = document.querySelector("#game-chat-toggle");
 
@@ -99,7 +72,6 @@ let pendingLobbyRequest = null;
 let roomCreationPending = false;
 let roomJoinPending = false;
 let soundMuted = isMuted();
-let soundVolume = getVolume();
 let tutorialIndex = 0;
 let tutorialShown = false;
 let tutorialDismissed = false;
@@ -186,8 +158,8 @@ function dealGame(names, options = {}) {
   online.chatOpen = false;
   online.optimisticCard = null;
   elements.rematch.disabled = false;
-  elements.rematch.innerHTML = `${VOICE.rematchButton} <span aria-hidden="true">↻</span>`;
-  document.querySelector("#rematch-status").textContent = VOICE.rematchPrompt;
+  elements.rematch.innerHTML = 'Play again <span aria-hidden="true">↻</span>';
+  document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
   document.querySelector("#mode-label").textContent = trainingMode ? "Training with Nicole" : "Local game";
   document.querySelector("#round-mode-label").textContent = trainingMode ? "TRAINING" : "PASS & PLAY";
   window.clearInterval(turnTimer);
@@ -284,8 +256,6 @@ function updateResultScore() {
 
 function presentGameResult(winner) {
   const won = Boolean(accountUser && winner === accountUser.username);
-  elements.rematchModal.classList.toggle("is-win", won);
-  elements.rematchModal.classList.toggle("is-loss", !won);
   elements.rematchWinner.textContent = won ? "You" : winner;
   document.querySelector("#result-word").textContent = won ? "won!" : "wins!";
   document.querySelector("#rematch-modal .eyebrow").textContent = won ? "YOU DID IT!" : "GOOD GAME";
@@ -329,22 +299,21 @@ function alertForTurn(state) {
 }
 
 function showConfetti() {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const colors = ["#F2B659", "#E8A598"];
+  const colors = ["#58cc02", "#1cb0f6", "#ffc800", "#ff4b4b", "#fff"];
   const confetti = document.createElement("div");
   confetti.className = "confetti-burst";
   confetti.setAttribute("aria-hidden", "true");
-  for (let index = 0; index < 24; index += 1) {
+  for (let index = 0; index < 36; index += 1) {
     const piece = document.createElement("span");
     piece.style.left = `${Math.random() * 100}%`;
     piece.style.setProperty("--confetti-color", colors[index % colors.length]);
     piece.style.setProperty("--confetti-delay", `${Math.random() * 260}ms`);
     piece.style.setProperty("--confetti-drift", `${Math.round(Math.random() * 180 - 90)}px`);
-    piece.style.setProperty("--confetti-rotate", `${Math.round(Math.random() * 360 - 180)}deg`);
+    piece.style.setProperty("--confetti-rotate", `${Math.round(Math.random() * 720 - 360)}deg`);
     confetti.append(piece);
   }
   document.body.append(confetti);
-  window.setTimeout(() => confetti.remove(), 1900);
+  window.setTimeout(() => confetti.remove(), 2200);
 }
 
 function startPlayoffRound(survivors) {
@@ -422,16 +391,8 @@ function createCardElement(card, options) {
     button.setAttribute("aria-disabled", String(turnBlocked));
     const description = card.rank === "JOKER" ? "Joker, draw four and change suit" : `${card.rank} of ${SUITS[card.suit].name}`;
     button.setAttribute("aria-label", playable ? description : `${description}, not playable right now`);
-    button.addEventListener("click", () => {
-      button.scrollIntoView({
-        inline: "center",
-        block: "nearest",
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      });
-      selectCard(options.index);
-    });
+    button.addEventListener("click", () => selectCard(options.index));
   }
-  button.classList.toggle("is-special", SPECIAL_CARD_RANKS.has(card.rank));
   const corner = document.createElement("span");
   corner.className = "card-corner";
   const cornerRank = document.createElement("span");
@@ -443,7 +404,7 @@ function createCardElement(card, options) {
   corner.append(cornerRank, cornerSuit);
   const face = document.createElement("span");
   face.className = "card-face";
-  face.textContent = card.suit === "wild" ? "✳" : SUITS[card.suit].symbol;
+  face.textContent = card.suit === "wild" ? "🤡" : SUITS[card.suit].symbol;
   const bottomCorner = corner.cloneNode(true);
   bottomCorner.classList.add("card-corner-bottom");
   button.append(corner, face, bottomCorner);
@@ -480,8 +441,8 @@ function animatePlayedCard(index) {
     return;
   }
   const animation = flight.animate([
-    { transform: "perspective(700px) translate(0, 0) rotateY(0deg) scale(1)", opacity: 1 },
-    { transform: `perspective(700px) translate(${moveX}px, ${moveY}px) rotateY(12deg) scale(.94)`, opacity: .94 },
+    { transform: "translate(0, 0) rotate(0deg) scale(1)" },
+    { transform: `translate(${moveX}px, ${moveY}px) rotate(220deg) scale(.86)` },
   ], { duration: 280, easing: "cubic-bezier(.22, 1, .36, 1)", fill: "forwards" });
   animation.onfinish = () => flight.remove();
   animation.oncancel = () => flight.remove();
@@ -518,8 +479,8 @@ function animateDrawnCard(cardElement) {
     return;
   }
   const animation = flight.animate([
-    { transform: "perspective(700px) translate(0, 0) rotateY(-12deg) scale(.8)", opacity: .8 },
-    { transform: `perspective(700px) translate(${moveX}px, ${moveY}px) rotateY(0deg) scale(1)`, opacity: 1 },
+    { transform: "translate(0, 0) scale(.8)", opacity: .8 },
+    { transform: `translate(${moveX}px, ${moveY}px) scale(1)`, opacity: 1 },
   ], { duration: 300, easing: "cubic-bezier(.22, 1, .36, 1)", fill: "forwards" });
   animation.onfinish = () => {
     flight.remove();
@@ -532,7 +493,6 @@ function renderGame() {
   if (!game) return;
   document.body.classList.toggle("game-active", !game.finished);
   const liveOnlineGame = onlineMode && !game.finished;
-  elements.reactions.classList.toggle("hidden", !liveOnlineGame);
   chatToggle.classList.toggle("hidden", !onlineMode);
   chatToggle.disabled = !liveOnlineGame;
   chatToggle.setAttribute("aria-label", online.chatOpen ? "Close table chat" : "Open table chat");
@@ -554,7 +514,7 @@ function renderGame() {
   elements.avatar.style.color = PLAYER_COLORS[viewIndex % PLAYER_COLORS.length];
   const ownReaction = online.recentReactions.get(onlineSeat);
   const ownReactionElement = document.querySelector("#player-reaction");
-  ownReactionElement.textContent = ownReaction ? reactionLabel(ownReaction.emoji) : "";
+  ownReactionElement.textContent = ownReaction ? ownReaction.emoji : "";
   ownReactionElement.classList.toggle("hidden", !ownReaction);
   elements.handCount.textContent = `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`;
   elements.turnNumber.textContent = onlineMode ? `TURN ${game.turns}` : `ROUND ${game.round} · TURN ${game.turns}`;
@@ -575,8 +535,6 @@ function renderGame() {
       ? game.current === 0
       : true;
   elements.turnIndicator.classList.toggle("is-your-turn", isViewerTurn && !game.finished);
-  elements.hand.classList.toggle("is-your-turn", isViewerTurn && !game.finished);
-  elements.drawPile.classList.toggle("is-your-turn", isViewerTurn && !game.finished);
   elements.turnIndicator.querySelector("span").textContent = game.direction === 1 ? "↻" : "↺";
   const previousDiscard = elements.discard.lastElementChild;
   const visibleTopCard = online.optimisticCard || topCard();
@@ -632,23 +590,13 @@ function renderOpponents() {
     const viewerSeat = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
     if (index === viewerSeat) return;
     const opponent = document.createElement("div");
-    const isThinking = !game.finished
-      && game.current === index
-      && (onlineMode || trainingMode && index === 1);
-    opponent.className = `opponent${player.online ? " is-online" : ""}${isThinking ? " is-thinking" : ""}`;
+    opponent.className = "opponent";
     opponent.dataset.seat = String(index);
-    opponent.setAttribute("role", "group");
-    opponent.setAttribute("aria-label", [
-      player.name,
-      `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`,
-      player.online ? "online" : "",
-      isThinking ? "thinking" : "",
-    ].filter(Boolean).join(", "));
     const reaction = online.recentReactions.get(index);
     if (reaction) {
       const reactionBadge = document.createElement("span");
       reactionBadge.className = "opponent-reaction";
-      reactionBadge.textContent = reactionLabel(reaction.emoji);
+      reactionBadge.textContent = reaction.emoji;
       opponent.append(reactionBadge);
     }
     const name = document.createElement("span");
@@ -670,19 +618,8 @@ function renderOpponents() {
         ? "Round safe"
         : `${player.hand.length} ${player.hand.length === 1 ? "card" : "cards"}`;
     opponent.append(name, cardRow, count);
-    if (isThinking) {
-      const thinking = document.createElement("span");
-      thinking.className = "opponent-thinking";
-      thinking.textContent = VOICE.thinking(player.name);
-      thinking.append(document.createTextNode(" "), createThinkingDots());
-      opponent.append(thinking);
-    }
     elements.opponents.append(opponent);
   });
-}
-
-function reactionLabel(reaction) {
-  return VOICE.reactions[reaction] || reaction;
 }
 
 function showQuickReaction(seat, emoji) {
@@ -693,7 +630,7 @@ function showQuickReaction(seat, emoji) {
   const reactionFloats = document.querySelector("#reaction-floats");
   const floatingReaction = document.createElement("span");
   floatingReaction.className = "live-reaction-float";
-  floatingReaction.textContent = reactionLabel(emoji);
+  floatingReaction.textContent = emoji;
   floatingReaction.style.left = `${15 + Math.random() * 70}%`;
   reactionFloats.append(floatingReaction);
   window.setTimeout(() => floatingReaction.remove(), 1800);
@@ -763,65 +700,47 @@ function renderHand() {
 
 function updateMessage() {
   const player = game.players[game.current];
-  elements.message.classList.toggle("is-penalty", !game.finished && (game.pending > 0 || game.mustDrawSeat === game.current));
   const isViewerTurn = (onlineMode && game.current === onlineSeat)
     || (trainingMode && game.current === 0);
-  const isThinking = !game.finished
-    && ((onlineMode && !isViewerTurn) || (trainingMode && game.current !== 0));
-  elements.message.classList.toggle("is-thinking", isThinking);
-  const setMessage = (message) => {
-    elements.message.replaceChildren(document.createTextNode(message));
-    if (isThinking) {
-      elements.message.append(document.createTextNode(" "), createThinkingDots());
-    }
-  };
   const turnLabel = isViewerTurn ? "Your turn" : `${player.name}’s turn`;
   elements.hint.textContent = "";
   if (game.finished) {
-    setMessage(`${game.winner} wins!`);
+    elements.message.textContent = `${game.winner} wins!`;
     return;
   }
   if (onlineMode && !isViewerTurn) {
-    setMessage(VOICE.thinking(player.name));
+    elements.message.textContent = `${player.name}’s turn`;
     return;
   }
   if (trainingMode && game.current !== 0) {
-    setMessage(VOICE.thinking(player.name));
+    elements.message.textContent = "Nicole is thinking…";
     return;
   }
   if (game.pending > 0) {
-    setMessage(isViewerTurn ? `Your turn · Draw ${game.pending}` : `Draw ${game.pending}`);
+    elements.message.textContent = isViewerTurn ? `Your turn · Draw ${game.pending}` : `Draw ${game.pending}`;
     return;
   }
   if (game.mustDrawSeat === game.current) {
-    setMessage(isViewerTurn ? "Your turn · Draw 1" : `${player.name} must draw 1`);
+    elements.message.textContent = isViewerTurn ? "Your turn · Draw 1" : `${player.name} must draw 1`;
     return;
   }
   if (game.demandedSuit) {
-    setMessage(`${isViewerTurn ? "Your turn · " : ""}Play ${SUITS[game.demandedSuit].name} or an Ace`);
+    elements.message.textContent = `${isViewerTurn ? "Your turn · " : ""}Play ${SUITS[game.demandedSuit].name} or an Ace`;
     return;
   }
   if (game.freeSuitPlay) {
-    setMessage(turnLabel);
+    elements.message.textContent = turnLabel;
     return;
   }
   if (game.combo) {
-    setMessage("SUPPORT!");
+    elements.message.textContent = "SUPPORT!";
     return;
   }
   if (game.jumpSupport) {
-    setMessage("SUPPORT!");
+    elements.message.textContent = "SUPPORT!";
     return;
   }
-  setMessage(turnLabel);
-}
-
-function createThinkingDots() {
-  const dots = document.createElement("span");
-  dots.className = "thinking-dots";
-  dots.setAttribute("aria-hidden", "true");
-  for (let index = 0; index < 3; index += 1) dots.append(document.createElement("span"));
-  return dots;
+  elements.message.textContent = turnLabel;
 }
 
 function selectCard(index) {
@@ -872,37 +791,6 @@ function cardSoundName(card) {
   }[card.rank] || "play";
 }
 
-function specialCardToast(card, state, lastMessage, playerCount, playedLastCard, previousState) {
-  const message = lastMessage || "";
-  const blocked = /cancel|block/i.test(message);
-  if (card.rank === "2") {
-    if (blocked && /joker/i.test(message)) return VOICE.cardEffects.twoBlocksJoker;
-    return blocked ? VOICE.cardEffects.twoBlocked : VOICE.cardEffects.two;
-  }
-  if (card.rank === "8") {
-    return previousState?.combo && state.combo?.eightCount > previousState.combo.eightCount
-      ? VOICE.cardEffects.eightSupport
-      : VOICE.cardEffects.eight;
-  }
-  if (card.rank === "J") {
-    if (playedLastCard) {
-      return playerCount === 2 ? VOICE.cardEffects.jackDuelLast : VOICE.cardEffects.jackGroupLast;
-    }
-    if (previousState?.combo) {
-      return playerCount === 2
-        ? VOICE.cardEffects.jackSupportsEightDuel
-        : VOICE.cardEffects.jackSupportsEightGroup;
-    }
-    return playerCount === 2 ? VOICE.cardEffects.jackDuel : VOICE.cardEffects.jackGroup;
-  }
-  if (card.rank === "A") {
-    const suit = SUITS[state.activeSuit];
-    return suit ? VOICE.cardEffects.ace(suit.name) : null;
-  }
-  if (card.rank === "JOKER") return blocked ? VOICE.cardEffects.jokerBlocked : VOICE.cardEffects.joker;
-  return null;
-}
-
 function playCard(index, chosenSuit) {
   const player = game.players[game.current];
   const [card] = player.hand.splice(index, 1);
@@ -933,7 +821,7 @@ function playCard(index, chosenSuit) {
     game.demandedSuit = null;
     game.freeSuitPlay = true;
     if (player.hand.length === 0) game.mustDrawSeat = game.current;
-    showToast(VOICE.cardEffects.jokerBlocked, true);
+    showToast(`${player.name} canceled the Joker penalty. The next player may play anything.`);
     advanceTurn();
     return;
   }
@@ -943,7 +831,7 @@ function playCard(index, chosenSuit) {
     game.demandedSuit = null;
     takeCards(player, 2);
     if (player.hand.length === 0) game.mustDrawSeat = game.current;
-    showToast(VOICE.cardEffects.twoBlocksJoker, true);
+    showToast(`${player.name} blocked 2 of the Joker penalty and drew 2.`);
     advanceTurn();
     return;
   }
@@ -951,7 +839,7 @@ function playCard(index, chosenSuit) {
     game.pending = 0;
     game.pendingType = null;
     if (player.hand.length === 0) game.mustDrawSeat = game.current;
-    showToast(VOICE.cardEffects.twoBlocked, true);
+    showToast(`${player.name} canceled the 2-card penalty.`);
     advanceTurn();
     return;
   }
@@ -966,7 +854,7 @@ function playCard(index, chosenSuit) {
       game.combo.lastCard = card;
       game.combo.eightCount += 1;
       if (player.hand.length === 0) game.mustDrawSeat = game.current;
-      showToast(VOICE.cardEffects.eightSupport, true);
+      showToast("Another 8 needs its own support.");
       renderGame();
       return;
     }
@@ -986,7 +874,7 @@ function playCard(index, chosenSuit) {
   if (card.rank === "8") {
     game.combo = { lastCard: card, eightCount: 1 };
     if (player.hand.length === 0) game.mustDrawSeat = game.current;
-    showToast(VOICE.cardEffects.eight, true);
+    showToast("8 played. Add support or draw one.");
     renderGame();
     return;
   }
@@ -994,12 +882,9 @@ function playCard(index, chosenSuit) {
     if (player.hand.length === 0) game.mustDrawSeat = game.current;
     if (game.players.length === 2) {
       if (player.hand.length > 0) game.jumpSupport = true;
-      const effect = player.hand.length === 0
-        ? VOICE.cardEffects.jackDuelLast
-        : supportedEight
-          ? VOICE.cardEffects.jackSupportsEightDuel
-          : VOICE.cardEffects.jackDuel;
-      showToast(effect, true);
+      showToast(player.hand.length === 0
+        ? "Jack played. Draw one on your next turn."
+        : "Jack played. Play another Jack or a card in the same suit, or draw one.");
       if (player.hand.length === 0) {
         renderGame();
         startTurnTimer();
@@ -1007,34 +892,29 @@ function playCard(index, chosenSuit) {
       else renderGame();
       return;
     }
-    const effect = player.hand.length === 0
-      ? VOICE.cardEffects.jackGroupLast
-      : supportedEight
-        ? VOICE.cardEffects.jackSupportsEightGroup
-        : VOICE.cardEffects.jackGroup;
-    showToast(effect, true);
+    showToast("Jack played. The next player is skipped.");
     advanceTurn(2);
     return;
   }
-  let message = `Played.${reverseAfterSupport ? VOICE.cardEffects.directionReversed : ""}`;
+  let message = `Played.${reverseAfterSupport ? " The direction reversed." : ""}`;
   if (card.rank === "2") {
     game.pending = 2;
     game.pendingType = "draw-two";
     if (player.hand.length === 0) game.mustDrawSeat = game.current;
-    message = VOICE.cardEffects.two;
+    message = "The next player must draw two.";
   } else if (card.rank === "JOKER") {
     game.pending = 4;
     game.pendingType = "draw-four";
     if (player.hand.length === 0) game.mustDrawSeat = game.current;
-    message = VOICE.cardEffects.joker;
+    message = "Joker! The next player must draw four.";
   } else {
     if (card.rank === "A") {
-      message = VOICE.cardEffects.ace(SUITS[chosenSuit].name);
+      message = `Next suit: ${SUITS[chosenSuit].name}.`;
       if (player.hand.length === 0) game.mustDrawSeat = game.current;
     }
   }
-  if (reverseAfterSupport) message += VOICE.cardEffects.directionReversed;
-  showToast(message, SPECIAL_CARD_RANKS.has(card.rank));
+  if (reverseAfterSupport) message += " The direction reversed.";
+  showToast(message);
   advanceTurn();
 }
 
@@ -1259,16 +1139,16 @@ function friendlyToastMessage(message) {
   return message;
 }
 
-function showToast(message, specialEffect = false) {
+function showToast(message) {
   window.clearTimeout(toastTimer);
   if (/knocked!/i.test(message)) {
     elements.toast.classList.remove("visible", "toast-knock", "toast-special");
     return;
   }
-  const friendlyMessage = specialEffect ? message : friendlyToastMessage(message);
+  const friendlyMessage = friendlyToastMessage(message);
   elements.toast.textContent = friendlyMessage;
   elements.toast.classList.remove("toast-knock");
-  elements.toast.classList.toggle("toast-special", specialEffect || friendlyMessage !== message || /draw|skip|cancel/i.test(message));
+  elements.toast.classList.toggle("toast-special", friendlyMessage !== message || /draw|skip|cancel/i.test(message));
   elements.toast.classList.add("visible");
   toastTimer = window.setTimeout(() => elements.toast.classList.remove("visible"), 2300);
 }
@@ -2717,30 +2597,23 @@ document.querySelector("#tutorial-next").addEventListener("click", () => {
   tutorialIndex += 1;
   renderTutorialStep();
 });
-function renderSoundControls() {
-  elements.soundToggle.textContent = soundMuted ? "🔇" : "🔊";
-  elements.soundToggle.setAttribute("aria-label", soundMuted ? "Turn sounds on" : "Mute sounds");
-  elements.soundToggle.setAttribute("aria-pressed", String(soundMuted));
-  elements.soundVolume.value = String(soundVolume);
-  elements.soundVolume.setAttribute("aria-valuetext", `${Math.round(soundVolume * 100)}%`);
-}
-
-elements.soundToggle.addEventListener("click", () => {
+document.querySelector("#sound-toggle").addEventListener("click", () => {
   soundMuted = setMuted(!soundMuted);
-  renderSoundControls();
+  const toggle = document.querySelector("#sound-toggle");
+  toggle.textContent = soundMuted ? "🔇" : "🔊";
+  toggle.setAttribute("aria-label", soundMuted ? "Turn sounds on" : "Mute sounds");
+  toggle.setAttribute("aria-pressed", String(soundMuted));
   if (!soundMuted) playSound("click");
-});
-elements.soundVolume.addEventListener("input", () => {
-  soundVolume = setVolume(Number(elements.soundVolume.value));
-  renderSoundControls();
 });
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : event.target.parentElement;
   const control = target && target.closest("button, a");
-  if (!control || control.matches("#sound-toggle, #sound-volume, .playing-card, #draw-pile, .suit-option")) return;
+  if (!control || control.matches("#sound-toggle, .playing-card, #draw-pile, .suit-option")) return;
   playSound("click");
 });
-renderSoundControls();
+document.querySelector("#sound-toggle").textContent = soundMuted ? "🔇" : "🔊";
+document.querySelector("#sound-toggle").setAttribute("aria-label", soundMuted ? "Turn sounds on" : "Mute sounds");
+document.querySelector("#sound-toggle").setAttribute("aria-pressed", String(soundMuted));
 for (const modalId of ["account-modal", "friends-modal", "stats-modal"]) {
   document.querySelector(`#${modalId}`).addEventListener("click", (event) => {
     if (event.target === event.currentTarget && (modalId !== "account-modal" || accountUser)) {
@@ -2825,18 +2698,12 @@ function applyRoomSnapshot(snapshot) {
   const incomingMessages = newChatMessages.filter((message) => message.seat !== snapshot.seat);
   const previousGame = previousData && previousData.game;
   const nextGame = data.game;
-  const previousTopCard = previousGame?.discard?.[0];
-  const nextTopCard = nextGame?.discard?.[0];
-  const playedCard = previousGame
-    && nextGame
-    && previousGame.round === nextGame.round
-    && previousTopCard?.id !== nextTopCard?.id
-    ? nextTopCard
-    : null;
   if (nextGame) {
     if (!previousGame || previousGame.round !== nextGame.round) {
       online.discardHistory = [];
     } else {
+      const previousTopCard = previousGame.discard && previousGame.discard[0];
+      const nextTopCard = nextGame.discard && nextGame.discard[0];
       if (
         previousTopCard
         && nextTopCard
@@ -2885,16 +2752,6 @@ function applyRoomSnapshot(snapshot) {
   for (const message of newChatMessages) {
     if (QUICK_REACTION_TEXTS.has(message.text)) showQuickReaction(message.seat, message.text);
   }
-  const effectToast = playedCard && SPECIAL_CARD_RANKS.has(playedCard.rank)
-    ? specialCardToast(
-      playedCard,
-      nextGame,
-      data.lastMessage,
-      data.players.length,
-      data.players[previousGame.current]?.handCount === 0,
-      previousGame,
-    )
-    : null;
   const incomingChatMessages = incomingMessages.filter((message) => !QUICK_REACTION_TEXTS.has(message.text));
   if (incomingChatMessages.length) {
     const latestMessage = incomingChatMessages[incomingChatMessages.length - 1];
@@ -2907,8 +2764,6 @@ function applyRoomSnapshot(snapshot) {
   if (!first && data.version !== previousData.version) {
     if (!newChatMessages.length && challengeJoiner) {
       showToast(`${challengeJoiner.name} answered your public challenge!`);
-    } else if (effectToast) {
-      showToast(effectToast, true);
     } else if (
       !newChatMessages.length
       && data.lastMessage
@@ -2918,11 +2773,13 @@ function applyRoomSnapshot(snapshot) {
     }
     if (online.soundVersion !== data.version) {
       if (!newChatMessages.length && previousGame && nextGame) {
+        const previousCard = previousGame.discard && previousGame.discard[0];
+        const playedCard = nextGame.discard && nextGame.discard[0];
         const cardWasPlayed = previousGame.round === nextGame.round
           && nextGame.turns > previousGame.turns
-          && previousTopCard?.id !== nextTopCard?.id;
+          && previousCard?.id !== playedCard?.id;
         if (cardWasPlayed) {
-          playSound(cardSoundName(nextTopCard), { volumeScale: 0.62 });
+          playSound(cardSoundName(playedCard), { volumeScale: 0.62 });
           if (/cancel|block/i.test(data.lastMessage || "")) {
             playSound("block", { volumeScale: 0.72 });
           }
@@ -3011,9 +2868,8 @@ function updateRoomLobby(data) {
 
 function renderChatMessages(messages) {
   const list = document.querySelector("#chat-messages");
-  const visibleMessages = messages.filter((message) => !QUICK_REACTION_TEXTS.has(message.text));
   list.replaceChildren();
-  if (!visibleMessages.length) {
+  if (!messages.length) {
     const empty = document.createElement("p");
     empty.className = "chat-empty";
     empty.textContent = "Say hello to your table.";
@@ -3021,9 +2877,10 @@ function renderChatMessages(messages) {
     return;
   }
 
-  for (const message of visibleMessages) {
+  for (const message of messages) {
     const item = document.createElement("article");
-    item.className = `chat-message${message.seat === online.seat ? " is-own-message" : ""}`;
+    const isReaction = QUICK_REACTION_TEXTS.has(message.text);
+    item.className = `chat-message${message.seat === online.seat ? " is-own-message" : ""}${isReaction ? " chat-message-reaction" : ""}`;
     const meta = document.createElement("div");
     meta.className = "chat-message-meta";
     const name = document.createElement("strong");
@@ -3074,7 +2931,6 @@ function renderOnlineGame() {
     ...state,
     players: data.players.map((player, index) => ({
       name: player.name,
-      online: player.online === true,
       hand: index === online.seat ? online.ownHand : Array.from({ length: player.handCount }, () => null),
     })),
     deck: Array.from({ length: state.deckCount }, () => null),
@@ -3112,8 +2968,8 @@ function renderOnlineGame() {
   if (game.finished) updateRematchControls(data);
   else {
     elements.rematch.disabled = false;
-    elements.rematch.innerHTML = `${VOICE.rematchButton} <span aria-hidden="true">↻</span>`;
-    document.querySelector("#rematch-status").textContent = VOICE.rematchPrompt;
+    elements.rematch.innerHTML = 'Play again <span aria-hidden="true">↻</span>';
+    document.querySelector("#rematch-status").textContent = "Keep this table going with the same players.";
   }
 }
 
@@ -3138,18 +2994,18 @@ function updateRematchControls(data) {
       ? `Waiting for ${waitingOn.join(", ")} to accept.`
       : "Waiting for everyone to accept.";
   } else if (requests.some(Boolean)) {
-    button.textContent = VOICE.rematchButton;
+    button.textContent = "Play again";
     button.disabled = false;
     const requestedBy = data.players
       .filter((_, index) => requests[index])
       .map((player) => player.name);
     message.textContent = `${requestedBy.join(", ")} want${requestedBy.length === 1 ? "s" : ""} a rematch.`;
   } else {
-    button.innerHTML = `${VOICE.rematchButton} <span aria-hidden="true">↻</span>`;
+    button.innerHTML = 'Play again <span aria-hidden="true">↻</span>';
     button.disabled = false;
     message.textContent = waitingCount
       ? `${waitingCount} player${waitingCount === 1 ? "" : "s"} waiting for the next match.`
-      : VOICE.rematchPrompt;
+      : "Keep this table going with the same players.";
   }
 }
 
