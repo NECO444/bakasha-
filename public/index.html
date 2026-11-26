@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f8f2">
+    <meta name="theme-color" content="#1B1F2A">
     <meta name="description" content="Play BAKASHA online with friends.">
     <title>BAKASHA — Play together</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Nunito+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -16,14 +16,13 @@
       <div class="loading-mark" aria-hidden="true">
         <span class="loading-suits"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></span>
       </div>
-      <span class="loading-wordmark">BAKA<span>SHA</span></span>
+      <span class="loading-wordmark">BAKA<span class="wordmark-suit" aria-hidden="true">♦</span>SHA</span>
       <span class="loading-caption">SHUFFLING THE DECK</span>
     </div>
     <div class="app-shell">
       <header class="topbar">
         <a class="brand" id="brand-home-link" href="#" aria-label="BAKASHA home">
-          <span class="brand-mark" aria-hidden="true"><span>♠</span><span>♥</span><span>♦</span><span>♣</span></span>
-          <span>BAKA<span class="brand-accent">SHA</span></span>
+          <span class="brand-wordmark">BAKA<span class="wordmark-suit" aria-hidden="true">♦</span>SHA</span>
         </a>
         <nav class="primary-nav" aria-label="Main navigation">
           <button class="text-button nav-link active" id="nav-play-button" type="button" aria-current="page">Play</button>
@@ -34,7 +33,11 @@
         <div class="topbar-right">
           <span class="mode-badge"><span class="mode-dot"></span> <span id="mode-label">Choose game</span></span>
           <button class="text-button tutorial-replay" id="tutorial-replay" type="button">How to play</button>
-          <button class="sound-toggle" id="sound-toggle" type="button" aria-label="Mute sounds" aria-pressed="false">🔊</button>
+          <div class="sound-control" role="group" aria-label="Sound settings">
+            <button class="sound-toggle" id="sound-toggle" type="button" aria-label="Mute sounds" aria-pressed="false">🔊</button>
+            <label class="sr-only" for="sound-volume">Sound volume</label>
+            <input class="sound-volume" id="sound-volume" type="range" min="0" max="1" step="0.05" value="0.3" aria-valuetext="30%">
+          </div>
           <button class="text-button" id="account-button" type="button">Sign in</button>
         </div>
       </header>
@@ -50,34 +53,40 @@
             </section>
             <div class="setup-card-head">
               <div class="home-hero-copy">
-                <span class="home-hero-eyebrow">CARD NIGHT STARTS HERE</span>
-                <h2 id="setup-title">Shuffle up.</h2>
-                <p>Call your crew. Play a hand. Take the table.</p>
+                <span class="home-hero-eyebrow">OUR TABLE</span>
+                <h2 id="setup-title">Pull up a seat.</h2>
+                <p>The cards are ready. Bring someone you like.</p>
               </div>
               <div class="home-card-fan" aria-hidden="true">
                 <span class="home-fan-card home-fan-card-left"><b>8</b><i>♥</i></span>
-                <span class="home-fan-card home-fan-card-back"><span class="home-fan-face"><i></i><i></i></span></span>
+                <span class="home-fan-card home-fan-card-back"><span class="home-fan-ornament" aria-hidden="true">♦</span></span>
                 <span class="home-fan-card home-fan-card-right"><b>A</b><i>♠</i></span>
               </div>
             </div>
-            <div class="home-action-grid" aria-label="Online games">
+            <div class="home-action-grid" aria-label="Start playing">
               <button class="home-action-card home-action-create" id="one-v-one-button" type="button">
-                <span class="home-action-icon" aria-hidden="true">♠</span>
-                <span class="home-action-copy"><strong>Create a game</strong><small>Start a duel and invite a friend</small></span>
+                <span class="home-action-icon" aria-hidden="true">♦</span>
+                <span class="home-action-copy"><strong>Invite a friend</strong><small>Create a table and share the invite link</small></span>
                 <span class="home-action-arrow" aria-hidden="true">→</span>
               </button>
-              <button class="home-action-card home-action-find" id="browse-games-button" type="button">
-                <span class="home-action-icon" aria-hidden="true">⌕</span>
-                <span class="home-action-copy"><strong>Find a game</strong><small>Join a table that's waiting</small></span>
+              <button class="home-action-card home-action-solo" id="training-game-button" type="button">
+                <span class="home-action-icon" aria-hidden="true">✦</span>
+                <span class="home-action-copy"><strong>Play solo</strong><small>Practice a hand on your own</small></span>
                 <span class="home-action-arrow" aria-hidden="true">→</span>
               </button>
             </div>
             <div class="home-more-heading">
               <h3>More ways to play</h3>
             </div>
-            <div class="game-mode-picker" id="game-mode-picker" role="group" aria-label="Game type">
-              <button class="game-mode-option" id="group-game-button" type="button" aria-expanded="false" aria-controls="group-game-options"><strong>Group quest</strong><span>Play with 3–4 players</span></button>
-              <button class="game-mode-option training-mode-option" id="training-game-button" type="button"><strong>Solo play</strong><span>Practice against the system</span></button>
+            <div class="home-more-grid" role="group" aria-label="More ways to play">
+              <button class="home-action-card home-action-find" id="browse-games-button" type="button">
+                <span class="home-action-icon" aria-hidden="true">⌕</span>
+                <span class="home-action-copy"><strong>Find a game</strong><small>Join an open table</small></span>
+                <span class="home-action-arrow" aria-hidden="true">→</span>
+              </button>
+              <div class="game-mode-picker" id="game-mode-picker" role="group" aria-label="Group game options">
+                <button class="game-mode-option" id="group-game-button" type="button" aria-expanded="false" aria-controls="group-game-options"><strong>Group quest</strong><span>Play with 3–4 players</span></button>
+              </div>
             </div>
             <div class="group-game-options hidden" id="group-game-options">
               <button class="text-button mode-back-button" id="cancel-group-setup" type="button">← Back to game modes</button>
@@ -241,6 +250,11 @@
             <div class="table-decoration decoration-one" aria-hidden="true"></div>
             <div class="table-decoration decoration-two" aria-hidden="true"></div>
           </div>
+          <div class="game-reactions hidden" id="game-reactions" role="group" aria-label="Send a quick reaction">
+            <button type="button" data-reaction="👏" aria-label="Send: Nice one">Nice one</button>
+            <button type="button" data-reaction="😮" aria-label="Send: Ouch">Ouch</button>
+            <button type="button" data-reaction="GG" aria-label="Send: Again?">Again?</button>
+          </div>
           <section class="game-chat hidden" id="game-chat" aria-label="Game chat" hidden>
             <div class="game-chat-heading">
               <div><h2>Table chat</h2><p>Only players at this table can see these messages.</p></div>
@@ -250,13 +264,6 @@
                 </div>
                 <span class="chat-live-label"><span></span> LIVE</span>
               </div>
-            </div>
-            <div class="game-reactions" id="game-reactions" role="group" aria-label="Send a live reaction">
-              <button type="button" data-reaction="👏" aria-label="React with applause">👏</button>
-              <button type="button" data-reaction="😂" aria-label="React with laughter">😂</button>
-              <button type="button" data-reaction="🔥" aria-label="React with fire">🔥</button>
-              <button type="button" data-reaction="😮" aria-label="React with surprise">😮</button>
-              <button type="button" data-reaction="GG" aria-label="React with good game">GG</button>
             </div>
             <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions"></div>
             <form class="chat-form" id="chat-form">
@@ -442,8 +449,8 @@
           <span id="turn-notifications-status" role="status" aria-live="polite"></span>
         </div>
         <div class="winning-card-preview hidden" id="winning-card" aria-label="Winning card"></div>
-        <p id="rematch-status">Keep this table going with the same players.</p>
-        <button class="primary-button rematch-button" id="rematch-button" type="button">Play again <span aria-hidden="true">↻</span></button>
+        <p id="rematch-status">Keep the table going?</p>
+        <button class="primary-button rematch-button" id="rematch-button" type="button">Rematch? <span aria-hidden="true">↻</span></button>
         <button class="secondary-button start-queued-button hidden" id="start-queued-match" type="button">Start next match with waiting players</button>
         <button class="secondary-button end-room-button hidden" id="end-room-from-result" type="button">End game for everyone</button>
         <button class="secondary-button" id="new-table-button" type="button">Back to lobby</button>
