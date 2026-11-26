@@ -3747,7 +3747,7 @@ button:focus-visible, a:focus-visible { outline-color: #a5c7e8; }
   --blue-accent: #ffa62b;
   --blue: #86c5ff;
   --red: #2e5aa7;
-  --green: #86c5ff;
+  --green: #ffa62b;
   --yellow: #f8e6a0;
   --palette-orange: #ffa62b;
   --palette-sky: #86c5ff;
@@ -3848,15 +3848,21 @@ body {
 .game-screen .game-footer, .opponent-count, .player-caption, .hand-count,
 .game-hint, .hand-help, .pile-label, .pile-count { color: var(--muted); }
 .table-surface {
-  border-color: #86c5ff55;
+  border-color: #86c5ff88;
   background:
-    radial-gradient(ellipse at 15% 15%, #86c5ff20, transparent 38%),
-    radial-gradient(ellipse at 88% 82%, #2e5aa755, transparent 38%),
+    radial-gradient(ellipse at 15% 15%, #86c5ff30, transparent 38%),
+    radial-gradient(ellipse at 88% 82%, #2e5aa788, transparent 38%),
     radial-gradient(ellipse at 50% 40%, #2e5aa7, #244a83 58%, #1b3a6c);
-  box-shadow: 0 5px 0 #142e56, 0 18px 40px #07162b66;
+  box-shadow:
+    0 7px 0 #142e56,
+    0 24px 54px #07162b80,
+    0 0 28px #86c5ff35,
+    inset 0 2px 0 #86c5ff24;
 }
-.table-surface::before, .table-surface::after, .play-area { border-color: #86c5ff24; }
-.play-area { background: radial-gradient(ellipse at center, #86c5ff12, #86c5ff04 72%); }
+.table-surface::before, .table-surface::after, .play-area { border-color: #86c5ff40; }
+.table-surface::before { border-width: 2px; }
+.table-surface::after { box-shadow: inset 0 0 22px #86c5ff12; }
+.play-area { background: radial-gradient(ellipse at center, #86c5ff18, #86c5ff06 72%); }
 .opponent, .player-area { border-color: var(--line); color: var(--ink); background: #193969e8; }
 .opponent-name, .player-name { color: #fff; }
 .player-avatar { border-color: #86c5ff77; color: var(--palette-sky); background: #2e5aa7; }
@@ -3974,6 +3980,67 @@ body {
 .account-card .account-submit:active:not(:disabled) { box-shadow: 0 3px 0 #c97912; }
 .account-card .account-status { color: var(--palette-cream); }
 button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
+
+.friend-action.friend-challenge-action, .duel-tab.active, .invite-copy-button,
+.play-now-button, .home-action-create {
+  border-color: var(--palette-orange);
+  color: #183664;
+  background: var(--palette-orange);
+  box-shadow: 0 3px 0 #c97912;
+}
+.friend-action.friend-challenge-action:hover:not(:disabled),
+.invite-copy-button:hover, .play-now-button:hover,
+.home-action-create:hover { border-color: #ffba52; background: #ffba52; }
+.duel-tab.active { box-shadow: 0 2px 0 #c97912; }
+.duel-tabs, .leaderboard-tabs {
+  border-color: var(--line);
+  background: #193969;
+}
+.duel-tab, .leaderboard-tab { color: var(--muted); }
+.invite-copy-button, .play-now-button, .home-action-create {
+  box-shadow: 0 4px 0 #c97912, 0 9px 22px #ffa62b30;
+}
+.home-action-card:hover { border-color: var(--palette-orange); }
+.home-action-create .home-action-icon {
+  border-color: #18366444;
+  color: #183664;
+  background: #ffffff55;
+}
+.home-action-icon { border-color: #ffa62b55; color: var(--palette-orange); background: #ffa62b18; }
+.home-side-eyebrow, .duel-playing-as .text-button, .online-now-card strong { color: var(--palette-orange); }
+.online-now-dot { background: var(--palette-orange); box-shadow: 0 0 12px #ffa62b88; }
+.leaderboard-tab.active {
+  color: #183664;
+  background: var(--palette-orange);
+}
+.leaderboard-table tr.is-current-player td { color: #fff; background: #2e5aa7; }
+.leaderboard-pinned {
+  border-color: var(--palette-orange);
+  color: #fff;
+  background: #244a83;
+}
+.tutorial-practice-choice { border-color: var(--line); color: var(--ink); background: #1d3d70; }
+.tutorial-practice-choice:hover { border-color: var(--palette-orange); background: #2e5aa7; }
+.home-resume-card, .online-now-card {
+  border-color: var(--line);
+  color: var(--ink);
+  background: linear-gradient(145deg, #244a83, #1d3d70);
+  box-shadow: 0 4px 0 #142e56;
+}
+.home-resume-card h2, .online-now-card strong { color: var(--palette-orange); }
+.home-resume-card p, .online-now-card small { color: var(--muted); }
+.game-invite-alert {
+  border-color: #ffa62b88;
+  color: var(--ink);
+  background: linear-gradient(145deg, #244a83, #193969);
+}
+.game-invite-alert-icon {
+  border-color: #ffa62b66;
+  color: var(--palette-orange);
+  background: #ffa62b18;
+}
+.game-invite-alert-heading div span, .game-invite-alert p { color: var(--muted); }
+.game-invite-alert-actions .primary-button { background: var(--palette-orange); }
 
 @keyframes turn-pulse {
   0%, 100% { filter: drop-shadow(0 0 0 #ffa62b00); transform: scale(1); }
