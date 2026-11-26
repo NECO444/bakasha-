@@ -1789,26 +1789,8 @@ const tutorialSteps = [
 ];
 let tutorialActionComplete = false;
 
-function renderProgress() {
-  const dashboard = document.querySelector("#progress-dashboard");
-  const statsButton = document.querySelector("#stats-button");
-  const user = accountUser;
-  const progress = user && user.progress;
-  dashboard.classList.toggle("hidden", !user);
-  statsButton.classList.toggle("hidden", !user);
-  if (!user) return;
-  const xp = Number.isSafeInteger(progress && progress.xp) ? progress.xp : 0;
-  const wins = Number.isSafeInteger(progress && progress.wins) ? progress.wins : 0;
-  const streak = Number.isSafeInteger(progress && progress.streak) ? progress.streak : 0;
-  const level = Math.floor(xp / 100) + 1;
-  const levelXp = xp % 100;
-  document.querySelector("#progress-level").textContent = `LEVEL ${level}`;
-  document.querySelector("#progress-xp-label").textContent = `${levelXp} / 100 XP`;
-  document.querySelector("#progress-xp-fill").style.width = `${levelXp}%`;
-  document.querySelector("#xp-progress").setAttribute("aria-valuenow", String(levelXp));
-  document.querySelector("#progress-streak").textContent = `${streak} win streak`;
-  document.querySelector("#streak-chip").setAttribute("aria-label", `${streak} consecutive wins. View your stats.`);
-  document.querySelector("#progress-wins-label").textContent = `${wins} wins · online results`;
+function updateStatsButton() {
+  document.querySelector("#stats-button").classList.toggle("hidden", !accountUser);
 }
 
 function renderTutorialStep() {
@@ -1878,7 +1860,6 @@ async function completeTutorial() {
     if (accountUser) accountUser.progress = result.progress;
     tutorialDismissed = true;
     document.querySelector("#tutorial-modal").classList.add("hidden");
-    renderProgress();
     const returnTarget = tutorialOpener;
     tutorialOpener = null;
     if (returnTarget && returnTarget.isConnected && !returnTarget.closest(".hidden")) returnTarget.focus();
@@ -1906,7 +1887,6 @@ async function refreshAccountProgress() {
     throw new Error("Your sign-in expired. Sign in again to continue.");
   }
   accountUser = result.user;
-  renderProgress();
   return accountUser.progress;
 }
 
@@ -1951,7 +1931,7 @@ function updateAccountUI(user) {
   const formPanel = document.querySelector("#account-form-panel");
   const sessionPanel = document.querySelector("#account-session-panel");
   const roomNameInput = document.querySelector("#account-username");
-  renderProgress();
+  updateStatsButton();
   accountButton.textContent = user ? user.username : "Sign in";
   accountButton.title = user ? `Signed in as ${user.username}` : "Sign in or create an account";
   friendsButton.classList.toggle("hidden", !user);
@@ -2592,7 +2572,6 @@ document.querySelector("#turn-notifications-button").addEventListener("click", a
   }
 });
 document.querySelector("#stats-button").addEventListener("click", openStats);
-document.querySelector("#streak-chip").addEventListener("click", openStats);
 document.querySelector("#close-stats").addEventListener("click", () => document.querySelector("#stats-modal").classList.add("hidden"));
 document.querySelector("#stats-modal").addEventListener("click", (event) => {
   if (event.target === event.currentTarget) event.currentTarget.classList.add("hidden");

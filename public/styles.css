@@ -1728,23 +1728,6 @@ button, input, textarea, select { font-family: inherit; }
 }
 .sound-toggle:hover { transform: translateY(-1px); }
 .sound-toggle:active { transform: translateY(2px); box-shadow: 0 1px 0 #dce7dc; }
-.progress-dashboard {
-  width: 100%;
-  padding: 17px 20px 14px;
-  border: 1px solid #e1e9df;
-  border-radius: 22px;
-  background: #fff;
-  box-shadow: 0 5px 0 #dce7dc, 0 12px 26px #19391a0d;
-}
-.progress-topline, .progress-topline > div, .progress-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.progress-topline strong { color: #68777d; font-size: 11px; font-weight: 900; }
-.progress-level { display: inline-block; margin-right: 9px; color: #3b8c00; font-size: 11px; font-weight: 900; letter-spacing: .5px; }
-.streak-chip { border: 0; color: #8d5b00; background: #fff5d4; border-radius: 999px; padding: 6px 10px; font: 900 11px "Nunito", sans-serif; cursor: pointer; }
-.xp-track { height: 13px; margin: 11px 0 8px; overflow: hidden; border-radius: 99px; background: #edf3ea; }
-.xp-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #58cc02, #a4e550); transition: width 420ms ease; }
-.progress-actions { color: #829096; font-size: 10px; }
-.tutorial-replay { padding: 3px 0; color: #48a000; font-size: 10px; font-weight: 900; }
-
 .stats-card, .tutorial-card { width: min(520px, 100%); max-height: min(760px, calc(100dvh - 32px)); overflow-y: auto; }
 .stats-card h2, .tutorial-card h2 { margin: 8px 0 14px; }
 .stats-filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 18px 0; }
@@ -1799,15 +1782,12 @@ button, input, textarea, select { font-family: inherit; }
   .brand { font-size: 13px; }
   .primary-nav .nav-link { padding: 0 6px; font-size: 9px; }
   #account-button { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
-  .progress-dashboard { padding: 14px; }
-  .progress-topline { align-items: flex-start; }
-  .progress-topline > div { align-items: flex-start; flex-direction: column; gap: 3px; }
   .stats-filters { gap: 4px; }
   .stats-filter { font-size: 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .turn-indicator.is-your-turn { animation: none !important; }
-  .xp-fill, .tutorial-progress span { transition: none; }
+  .tutorial-progress span { transition: none; }
 }
 .confetti-burst { position: fixed; z-index: 19; inset: 0 0 auto; height: 100vh; overflow: hidden; pointer-events: none; }
 .confetti-burst span {
@@ -1857,7 +1837,7 @@ body {
 .mode-badge, .topbar-right .text-button, .game-heading, .round-label, .game-heading .back-button, .game-footer { color: #aab5ac; }
 .mode-dot, .round-dot { background: #58cc02; box-shadow: 0 0 0 4px #58cc0228, 0 0 12px #58cc0266; }
 .text-button:hover, .back-button:hover { color: #ffc800; }
-.eyebrow, .progress-level, .tutorial-replay, .online-lock, .online-launch { color: #ffc800; }
+.eyebrow, .online-lock, .online-launch { color: #ffc800; }
 .setup-card, .modal-card, .account-card, .friends-card, .leaderboard-card, .rules-card, .rematch-card {
   border-color: #3a493e;
   color: var(--ink);
@@ -2016,11 +1996,7 @@ body {
 .stats-filter { border-color: #3a493e; color: #b2bdb4; background: #29352d; }
 .stats-filter.active { border-color: #58cc02; color: #a6ff75; background: #29431f; }
 .tutorial-copy, .stats-status, .tutorial-status { color: #b7c2b9; }
-.progress-dashboard { border-color: #3a493e; background: #202a24; box-shadow: 0 5px 0 #111813, 0 12px 26px #00000030; }
-.progress-topline strong, .progress-actions { color: #9eaaa1; }
-.xp-track, .tutorial-progress { background: #344137; }
-.xp-fill, .tutorial-progress span { background: linear-gradient(90deg, #43b900, #b4f348); box-shadow: 0 0 12px #58cc0255; }
-.streak-chip { color: #ffc800; background: #453711; }
+.tutorial-progress { background: #344137; }
 .sound-toggle { border-color: #3a493e; color: #d0dad1; background: #263129; box-shadow: 0 3px 0 #111813; }
 .sound-toggle:active { box-shadow: 0 1px 0 #111813; }
 .toast { color: #e6ede6; background: #27342c; box-shadow: 0 5px 0 #111813, 0 12px 24px #00000066; }
@@ -2536,7 +2512,6 @@ body {
     gap: 18px;
     padding-top: 40px;
   }
-  .progress-dashboard { grid-column: 1 / -1; }
   .setup-screen > .setup-card { grid-column: 1; }
   .home-side-card { grid-column: 2; grid-row: 2; }
 }
@@ -2613,7 +2588,7 @@ body {
   min-height: 44px;
 }
 .field-label, .online-status, .score-note, .active-game-limit,
-.game-mode-option span, .progress-actions, .presence-status,
+.game-mode-option span, .presence-status,
 .tutorial-copy, .tutorial-status { font-size: max(14px, 1em); }
 .field-label, .score-note, .active-game-limit, .tutorial-status { color: #c3d2c4; }
 .game-mode-option span { color: #d4dfd4; }
@@ -2676,9 +2651,6 @@ button { min-height: 44px; }
 }
 .tutorial-practice-choice:hover { border-color: #58cc02; background: #29431f; }
 .tutorial-next:disabled { opacity: .48; cursor: not-allowed; }
-.xp-fill { transition: width 350ms ease-out; }
-.streak-chip { transform-origin: center; }
-.streak-chip:not([aria-label^="0 "]) { animation: streak-pulse 350ms ease-in-out infinite; }
 .connection-banner {
   margin: 0 0 10px;
   padding: 10px 14px;
@@ -2727,11 +2699,8 @@ button { min-height: 44px; }
 .turn-notification-controls { display: grid; gap: 7px; margin: 12px 0; }
 .turn-notification-controls .secondary-button { min-height: 44px; }
 .turn-notification-controls span { color: #b7c2b9; font-size: 14px; }
-@keyframes streak-pulse {
-  50% { transform: scale(1.04); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .xp-fill, .streak-chip, .connection-card-stack span { transition: none; animation: none !important; }
+  .connection-card-stack span { transition: none; animation: none !important; }
 }
 .hand {
   display: flex;
@@ -3254,7 +3223,7 @@ body {
 .game-heading .back-button, .game-footer { color: #71869a; }
 .mode-dot, .round-dot { background: #91b4d4; box-shadow: 0 0 0 4px #91b4d42b; }
 .text-button:hover, .back-button:hover { color: #547b9f; }
-.eyebrow, .progress-level, .tutorial-replay, .online-lock, .online-launch { color: #547b9f; }
+.eyebrow, .online-lock, .online-launch { color: #547b9f; }
 .setup-card, .modal-card, .account-card, .friends-card, .leaderboard-card,
 .rules-card, .rematch-card {
   border-color: #d3e0eb;
@@ -3489,7 +3458,7 @@ body {
 .brand, .setup-card h2, .modal-card h2, .history-heading,
 .setup-card h2, .modal-card h2, .account-card h2, .friends-card h2,
 .leaderboard-card h2, .rules-card h2, .rematch-card h2 { color: #e5eef8; }
-.brand-accent, .eyebrow, .progress-level, .tutorial-replay,
+.brand-accent, .eyebrow,
 .online-lock, .online-launch { color: #8db6de; }
 .primary-nav .nav-link { color: #a7bdd3; }
 .primary-nav .nav-link:hover { color: #eef6ff; background: #1a3048; }
@@ -3735,7 +3704,7 @@ body {
 .brand, .setup-card h2, .modal-card h2, .history-heading,
 .account-card h2, .friends-card h2, .leaderboard-card h2,
 .rules-card h2, .rematch-card h2 { color: #fff; }
-.brand-accent, .eyebrow, .progress-level, .tutorial-replay,
+.brand-accent, .eyebrow,
 .online-lock, .online-launch, .mode-dot, .round-dot { color: var(--palette-orange); }
 .primary-nav .nav-link { color: #d3e2f5; }
 .primary-nav .nav-link:hover { color: #fff; background: #86c5ff1c; }
@@ -3903,11 +3872,7 @@ body {
 .stats-summary span, .match-history time, .match-history strong { color: var(--muted); }
 .stats-filter { border-color: var(--line); color: var(--muted); background: #1d3d70; }
 .stats-filter.active { border-color: var(--palette-sky); color: #183664; background: var(--palette-sky); }
-.progress-dashboard { border-color: var(--line); background: #1d3d70; box-shadow: 0 5px 0 #142e56, 0 12px 26px #07162b66; }
-.progress-topline strong, .progress-actions { color: var(--muted); }
-.xp-track, .tutorial-progress { background: #142e56; }
-.xp-fill, .tutorial-progress span { background: linear-gradient(90deg, var(--palette-amalfi), var(--palette-sky)); box-shadow: 0 0 12px #86c5ff55; }
-.streak-chip { color: var(--palette-cream); background: #2e5aa7; }
+.tutorial-progress { background: #142e56; }
 .sound-toggle { border-color: var(--line); color: var(--ink); background: #1d3d70; box-shadow: 0 2px 0 #142e56; }
 .toast { color: #fff; background: #244a83; box-shadow: 0 3px 0 #142e56, 0 10px 24px #07162b66; }
 .toast.toast-special, .game-screen .toast.toast-special {
@@ -4096,6 +4061,32 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
 .game-screen .playing-card[data-suit="hearts"],
 .game-screen .playing-card[data-suit="diamonds"] {
   color: #d32f45;
+}
+.topbar { border-bottom: 3px double var(--line); }
+.brand { font-family: Georgia, "Times New Roman", serif; letter-spacing: .04em; }
+.setup-card {
+  border-radius: 10px;
+  outline: 1px solid #ffa62b24;
+  outline-offset: -5px;
+}
+.setup-card h2, .modal-card h2, .home-side-card h2, .game-heading h1 {
+  font-family: Georgia, "Times New Roman", serif;
+}
+.playing-card {
+  border: 2px solid var(--palette-cream);
+  border-radius: 5px;
+}
+.playing-card .card-face { font-family: Georgia, "Times New Roman", serif; }
+.primary-nav .tutorial-replay {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--palette-cream);
+  font-family: Georgia, "Times New Roman", serif;
+}
+.primary-nav .tutorial-replay:hover {
+  border-color: var(--palette-orange);
+  color: var(--palette-orange);
+  background: #193969;
 }
 @media (max-width: 700px) {
   .primary-nav {

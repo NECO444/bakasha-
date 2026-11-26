@@ -28,6 +28,7 @@
         <nav class="primary-nav" aria-label="Main navigation">
           <button class="text-button nav-link active" id="nav-play-button" type="button" aria-current="page">Play</button>
           <button class="text-button nav-link hidden" id="stats-button" type="button">My stats</button>
+          <button class="text-button nav-link tutorial-replay" id="tutorial-replay" type="button">How to play</button>
           <button class="text-button nav-link" id="leaderboard-button" type="button" aria-label="Open public leaderboard">Leaderboard</button>
           <button class="text-button nav-link hidden" id="friends-button" type="button">Friends <span class="friends-challenge-badge hidden" id="friends-challenge-badge" aria-label="Incoming game challenges"></span></button>
         </nav>
@@ -40,19 +41,6 @@
 
       <main>
         <section class="setup-screen hidden" id="setup-screen" aria-label="Choose a game">
-          <section class="progress-dashboard hidden" id="progress-dashboard" aria-label="Your progress">
-            <div class="progress-topline">
-              <div><span class="progress-level" id="progress-level">LEVEL 1</span><strong id="progress-xp-label">0 / 100 XP</strong></div>
-              <button class="streak-chip" id="streak-chip" type="button" aria-label="View your stats">🔥 <span id="progress-streak">0 win streak</span></button>
-            </div>
-            <div class="xp-track" role="progressbar" id="xp-progress" aria-label="Experience to next level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <span class="xp-fill" id="progress-xp-fill"></span>
-            </div>
-            <div class="progress-actions">
-              <span id="progress-wins-label">0 wins · online results</span>
-              <button class="text-button tutorial-replay" id="tutorial-replay" type="button">How to play</button>
-            </div>
-          </section>
           <section class="setup-card" aria-labelledby="setup-title">
             <div class="setup-card-head">
               <div class="setup-icon" aria-hidden="true">♣</div>
