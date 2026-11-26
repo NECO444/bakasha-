@@ -3164,3 +3164,29 @@ body.game-active .game-footer { flex: 0 0 auto; padding-top: 6px; }
 @media (max-width: 480px) {
   .game-invite-alert { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: calc(100vw - 24px); padding: 14px; }
 }
+
+.table-surface {
+  border-color: #61936c;
+  background:
+    radial-gradient(ellipse at 16% 16%, #1cb0f624, transparent 34%),
+    radial-gradient(ellipse at 88% 82%, #ffc80012, transparent 36%),
+    radial-gradient(ellipse at 50% 40%, #4d8760 0, #3e7351 58%, #315c43 100%);
+  box-shadow: 0 6px 0 #25442f, 0 22px 48px #00000030;
+}
+.table-surface::before { border-color: #ffffff30; }
+.table-surface::after { border-color: #ffffff12; }
+.play-area {
+  border-color: #ffffff30;
+  background: radial-gradient(ellipse at center, #18342230, #18342218 72%);
+}
+.player-area {
+  background: linear-gradient(180deg, #24402c, #1a2e20);
+}
+.hand {
+  border-color: #ffffff2a;
+  background: #13251a9c;
+  scrollbar-color: #b7ee91 #ffffff18;
+}
+.playing-card.is-playable {
+  box-shadow: 0 8px 18px #09110d88;
+}

@@ -113,7 +113,6 @@ function createDeck() {
     for (const rank of ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]) {
       cards.push({ id: `${suit}-${rank}`, suit, rank });
     }
-    if (newChatMessages.length) renderChatMessages(data.chatMessages || []);
   }
   cards.push({ id: "joker-1", suit: "wild", rank: "JOKER" });
   cards.push({ id: "joker-2", suit: "wild", rank: "JOKER" });
@@ -204,6 +203,7 @@ function dealGame(names, options = {}) {
   document.querySelector("#game-chat").hidden = true;
   document.querySelector("#round-player-count").textContent = `${players.length} PLAYERS`;
   renderGame();
+  if (trainingMode) playSound("turn");
   startTurnTimer();
 }
 
@@ -259,7 +259,7 @@ function presentGameResult(winner) {
   document.querySelector("#rematch-modal .eyebrow").textContent = won ? "YOU DID IT!" : "GOOD GAME";
   updateResultScore();
   updateTurnNotificationControl();
-  playSound("win");
+  playSound(won ? "win" : "lose");
   if (won) {
     showConfetti();
   }
@@ -285,10 +285,11 @@ function alertForTurn(state) {
     return;
   }
   const turnKey = `${online.roomCode}:${state.turnStartedAt}:${state.current}`;
-  if (!document.hidden || online.lastAlertedTurn === turnKey) return;
+  if (online.lastAlertedTurn === turnKey) return;
   online.lastAlertedTurn = turnKey;
+  playSound("turn");
+  if (!document.hidden) return;
   document.title = "Your turn! | BAKASHA";
-  if (!soundMuted) playSound("turn");
   if (typeof navigator.vibrate === "function") navigator.vibrate([120, 80, 120]);
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification("Your turn in BAKASHA", { body: "Tap to return to your game." });
@@ -755,13 +756,30 @@ function selectCard(index) {
   playLocalTurnCard(index);
 }
 
+function cardSoundName(card) {
+  if (!card) return "play";
+  return {
+    A: "ace",
+    2: "two",
+    J: "jack",
+    JOKER: "joker",
+  }[card.rank] || "play";
+}
+
 function playCard(index, chosenSuit) {
   const player = game.players[game.current];
   const [card] = player.hand.splice(index, 1);
   if (!card) return;
-  playSound(card.rank === "2" || card.rank === "JOKER" ? "penalty" : "play");
   const counteringJoker = game.pending > 0 && game.pendingType === "draw-four";
   const counteringDrawTwo = game.pending > 0 && game.pendingType === "draw-two" && card.rank === "2";
+  const opponentTurn = trainingMode && game.current !== 0;
+  playSound(cardSoundName(card), { volumeScale: opponentTurn ? 0.62 : 1 });
+  if (counteringJoker || counteringDrawTwo) {
+    playSound("block", { volumeScale: opponentTurn ? 0.72 : 1 });
+  }
+  if (player.hand.length === 1) {
+    playSound("lastCard", { volumeScale: opponentTurn ? 0.72 : 1 });
+  }
   const supportedEight = Boolean(game.combo);
   const supportedJump = game.jumpSupport;
   game.discard.push(card);
@@ -893,8 +911,10 @@ function nextPlayerIndex(steps) {
 }
 
 function advanceTurn(steps) {
+  const previousPlayer = game.current;
   game.current = nextPlayerIndex(steps || 1);
   game.turns += 1;
+  if (trainingMode && previousPlayer !== 0 && game.current === 0) playSound("turn");
   if (game.mustDrawSeat === game.current) {
     renderGame();
     startTurnTimer();
@@ -909,6 +929,7 @@ function recycleDeck() {
   const top = game.discard.pop();
   game.deck = shuffle(game.discard);
   game.discard = [top];
+  playSound("shuffle");
 }
 
 function takeCards(player, count) {
@@ -2583,7 +2604,7 @@ document.querySelector("#sound-toggle").addEventListener("click", () => {
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : event.target.parentElement;
   const control = target && target.closest("button, a");
-  if (!control || control.matches("#sound-toggle, .playing-card, #draw-pile, .suit-option, #rematch-button")) return;
+  if (!control || control.matches("#sound-toggle, .playing-card, #draw-pile, .suit-option")) return;
   playSound("click");
 });
 document.querySelector("#sound-toggle").textContent = soundMuted ? "🔇" : "🔊";
@@ -2695,6 +2716,19 @@ function applyRoomSnapshot(snapshot) {
     void startOnlineGame();
   }
   if (!changed) return;
+  if (!first && data.players.length > previousData.players.length) playSound("join");
+  const previousGame = previousData && previousData.game;
+  const nextGame = data.game;
+  if (previousGame && nextGame) {
+    const sameRound = previousGame.round === nextGame.round;
+    if (sameRound && nextGame.deckCount > previousGame.deckCount) playSound("shuffle");
+    const lastCardReached = data.players.some((player, index) =>
+      previousData.players[index]
+      && previousData.players[index].handCount > 1
+      && player.handCount === 1
+    );
+    if (lastCardReached) playSound("lastCard");
+  }
   for (const message of newChatMessages) {
     if (QUICK_REACTION_TEXTS.has(message.text)) showQuickReaction(message.seat, message.text);
   }
@@ -2718,10 +2752,22 @@ function applyRoomSnapshot(snapshot) {
       showToast(data.lastMessage);
     }
     if (online.soundVersion !== data.version) {
-      if (!newChatMessages.length && !data.game?.finished) {
-        if (/joker|draw two|skipped|jack/i.test(data.lastMessage || "")) playSound("penalty");
-        else if (/draw(?:s|ing)?|pick/i.test(data.lastMessage || "")) playSound("draw");
-        else playSound("play");
+      if (!newChatMessages.length && previousGame && nextGame) {
+        const previousCard = previousGame.discard && previousGame.discard[0];
+        const playedCard = nextGame.discard && nextGame.discard[0];
+        const cardWasPlayed = previousGame.round === nextGame.round
+          && nextGame.turns > previousGame.turns
+          && previousCard?.id !== playedCard?.id;
+        if (cardWasPlayed) {
+          playSound(cardSoundName(playedCard), { volumeScale: 0.62 });
+          if (/cancel|block/i.test(data.lastMessage || "")) {
+            playSound("block", { volumeScale: 0.72 });
+          }
+        } else if (
+          !nextGame.finished
+          && nextGame.turns > previousGame.turns
+          && /drew|draw(?:s|ing)?|pick/i.test(data.lastMessage || "")
+        ) playSound("draw");
       }
       online.soundVersion = data.version;
     }
@@ -2974,6 +3020,7 @@ function beginRoomSession(snapshot, token) {
     const headline = document.querySelector(".invite-ready-heading div > span");
     headline.textContent = onlineRoomSize > 2 ? "Share the invite with your crew." : "Send your friend an invite.";
   }
+  playSound("join");
   schedulePoll();
 }
 
@@ -3204,8 +3251,10 @@ async function submitOnlineMove(action) {
     if (!snapshot.ignored) {
       if (action.type === "play") {
         const played = online.optimisticCard;
-        playSound(played && (played.rank === "2" || played.rank === "JOKER") ? "penalty" : "play");
+        playSound(cardSoundName(played));
+        if (/cancel|block/i.test(snapshot.publicData.lastMessage || "")) playSound("block");
       } else if (action.type === "draw") playSound("draw");
+      else if (action.type === "timeout") playSound("draw");
       online.soundVersion = snapshot.publicData.version;
     }
     online.optimisticCard = null;
@@ -3219,6 +3268,7 @@ async function submitOnlineMove(action) {
     online.movePending = false;
     online.pendingAction = null;
     online.optimisticCard = null;
+    if (action.type === "play" && error.status === 400) playSound("error");
     showToast(onlineErrorMessage(error));
     if (game) renderGame();
     if (action.type === "timeout") {
@@ -3319,7 +3369,6 @@ document.addEventListener("visibilitychange", () => {
     alertForTurn(online.publicData?.game);
   } else {
     document.title = PAGE_TITLE;
-    online.lastAlertedTurn = null;
     if (online.roomCode) refreshRoomState();
     if (accountUser) {
       void loadFriends(true);
