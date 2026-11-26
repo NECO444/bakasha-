@@ -397,8 +397,6 @@ body {
 .account-session p, .account-status { color: var(--muted); text-align: center; }
 .account-session .secondary-button { margin-bottom: 4px; }
 .account-status { min-height: 17px; margin: 13px 0 0; font-size: 11px; }
-.invite-whatsapp { border-color: #16854a; color: #fff; background: #16854a; text-decoration: none; }
-.invite-whatsapp:hover { border-color: #126d3d; color: #fff; background: #126d3d; }
 .leaderboard-card { width: min(560px, 100%); }
 .leaderboard-table-wrap { max-height: min(55vh, 440px); overflow: auto; border: 1px solid #e3d9c9; border-radius: 9px; }
 .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; }
@@ -2942,6 +2940,129 @@ body.game-active .game-footer { flex: 0 0 auto; padding-top: 6px; }
   .home-action-copy strong { font-size: 14px; }
   .home-action-copy small { font-size: 10px; }
   .game-mode-picker { grid-template-columns: 1fr; }
+}
+
+.invite-copy-button, .invite-system-share { grid-column: auto; min-height: 44px; }
+.invite-copy-button { font-size: 13px; }
+.game-invite-actions .secondary-button { min-height: 32px; }
+.game-invite-actions .secondary-button:hover { transform: translateY(-1px); }
+
+.game-reactions {
+  position: static;
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  margin: 0 0 10px;
+  padding: 5px 0 9px;
+  transform: none;
+  border: 0;
+  border-bottom: 1px solid #ffffff20;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.game-reactions button {
+  min-width: 42px;
+  min-height: 40px;
+  border: 1px solid #ffffff18;
+  background: #ffffff10;
+  font-size: 21px;
+  transition: transform 160ms cubic-bezier(.2, .8, .2, 1), background-color 160ms ease;
+}
+.game-reactions button:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.12);
+  background: #a7e83b2b;
+}
+.game-reactions button:active:not(:disabled) { transform: scale(.9); }
+.game-reactions button:disabled { opacity: .5; }
+.chat-message-reaction > p { font-size: 22px; line-height: 1.15; }
+.chat-input { resize: none; }
+.reaction-floats {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.live-reaction-float {
+  position: absolute;
+  bottom: 17%;
+  display: block;
+  font-size: clamp(26px, 4vw, 42px);
+  line-height: 1;
+  filter: drop-shadow(0 3px 4px #07130b80);
+  animation: live-reaction-rise 1.8s cubic-bezier(.2, .7, .35, 1) forwards;
+}
+@keyframes live-reaction-rise {
+  0% { opacity: 0; transform: translateY(10px) scale(.65) rotate(-8deg); }
+  16% { opacity: 1; transform: translateY(0) scale(1.15) rotate(5deg); }
+  72% { opacity: 1; transform: translateY(-105px) scale(1) rotate(-5deg); }
+  100% { opacity: 0; transform: translateY(-155px) scale(.8) rotate(8deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-reactions button { transition: none; }
+  .live-reaction-float { animation: none; opacity: .85; }
+}
+
+.invite-landing {
+  z-index: 40;
+}
+.invite-landing-card {
+  width: min(468px, 100%);
+  padding: 31px 28px 25px;
+  text-align: center;
+}
+.invite-landing-mark {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 13px;
+  border-radius: 50%;
+  font-size: 25px;
+}
+.invite-landing-eyebrow {
+  margin: 0 0 7px;
+}
+.invite-landing-card h1 {
+  margin: 0 auto 17px;
+  color: var(--ink);
+  font: 900 clamp(22px, 5vw, 27px) "Nunito", sans-serif;
+  line-height: 1.2;
+}
+.invite-landing-details {
+  margin: 0 0 13px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.invite-landing-status {
+  min-height: 22px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.invite-accept-button {
+  width: 100%;
+  min-height: 48px;
+  font-size: 13px;
+  font-weight: 900;
+}
+.invite-accept-button:disabled { cursor: not-allowed; opacity: .55; }
+.invite-landing-note {
+  margin: 13px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.invite-decline-button {
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .invite-landing { padding: 16px; }
+  .invite-landing-card { padding: 26px 20px 20px; }
 }
 @media (max-height: 620px) {
   body.game-active .game-screen:not(.hidden) { padding-top: 4px; padding-bottom: 4px; }

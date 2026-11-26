@@ -58,6 +58,9 @@ let trainingTurnTimer = null;
 let accountUser = null;
 let accountMode = "login";
 let pendingInviteRoom = null;
+let inviteAccepted = false;
+let invitePreview = null;
+let invitePreviewLoadingFor = null;
 let publicRoomsTimer = null;
 let publicRoomsLoading = false;
 let activeRoomsLoading = false;
@@ -99,7 +102,6 @@ const online = {
   version: 0,
   clockOffset: 0,
   chatUnreadCount: 0,
-  reactionsOpen: false,
   recentReactions: new Map(),
   reconnectAttempts: 0,
   lastAlertedTurn: null,
@@ -111,6 +113,7 @@ function createDeck() {
     for (const rank of ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]) {
       cards.push({ id: `${suit}-${rank}`, suit, rank });
     }
+    if (newChatMessages.length) renderChatMessages(data.chatMessages || []);
   }
   cards.push({ id: "joker-1", suit: "wild", rank: "JOKER" });
   cards.push({ id: "joker-2", suit: "wild", rank: "JOKER" });
@@ -198,6 +201,7 @@ function dealGame(names, options = {}) {
   elements.online.classList.add("hidden");
   elements.game.classList.remove("hidden");
   document.querySelector("#game-chat").classList.add("hidden");
+  document.querySelector("#game-chat").hidden = true;
   document.querySelector("#round-player-count").textContent = `${players.length} PLAYERS`;
   renderGame();
   startTurnTimer();
@@ -255,11 +259,9 @@ function presentGameResult(winner) {
   document.querySelector("#rematch-modal .eyebrow").textContent = won ? "YOU DID IT!" : "GOOD GAME";
   updateResultScore();
   updateTurnNotificationControl();
+  playSound("win");
   if (won) {
-    playSound("win");
     showConfetti();
-  } else {
-    playSound("lose");
   }
 }
 
@@ -491,14 +493,14 @@ function renderGame() {
   const liveOnlineGame = onlineMode && !game.finished;
   chatToggle.classList.toggle("hidden", !onlineMode);
   chatToggle.disabled = !liveOnlineGame;
-  chatToggle.setAttribute("aria-label", online.reactionsOpen ? "Close quick reactions" : "Open quick reactions");
-  chatToggle.setAttribute("aria-expanded", String(liveOnlineGame && online.reactionsOpen));
-  document.querySelector("#game-reactions").classList.toggle("hidden", !liveOnlineGame || !online.reactionsOpen);
+  chatToggle.setAttribute("aria-label", online.chatOpen ? "Close table chat" : "Open table chat");
+  chatToggle.setAttribute("aria-expanded", String(liveOnlineGame && online.chatOpen));
   if (!onlineMode) {
     online.chatOpen = false;
     document.querySelector("#game-chat").classList.add("hidden");
+    document.querySelector("#game-chat").hidden = true;
     chatToggle.setAttribute("aria-expanded", "false");
-    chatToggle.setAttribute("aria-label", "Open quick reactions");
+    chatToggle.setAttribute("aria-label", "Open table chat");
   }
   const viewIndex = onlineMode ? onlineSeat : trainingMode ? 0 : game.current;
   const player = game.players[viewIndex];
@@ -599,6 +601,13 @@ function showQuickReaction(seat, emoji) {
     ? window.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   online.recentReactions.set(seat, { emoji, id });
+  const reactionFloats = document.querySelector("#reaction-floats");
+  const floatingReaction = document.createElement("span");
+  floatingReaction.className = "live-reaction-float";
+  floatingReaction.textContent = emoji;
+  floatingReaction.style.left = `${15 + Math.random() * 70}%`;
+  reactionFloats.append(floatingReaction);
+  window.setTimeout(() => floatingReaction.remove(), 1800);
   if (game && onlineMode) {
     if (seat === onlineSeat) renderGame();
     else renderOpponents();
@@ -1275,7 +1284,7 @@ document.querySelector("#brand-home-link").addEventListener("click", (event) => 
 chatToggle.addEventListener("click", () => {
   const data = online.publicData;
   if (!data || data.status !== "playing" || !data.game || data.game.finished) return;
-  online.reactionsOpen = !online.reactionsOpen;
+  online.chatOpen = !online.chatOpen;
   renderGameChat(data);
 });
 
@@ -1333,7 +1342,6 @@ function openOnlineLobby(mode = "duel", tab = "create") {
     ? `Create a game for ${onlineRoomSize} players, then invite your crew.`
     : "Create a table and invite a friend by link.";
   document.querySelector("#create-room-button").innerHTML = `Create ${onlineRoomSize === 2 ? "duel" : `${onlineRoomSize}-player game`} <span aria-hidden="true">→</span>`;
-  document.querySelector("#share-invite-button").classList.toggle("hidden", typeof navigator.share !== "function");
   refreshPublicRooms();
   refreshActiveRooms();
   schedulePublicRoomsRefresh();
@@ -1602,7 +1610,6 @@ function disconnectOnlineRoom() {
     clockOffset: 0,
     chatUnreadCount: 0,
     chatOpen: false,
-    reactionsOpen: false,
     recentReactions: new Map(),
     reconnectAttempts: 0,
     lastAlertedTurn: null,
@@ -1917,7 +1924,8 @@ function updateAccountUI(user) {
     void refreshActiveRooms();
     void heartbeatPresence();
     schedulePresenceHeartbeat();
-    if (pendingInviteRoom) openPendingInvite();
+    if (pendingInviteRoom && inviteAccepted) openPendingInvite();
+    else if (pendingInviteRoom) showInviteLanding();
     else if (pendingLobbyRequest) {
       const request = pendingLobbyRequest;
       pendingLobbyRequest = null;
@@ -1942,7 +1950,12 @@ function updateAccountUI(user) {
     document.querySelector("#friends-modal").classList.add("hidden");
     document.querySelector("#stats-modal").classList.add("hidden");
     document.querySelector("#tutorial-modal").classList.add("hidden");
-    accountModal.classList.remove("hidden");
+    if (pendingInviteRoom && !inviteAccepted) {
+      accountModal.classList.add("hidden");
+      showInviteLanding();
+    } else {
+      accountModal.classList.remove("hidden");
+    }
     document.querySelector("#score-note").textContent = "Sign in is required to play and track your results.";
     if (previousUser) roomNameInput.value = "";
   }
@@ -2012,19 +2025,106 @@ function showAccountGate() {
 }
 
 function openPendingInvite() {
-  if (!accountUser || !pendingInviteRoom) return;
-  const invitedRoom = pendingInviteRoom;
+  if (!accountUser || !pendingInviteRoom || !inviteAccepted) return;
+  const invitedCode = extractRoomCode(pendingInviteRoom);
+  if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(invitedCode)) {
+    document.querySelector("#invite-landing-status").textContent = "That invite link isn’t valid. Check it and try again.";
+    document.querySelector("#accept-invite-button").disabled = true;
+    document.querySelector("#invite-landing").classList.remove("hidden");
+    return;
+  }
+  pendingInviteRoom = invitedCode;
   pendingLobbyRequest = null;
+  document.querySelector("#invite-landing").classList.add("hidden");
   openOnlineLobby("duel", "join");
-  const invitedCode = extractRoomCode(invitedRoom);
   const inviteInput = document.querySelector("#invite-link-input");
-  if (/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(invitedCode)) {
-    pendingInviteRoom = invitedCode;
-    inviteInput.value = makeInviteLink(invitedCode);
-    void joinOnlineRoom();
+  inviteInput.value = makeInviteLink(invitedCode);
+  void joinOnlineRoom();
+}
+
+function showInviteLanding() {
+  if (!pendingInviteRoom || inviteAccepted) return;
+  document.querySelector("#invite-landing").classList.remove("hidden");
+  const code = extractRoomCode(pendingInviteRoom);
+  const acceptButton = document.querySelector("#accept-invite-button");
+  if (!/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(code)) {
+    document.querySelector("#invite-landing-status").textContent = "That invite link isn’t valid. Check it and try again.";
+    acceptButton.disabled = true;
+    return;
+  }
+  if (invitePreview?.roomCode === code || invitePreviewLoadingFor === code) return;
+  void loadInvitePreview(code);
+}
+
+async function loadInvitePreview(code) {
+  invitePreviewLoadingFor = code;
+  const acceptButton = document.querySelector("#accept-invite-button");
+  const status = document.querySelector("#invite-landing-status");
+  acceptButton.disabled = true;
+  status.textContent = "Checking your invite…";
+  try {
+    const preview = await callGameApi(`/api/rooms/${code}/invite`);
+    if (extractRoomCode(pendingInviteRoom || "") !== code || inviteAccepted) return;
+    invitePreview = preview;
+    document.querySelector("#invite-host-name").textContent = preview.hostName;
+    document.querySelector("#invite-host-mark").textContent =
+      preview.hostName.trim().charAt(0).toUpperCase() || "♠";
+    const isDuel = preview.maxPlayers === 2;
+    document.querySelector("#invite-details").textContent = isDuel
+      ? "1-on-1 · 4 cards each · first player out wins"
+      : `${preview.maxPlayers}-player game · 4 cards each · last player standing wins`;
+    status.textContent = preview.status === "playing"
+      ? "The game is in progress. Accept to join the next match."
+      : preview.status === "finished"
+        ? "That match is over. Accept to join the next match."
+        : preview.playerCount >= preview.maxPlayers
+          ? "This table is full. Accept to queue for the next match."
+          : `${preview.hostName} is waiting for you to join.`;
+    acceptButton.textContent = preview.status === "playing" || preview.status === "finished"
+      ? "Join next match"
+      : "Accept and play";
+    acceptButton.disabled = false;
+  } catch (error) {
+    if (extractRoomCode(pendingInviteRoom || "") !== code || inviteAccepted) return;
+    const unavailable = error.status === 404 || error.status === 410;
+    status.textContent = unavailable
+      ? "This invite has expired or is no longer available."
+      : "Couldn’t load the invite details. You can still try joining.";
+    acceptButton.disabled = unavailable;
+  } finally {
+    if (invitePreviewLoadingFor === code) invitePreviewLoadingFor = null;
+  }
+}
+
+function acceptGameInvite() {
+  if (!pendingInviteRoom || document.querySelector("#accept-invite-button").disabled) return;
+  inviteAccepted = true;
+  document.querySelector("#invite-landing").classList.add("hidden");
+  if (!accountUser) {
+    showAccountGate();
+    setAccountStatus("Sign in or create an account to accept this invite.");
+    return;
+  }
+  openPendingInvite();
+}
+
+function dismissGameInvite() {
+  pendingInviteRoom = null;
+  inviteAccepted = false;
+  invitePreview = null;
+  invitePreviewLoadingFor = null;
+  document.querySelector("#invite-landing").classList.add("hidden");
+  const url = new URL(window.location.href);
+  url.searchParams.delete("game");
+  url.searchParams.delete("room");
+  if (/^#\/c\//i.test(url.hash)) url.hash = "";
+  window.history.replaceState(null, "", url);
+  if (accountUser) {
+    document.querySelector("#account-modal").classList.add("hidden");
+    elements.setup.classList.remove("hidden");
+    startTutorial();
   } else {
-    pendingInviteRoom = null;
-    setOnlineStatus("That invite link isn’t valid. Check it and try again.");
+    document.querySelector("#account-modal").classList.remove("hidden");
   }
 }
 
@@ -2685,7 +2785,7 @@ function updateRoomLobby(data) {
         ? "Your public challenge has expired. Create a new one to invite more players."
         : isFull
           ? "Your challenge is full. Start the game when you’re ready."
-          : "Your challenge is open to everyone for 1 hour. You’ll be notified here when someone joins.";
+          : "Your challenge is open to everyone for up to 1 hour and closes after 5 minutes without activity.";
     } else if (online.isHost && isFull) {
       message.textContent = waitingNext.length
         ? `This match is ready. ${waitingNext.length} more player${waitingNext.length === 1 ? "" : "s"} queued for the next match.`
@@ -2700,17 +2800,48 @@ function updateRoomLobby(data) {
   message.textContent = data.status === "closed" ? "The game host ended this game." : "Game connected.";
 }
 
+function renderChatMessages(messages) {
+  const list = document.querySelector("#chat-messages");
+  list.replaceChildren();
+  if (!messages.length) {
+    const empty = document.createElement("p");
+    empty.className = "chat-empty";
+    empty.textContent = "Say hello to your table.";
+    list.append(empty);
+    return;
+  }
+
+  for (const message of messages) {
+    const item = document.createElement("article");
+    const isReaction = QUICK_REACTION_TEXTS.has(message.text);
+    item.className = `chat-message${message.seat === online.seat ? " is-own-message" : ""}${isReaction ? " chat-message-reaction" : ""}`;
+    const meta = document.createElement("div");
+    meta.className = "chat-message-meta";
+    const name = document.createElement("strong");
+    name.textContent = message.name;
+    const time = document.createElement("time");
+    time.dateTime = new Date(message.sentAt).toISOString();
+    time.textContent = new Date(message.sentAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const text = document.createElement("p");
+    text.textContent = message.text;
+    meta.append(name, time);
+    item.append(meta, text);
+    list.append(item);
+  }
+  list.scrollTop = list.scrollHeight;
+}
+
 function renderGameChat(data) {
   const panel = document.querySelector("#game-chat");
   const active = data.status === "playing" && !data.game.finished;
-  if (!active) online.reactionsOpen = false;
-  panel.hidden = true;
-  panel.classList.add("hidden");
+  if (!active) online.chatOpen = false;
+  panel.hidden = !active || !online.chatOpen;
+  panel.classList.toggle("hidden", !active || !online.chatOpen);
   chatToggle.classList.toggle("hidden", !active);
   chatToggle.disabled = !active;
-  chatToggle.setAttribute("aria-expanded", String(active && online.reactionsOpen));
-  chatToggle.setAttribute("aria-label", online.reactionsOpen ? "Close quick reactions" : "Open quick reactions");
-  document.querySelector("#game-reactions").classList.toggle("hidden", !active || !online.reactionsOpen);
+  chatToggle.setAttribute("aria-expanded", String(active && online.chatOpen));
+  chatToggle.setAttribute("aria-label", online.chatOpen ? "Close table chat" : "Open table chat");
+  renderChatMessages(data.chatMessages || []);
 }
 
 function updateChatUnreadBadge() {
@@ -2834,8 +2965,6 @@ function beginRoomSession(snapshot, token) {
   document.querySelector("#duel-create-panel").classList.remove("hidden");
   document.querySelector("#duel-join-panel").classList.add("hidden");
   document.querySelector("#join-room-panel").classList.add("hidden");
-  document.querySelector("#invite-whatsapp").href = `https://wa.me/?text=${encodeURIComponent(`Come play BAKASHA with me! ${inviteLink}`)}`;
-  document.querySelector("#invite-telegram").href = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent("Come play BAKASHA with me!")}`;
   applyRoomSnapshot(snapshot);
   document.querySelector("#online-subtitle").textContent = onlineRoomSize > 2
     ? online.isHost ? "Invite your crew to join the game." : `You joined a ${onlineRoomSize}-player group game.`
@@ -2856,8 +2985,8 @@ async function createOnlineRoom() {
   try {
     const isPublic = document.querySelector("#public-room-checkbox").checked;
     document.querySelector("#invite-room-note").textContent = isPublic
-      ? "Your challenge stays open for 1 hour, even if you leave this screen. Stay in the waiting room to be notified when someone joins."
-      : "This private game link stays open until the host ends the game or it has been inactive for 24 hours. Late arrivals wait for the next match.";
+      ? "Your challenge can be open for up to 1 hour, but the room closes after 5 minutes without activity."
+      : "This private game link closes after 5 minutes without activity. Late arrivals wait for the next match.";
     showOptimisticConnection();
     setOnlineStatus("Creating your game…");
     const snapshot = await callGameApi("/api/rooms", "POST", {
@@ -2865,7 +2994,9 @@ async function createOnlineRoom() {
       isPublic,
     });
     beginRoomSession(snapshot, snapshot.token);
-    setOnlineStatus(isPublic ? "Your public challenge is live for 1 hour." : "Private game created.");
+    setOnlineStatus(isPublic
+      ? "Your public challenge closes after 5 minutes without activity."
+      : "Private game created.");
   } catch (error) {
     elements.online.classList.remove("hidden");
     hideOptimisticConnection(true);
@@ -2930,6 +3061,7 @@ async function joinOnlineRoom(publicJoin = false) {
   const joinButton = document.querySelector("#join-room-button");
   joinButton.disabled = true;
   pendingInviteRoom = roomCode;
+  inviteAccepted = true;
   try {
     const saved = readSavedRoom(roomCode);
     const body = publicJoin ? { publicJoin: true } : {};
@@ -2939,11 +3071,16 @@ async function joinOnlineRoom(publicJoin = false) {
     const snapshot = await callGameApi(`/api/rooms/${roomCode}/join`, "POST", body);
     beginRoomSession(snapshot, snapshot.token || (saved && saved.token));
     pendingInviteRoom = null;
+    inviteAccepted = false;
+    invitePreview = null;
     document.querySelector("#game-invite-alert").classList.add("hidden");
     return true;
   } catch (error) {
     delete inviteInput.dataset.autoJoinValue;
-    if (error.status !== 401) pendingInviteRoom = null;
+    if (error.status !== 401) {
+      pendingInviteRoom = null;
+      inviteAccepted = false;
+    }
     elements.online.classList.remove("hidden");
     hideOptimisticConnection(true);
     elements.game.classList.add("hidden");
@@ -3138,6 +3275,12 @@ document.querySelector("#public-room-list").addEventListener("click", (event) =>
 });
 document.querySelector("#start-online-game").addEventListener("click", startOnlineGame);
 document.querySelector("#chat-form").addEventListener("submit", sendChatMessage);
+document.querySelector("#chat-input").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    document.querySelector("#chat-form").requestSubmit();
+  }
+});
 document.querySelector("#game-reactions").addEventListener("click", async (event) => {
   const button = event.target instanceof Element ? event.target.closest("[data-reaction]") : null;
   const reaction = button?.dataset.reaction;
@@ -3149,7 +3292,6 @@ document.querySelector("#game-reactions").addEventListener("click", async (event
   try {
     const snapshot = await callGameApi(`/api/rooms/${online.roomCode}/reaction`, "POST", { reaction });
     applyRoomSnapshot(snapshot);
-    online.reactionsOpen = false;
     renderGameChat(online.publicData);
   } catch (error) {
     showToast(onlineErrorMessage(error));
@@ -3166,7 +3308,7 @@ document.querySelector("#leave-online-room").addEventListener("click", () => {
     && online.publicData.serverNow < online.publicData.publicChallengeExpiresAt;
   disconnectOnlineRoom();
   setOnlineStatus(challengeIsLive
-    ? "Your public challenge stays open until its 1-hour window ends."
+    ? "Your public challenge stays open for up to 1 hour while active."
     : "You left this game. Open its invite link to reconnect.");
   refreshActiveRooms();
   refreshPublicRooms();
@@ -3200,18 +3342,6 @@ document.querySelector("#share-invite-button").addEventListener("click", () => {
 });
 for (const button of document.querySelectorAll("[data-share-invite]")) {
   button.addEventListener("click", () => shareInviteLink(button));
-}
-for (const button of document.querySelectorAll("[data-copy-invite]")) {
-  button.addEventListener("click", () => {
-    const inviteLink = online.roomCode ? makeInviteLink(online.roomCode) : "";
-    void copyTextToButton(
-      inviteLink,
-      button,
-      "Copied!",
-      "Invite link copied. Send it to your friend.",
-      "Could not copy the invite link. Copy it from the address bar instead.",
-    );
-  });
 }
 document.querySelector("#mode-label").textContent = "Choose game";
 enableAudioUnlock();
@@ -3275,7 +3405,14 @@ document.addEventListener("keydown", (event) => {
   if (accountUser) document.querySelector("#account-modal").classList.add("hidden");
 });
 
+document.querySelector("#accept-invite-button").addEventListener("click", acceptGameInvite);
+document.querySelector("#decline-invite-button").addEventListener("click", dismissGameInvite);
 renderAccountMode();
 const inviteParams = new URLSearchParams(window.location.search);
-pendingInviteRoom = inviteParams.get("game") || inviteParams.get("room");
+const hashInviteCode = /^#\/c\/([a-z0-9]{4})$/i.exec(window.location.hash)?.[1];
+pendingInviteRoom = inviteParams.get("game") || inviteParams.get("room") || hashInviteCode;
+if (pendingInviteRoom) {
+  document.querySelector("#account-modal").classList.add("hidden");
+  showInviteLanding();
+}
 loadAccount();

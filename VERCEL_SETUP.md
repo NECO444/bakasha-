@@ -60,7 +60,7 @@ To run the whole site locally with real Redis: `vercel link`, `vercel env pull`,
 
 - Polling: every 2 s while waiting for your opponent, every 5 s on your own turn, every 3 s in the lobby, and every 1.5 s after a game ends to check for rematch requests.
   Hidden tabs stop polling. Check Vercel's and Upstash's current free-plan limits; they change.
-- Rooms are deleted after 24 hours without activity.
+- Rooms are deleted after five minutes without activity.
 - Joining is through invite links only. The link contains a short room identifier; anyone with the link can join an open seat.
 - Leaderboard results are retained for 28 days. Usernames are public; do not choose a username you want to keep private.
 - Username-only accounts have no password reset or recovery process.

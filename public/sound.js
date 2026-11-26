@@ -5,7 +5,7 @@ const SOUND_PATTERNS = {
   draw: { notes: [494, 392], spacing: 0.08, duration: 0.12, volume: 0.04, type: "sine" },
   error: { notes: [262, 196], spacing: 0.07, duration: 0.1, volume: 0.035, type: "triangle" },
   penalty: { notes: [349, 277, 208], spacing: 0.075, duration: 0.13, volume: 0.045, type: "triangle" },
-  win: { notes: [523, 659, 784, 1047], spacing: 0.085, duration: 0.18, volume: 0.05, type: "sine" },
+  win: { notes: [523, 659, 784, 1047, 784, 1047, 1318], spacing: 0.075, duration: 0.22, volume: 0.06, type: "triangle" },
   lose: { notes: [392, 330, 262], spacing: 0.1, duration: 0.2, volume: 0.035, type: "sine" },
   click: { notes: [740], spacing: 0, duration: 0.055, volume: 0.025, type: "sine" },
   turn: { notes: [659, 784], spacing: 0.11, duration: 0.16, volume: 0.04, type: "sine" },

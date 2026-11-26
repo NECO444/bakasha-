@@ -3,6 +3,7 @@ import {
   handleAction,
   handleChat,
   handleEnd,
+  handleInvitePreview,
   handleJoin,
   handleRematch,
   handleReaction,
@@ -12,6 +13,7 @@ import {
 
 const routes = {
   state: { GET: handleState },
+  invite: { GET: handleInvitePreview },
   join: { POST: handleJoin },
   start: { POST: handleStart },
   rematch: { POST: handleRematch },

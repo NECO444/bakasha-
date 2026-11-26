@@ -139,7 +139,7 @@
 
               <label class="room-visibility" for="public-room-checkbox">
                 <input id="public-room-checkbox" type="checkbox">
-                <span><strong>Let anyone join</strong><small>Open for 1 hour</small></span>
+                <span><strong>Let anyone join</strong><small>Up to 1 hour · closes after 5 min idle</small></span>
               </label>
               <div id="create-room-controls">
                 <button class="primary-button online-action" id="create-room-button" type="button">Create duel <span aria-hidden="true">→</span></button>
@@ -151,9 +151,7 @@
                 </div>
                 <div class="invite-actions">
                   <button class="primary-button invite-copy-button" id="copy-invite-button" type="button">Copy link</button>
-                  <a class="secondary-button invite-whatsapp" id="invite-whatsapp" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-                  <a class="secondary-button invite-telegram" id="invite-telegram" target="_blank" rel="noopener noreferrer">Share on Telegram</a>
-                  <button class="secondary-button invite-system-share" id="share-invite-button" type="button">More share options</button>
+                  <button class="secondary-button invite-system-share" id="share-invite-button" type="button">Share invite</button>
                 </div>
                 <p id="invite-room-note">Your friend can join from the link. The game starts when they arrive.</p>
               </div>
@@ -200,8 +198,8 @@
             <button class="back-button" id="back-button" type="button"><span aria-hidden="true">←</span> Change game</button>
             <div class="round-label"><span class="round-dot"></span> <span id="round-mode-label">PASS &amp; PLAY</span> <span class="round-divider">/</span> <span id="round-player-count">4 PLAYERS</span></div>
             <div class="game-heading-actions">
-              <button class="icon-button chat-toggle hidden" id="game-chat-toggle" type="button" aria-label="Open quick reactions" aria-controls="game-reactions" aria-expanded="false">
-                <span aria-hidden="true">✦</span>
+              <button class="icon-button chat-toggle hidden" id="game-chat-toggle" type="button" aria-label="Open table chat" aria-controls="game-chat" aria-expanded="false">
+                <span aria-hidden="true">💬</span>
                 <span class="chat-unread-badge hidden" id="chat-unread-badge" aria-hidden="true"></span>
               </button>
               <button class="secondary-button end-room-button game-end-room hidden" id="end-room-from-game" type="button">End game</button>
@@ -210,13 +208,7 @@
           </div>
           <div class="table-surface">
             <div class="opponents" id="opponents"></div>
-            <div class="game-reactions hidden" id="game-reactions" role="group" aria-label="Quick reactions">
-              <button type="button" data-reaction="👏" aria-label="React with applause">👏</button>
-              <button type="button" data-reaction="😂" aria-label="React with laughter">😂</button>
-              <button type="button" data-reaction="🔥" aria-label="React with fire">🔥</button>
-              <button type="button" data-reaction="😮" aria-label="React with surprise">😮</button>
-              <button type="button" data-reaction="GG" aria-label="React with good game">GG</button>
-            </div>
+            <div class="reaction-floats" id="reaction-floats" aria-hidden="true"></div>
             <div class="table-center">
               <div class="support-alert hidden" id="support-alert" role="status" aria-live="polite" aria-atomic="true">
                 <span aria-hidden="true">✦</span> SUPPORT
@@ -258,19 +250,25 @@
           </div>
           <section class="game-chat hidden" id="game-chat" aria-label="Game chat" hidden>
             <div class="game-chat-heading">
-                <div><h2>Table chat</h2><p>Only players at this table can see these messages.</p></div>
+              <div><h2>Table chat</h2><p>Only players at this table can see these messages.</p></div>
               <div class="game-chat-tools">
                 <div class="game-invite-actions">
-                  <button class="secondary-button" type="button" data-share-invite>Share link</button>
-                  <button class="secondary-button copy-invite-link" type="button" data-copy-invite>Copy link</button>
+                  <button class="secondary-button" type="button" data-share-invite>Share</button>
                 </div>
                 <span class="chat-live-label"><span></span> LIVE</span>
               </div>
             </div>
+            <div class="game-reactions" id="game-reactions" role="group" aria-label="Send a live reaction">
+              <button type="button" data-reaction="👏" aria-label="React with applause">👏</button>
+              <button type="button" data-reaction="😂" aria-label="React with laughter">😂</button>
+              <button type="button" data-reaction="🔥" aria-label="React with fire">🔥</button>
+              <button type="button" data-reaction="😮" aria-label="React with surprise">😮</button>
+              <button type="button" data-reaction="GG" aria-label="React with good game">GG</button>
+            </div>
             <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions"></div>
             <form class="chat-form" id="chat-form">
               <label class="sr-only" for="chat-input">Message the players</label>
-              <textarea class="chat-input" id="chat-input" rows="2" maxlength="280" placeholder="Type a message…"></textarea>
+              <textarea class="chat-input" id="chat-input" rows="1" maxlength="280" placeholder="Message your table…"></textarea>
               <button class="primary-button chat-send" id="chat-send" type="submit" aria-label="Send message">Send</button>
             </form>
             <p class="chat-status" id="chat-status" aria-live="polite">Messages are automatically deleted when the game ends.</p>
@@ -280,7 +278,7 @@
       </main>
     </div>
 
-    <div class="modal-backdrop account-backdrop" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
+    <div class="modal-backdrop account-backdrop hidden" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
       <div class="account-dialog">
         <p class="account-prompt">Sign in or create an account<br>to play BAKASHA.</p>
         <div class="modal-card account-card">
@@ -307,6 +305,19 @@
         </div>
       </div>
     </div>
+
+    <section class="modal-backdrop invite-landing hidden" id="invite-landing" role="dialog" aria-modal="true" aria-labelledby="invite-heading">
+      <div class="modal-card invite-landing-card">
+        <div class="rematch-mark invite-landing-mark" id="invite-host-mark" aria-hidden="true">♠</div>
+        <p class="eyebrow invite-landing-eyebrow">GAME INVITE</p>
+        <h1 id="invite-heading"><span id="invite-host-name">A friend</span> challenged you to a game</h1>
+        <p class="invite-landing-details" id="invite-details">1-on-1 · 4 cards each · first player out wins</p>
+        <p class="invite-landing-status" id="invite-landing-status" role="status" aria-live="polite">Checking your invite…</p>
+        <button class="primary-button invite-accept-button" id="accept-invite-button" type="button" disabled>Accept challenge</button>
+        <p class="invite-landing-note">Sign in is required to join the table.</p>
+        <button class="text-button invite-decline-button" id="decline-invite-button" type="button">Not now</button>
+      </div>
+    </section>
 
     <div class="modal-backdrop hidden" id="friends-modal" role="dialog" aria-modal="true" aria-labelledby="friends-title">
       <div class="modal-card friends-card">

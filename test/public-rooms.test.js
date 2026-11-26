@@ -10,7 +10,12 @@ import {
   handleStart,
   handleState,
 } from "../lib/rooms.js";
-import { loadRoom, saveRoom } from "../lib/store.js";
+import {
+  createRoomRecord,
+  loadRoom,
+  ROOM_INACTIVITY_TTL_SECONDS,
+  saveRoom,
+} from "../lib/store.js";
 import { accountRequest, createTestAccount } from "../test-helpers/auth.js";
 
 const request = (code, account, token, route = "join") => accountRequest(
@@ -18,6 +23,30 @@ const request = (code, account, token, route = "join") => accountRequest(
   account,
   token ? { authorization: `Bearer ${token}` } : {},
 );
+
+test("rooms expire after five minutes without activity and activity refreshes their lifetime", async () => {
+  const host = await createTestAccount("idlehost");
+  const created = await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
+  const now = Date.now();
+
+  await saveRoom(created.roomCode, await loadRoom(created.roomCode), now);
+  assert.ok(await loadRoom(created.roomCode, now + ROOM_INACTIVITY_TTL_SECONDS * 1000 - 1));
+  assert.equal(await loadRoom(created.roomCode, now + ROOM_INACTIVITY_TTL_SECONDS * 1000), null);
+
+  const refreshedAt = now + ROOM_INACTIVITY_TTL_SECONDS * 1000 - 1;
+  await saveRoom(created.roomCode, await loadRoom(created.roomCode, refreshedAt), refreshedAt);
+  assert.ok(await loadRoom(created.roomCode, refreshedAt + ROOM_INACTIVITY_TTL_SECONDS * 1000 - 1));
+});
+
+test("legacy rooms expire using their last player activity", async () => {
+  const lastSeenAt = Date.now() - ROOM_INACTIVITY_TTL_SECONDS * 1000;
+  await createRoomRecord("IDLE", {
+    code: "IDLE",
+    createdAt: lastSeenAt,
+    players: [{ lastSeenAt }],
+  });
+  assert.equal(await loadRoom("IDLE"), null);
+});
 
 test("public lobby lists only active public waiting rooms without room credentials", async () => {
   const privateHost = await createTestAccount("private");

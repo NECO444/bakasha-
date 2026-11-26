@@ -12,6 +12,20 @@ test("the consolidated room route dispatches join and state requests", async () 
     body: {},
   });
 
+  const inviteResponse = await GET(
+    new Request(`https://example.test/api/rooms/${room.roomCode}/invite`),
+  );
+  assert.equal(inviteResponse.status, 200);
+  const invite = await inviteResponse.json();
+  assert.deepEqual(invite, {
+    roomCode: room.roomCode,
+    hostName: host.username,
+    status: "waiting",
+    playerCount: 1,
+    maxPlayers: 2,
+  });
+  assert.equal(JSON.stringify(invite).includes(room.token), false);
+
   const joinResponse = await POST(
     new Request(`https://example.test/api/rooms/${room.roomCode}/join`, {
       method: "POST",
@@ -25,6 +39,7 @@ test("the consolidated room route dispatches join and state requests", async () 
   assert.equal(joinResponse.status, 200);
   const joined = await joinResponse.json();
   assert.equal(joined.seat, 1);
+  assert.equal(joined.publicData.status, "playing");
   assert.equal(typeof joined.token, "string");
 
   const stateResponse = await GET(
