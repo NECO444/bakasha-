@@ -365,9 +365,8 @@ function isPlayable(card) {
   if (game.demandedSuit) {
     return card.rank === "A" || card.rank === "JOKER" || card.suit === game.demandedSuit;
   }
-  return card.rank === "JOKER"
-    ? topCard().rank !== "2"
-    : card.suit === game.activeSuit || card.rank === topCard().rank;
+  return card.rank === "JOKER" ||
+    card.suit === game.activeSuit || card.rank === topCard().rank;
 }
 
 function getCardColor(suit) {

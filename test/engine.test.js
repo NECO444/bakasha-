@@ -40,12 +40,12 @@ test("public state never contains hands", () => {
   }
 });
 
-test("ordinary cards match suit or rank and Joker cannot cover a 2", () => {
+test("ordinary cards match suit or rank and Joker can be played after a 2 penalty clears", () => {
   const g = table({ hands: [[c("spades", "7")], [c("clubs", "5")]], top: c("hearts", "5") });
   assert.equal(isPlayable(g, c("spades", "7")), false);
   assert.equal(isPlayable(g, c("clubs", "5")), true);
   g.discard = [c("diamonds", "2")];
-  assert.equal(isPlayable(g, joker()), false);
+  assert.equal(isPlayable(g, joker()), true);
 });
 
 test("drawing ends the turn and the drawn card cannot be played immediately", () => {
@@ -228,6 +228,29 @@ test("a 2 penalty is canceled by another 2", () => {
   play(g, 1, c("clubs", "2"));
   assert.equal(g.pending, 0);
   assert.equal(g.current, 0);
+});
+
+test("a Joker is playable after the opponent draws a 2 penalty", () => {
+  const drawTwo = c("hearts", "2");
+  const responseJoker = joker();
+  const g = table({
+    hands: [[drawTwo, responseJoker], [c("clubs", "9"), c("clubs", "10")]],
+  });
+
+  play(g, 0, drawTwo);
+  assert.equal(g.pending, 2);
+  assert.equal(isPlayable(g, responseJoker), false);
+
+  applyAction(g, 1, { type: "draw" }, 2100);
+  assert.equal(g.hands[1].length, 4);
+  assert.equal(g.current, 0);
+  assert.equal(g.pending, 0);
+  assert.equal(isPlayable(g, responseJoker), true);
+
+  const result = play(g, 0, responseJoker);
+  assert.equal(result.error, undefined);
+  assert.equal(g.pendingType, "draw-four");
+  assert.equal(g.pending, 4);
 });
 
 test("a 2 blocks a Joker penalty and the responding player draws two", () => {

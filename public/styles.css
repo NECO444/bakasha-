@@ -4041,8 +4041,96 @@ button:focus-visible, a:focus-visible { outline-color: var(--palette-orange); }
 }
 .game-invite-alert-heading div span, .game-invite-alert p { color: var(--muted); }
 .game-invite-alert-actions .primary-button { background: var(--palette-orange); }
+.group-game-options #start-button,
+.room-wait #start-online-game:not(.hidden) {
+  box-shadow: 0 5px 0 #c97912, 0 10px 24px #07162b66;
+}
+.table-decoration { color: var(--palette-sky); }
+.table-decoration.decoration-two { color: var(--palette-orange); }
+.connection-card-stack span {
+  border-color: var(--palette-cream);
+  background: repeating-linear-gradient(45deg, #2e5aa7 0 5px, #86c5ff 5px 6px, #2e5aa7 6px 11px);
+}
+.optimistic-connection {
+  border-color: var(--line);
+  color: var(--ink);
+  background: linear-gradient(145deg, #244a83, #1d3d70);
+}
+.optimistic-connection p { color: var(--muted); }
+.online-screen.is-duel-sheet, .leaderboard-page:not(.hidden) { background: #10254add; }
+.game-reactions button:hover:not(:disabled) { background: #ffa62b30; }
+.chat-toggle[aria-expanded="true"] {
+  border-color: var(--palette-orange);
+  color: #183664;
+  background: var(--palette-cream);
+}
+.support-alert span { color: var(--palette-orange); }
+.home-action-card:not(.home-action-create) {
+  border-color: var(--line);
+  color: var(--ink);
+  background: linear-gradient(145deg, #244a83, #1d3d70);
+  box-shadow: 0 4px 0 #142e56, 0 10px 22px #07162b30;
+}
+.home-action-card:not(.home-action-create):hover {
+  border-color: var(--palette-sky);
+  box-shadow: 0 6px 0 #142e56, 0 14px 24px #07162b40;
+}
+.home-action-copy small { color: var(--muted); }
+.home-action-arrow { color: var(--palette-sky); }
+.active-game-count {
+  border-color: #86c5ff55;
+  color: var(--palette-cream);
+  background: linear-gradient(120deg, #86c5ff20, #2e5aa740);
+}
+.game-screen .icon-button {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #1d3d70;
+}
+.game-screen .icon-button:hover,
+.game-screen .chat-toggle[aria-expanded="true"] {
+  border-color: var(--palette-orange);
+  color: var(--palette-orange);
+  background: #2e5aa7;
+}
+.chat-unread-badge:not(.hidden) { border-color: #193969; color: #183664; background: var(--palette-orange); }
+.game-footer #turn-number { color: var(--muted); }
+.account-card .account-session .secondary-button {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #1d3d70;
+}
+.leaderboard-empty {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #1d3d70;
+}
+@media (max-width: 700px) {
+  .primary-nav {
+    border-top-color: var(--line);
+    background: #193969f2;
+  }
+}
 
 @keyframes turn-pulse {
   0%, 100% { filter: drop-shadow(0 0 0 #ffa62b00); transform: scale(1); }
   50% { filter: drop-shadow(0 0 8px #ffa62b); transform: scale(1.12); }
 }
+
+.loading-screen {
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 50% 40%, #2e5aa7, transparent 46%),
+    #193969;
+}
+.loading-mark {
+  border-color: #86c5ff66;
+  background: #86c5ff12;
+  box-shadow: 0 12px 36px #07162b80;
+}
+.loading-suits { color: var(--palette-sky); }
+.loading-suits span:nth-child(2) { color: var(--palette-orange); }
+.loading-suits span:nth-child(3) { color: var(--palette-cream); }
+.loading-suits span:nth-child(4) { color: var(--palette-sky); }
+.loading-wordmark span { color: var(--palette-orange); }
+.loading-caption { color: var(--muted); }

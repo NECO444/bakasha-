@@ -24,6 +24,25 @@ const request = (code, account, token, route = "join") => accountRequest(
   token ? { authorization: `Bearer ${token}` } : {},
 );
 
+test("room sizes are limited to four players", async () => {
+  const host = await createTestAccount("roomlimit");
+  const room = await handleCreate({
+    request: accountRequest("/api/rooms", host),
+    body: { maxPlayers: 4 },
+  });
+
+  assert.equal(room.publicData.maxPlayers, 4);
+  for (const maxPlayers of [5, 6]) {
+    await assert.rejects(
+      handleCreate({
+        request: accountRequest("/api/rooms", host),
+        body: { maxPlayers },
+      }),
+      (error) => error.status === 400 && error.message.includes("two and four"),
+    );
+  }
+});
+
 test("rooms expire after five minutes without activity and activity refreshes their lifetime", async () => {
   const host = await createTestAccount("idlehost");
   const created = await handleCreate({ request: accountRequest("/api/rooms", host), body: {} });
@@ -291,8 +310,6 @@ test("private rooms queue late joiners for the next match and can be ended by th
   const lateGuest = await createTestAccount("latemember");
   const laterGuest = await createTestAccount("latermember");
   const secondLaterGuest = await createTestAccount("secondlater");
-  const thirdLaterGuest = await createTestAccount("thirdlater");
-  const overLimitGuest = await createTestAccount("overlimit");
   const room = await handleCreate({
     request: accountRequest("/api/rooms", host),
     body: { maxPlayers: 2 },
@@ -341,18 +358,8 @@ test("private rooms queue late joiners for the next match and can be ended by th
     body: {},
   });
   assert.equal(queuedAgain.publicData.queuedForNextMatch, true);
-  const queuedSecond = await handleJoin({
-    request: request(room.roomCode, secondLaterGuest),
-    body: {},
-  });
-  const queuedThird = await handleJoin({
-    request: request(room.roomCode, thirdLaterGuest),
-    body: {},
-  });
-  assert.equal(queuedSecond.seat, -3);
-  assert.equal(queuedThird.seat, -4);
   await assert.rejects(
-    handleJoin({ request: request(room.roomCode, overLimitGuest), body: {} }),
+    handleJoin({ request: request(room.roomCode, secondLaterGuest), body: {} }),
     (error) => error.status === 403,
   );
   const secondFinishedRoom = await loadRoom(room.roomCode);
@@ -363,8 +370,8 @@ test("private rooms queue late joiners for the next match and can be ended by th
   const hostStarted = await handleStart({
     request: request(room.roomCode, host, room.token, "start"),
   });
-  assert.equal(hostStarted.publicData.players.length, 6);
-  assert.equal(hostStarted.publicData.maxPlayers, 6);
+  assert.equal(hostStarted.publicData.players.length, 4);
+  assert.equal(hostStarted.publicData.maxPlayers, 4);
 
   await assert.rejects(
     handleEnd({ request: request(room.roomCode, guest, joined.token, "end") }),
