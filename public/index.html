@@ -28,12 +28,12 @@
         <nav class="primary-nav" aria-label="Main navigation">
           <button class="text-button nav-link active" id="nav-play-button" type="button" aria-current="page">Play</button>
           <button class="text-button nav-link hidden" id="stats-button" type="button">My stats</button>
-          <button class="text-button nav-link tutorial-replay" id="tutorial-replay" type="button">How to play</button>
           <button class="text-button nav-link" id="leaderboard-button" type="button" aria-label="Open public leaderboard">Leaderboard</button>
           <button class="text-button nav-link hidden" id="friends-button" type="button">Friends <span class="friends-challenge-badge hidden" id="friends-challenge-badge" aria-label="Incoming game challenges"></span></button>
         </nav>
         <div class="topbar-right">
           <span class="mode-badge"><span class="mode-dot"></span> <span id="mode-label">Choose game</span></span>
+          <button class="text-button tutorial-replay" id="tutorial-replay" type="button">How to play</button>
           <button class="sound-toggle" id="sound-toggle" type="button" aria-label="Mute sounds" aria-pressed="false">🔊</button>
           <button class="text-button" id="account-button" type="button">Sign in</button>
         </div>
@@ -42,25 +42,29 @@
       <main>
         <section class="setup-screen hidden" id="setup-screen" aria-label="Choose a game">
           <section class="setup-card" aria-labelledby="setup-title">
+            <section class="home-resume-card hidden" id="home-resume-card" aria-label="Resume a game">
+              <div class="home-side-eyebrow">BACK TO THE TABLE</div>
+              <h2>Resume game</h2>
+              <p id="home-resume-details">Your game is waiting.</p>
+              <button class="primary-button" id="home-resume-button" type="button">Resume</button>
+            </section>
             <div class="setup-card-head">
-              <div class="setup-icon" aria-hidden="true">♣</div>
-              <div><h2 id="setup-title">Choose your quest</h2><p>Pick a table and play with your people.</p></div>
+              <div><h2 id="setup-title">Ready to play?</h2><p>Create a table with friends, or find one already waiting.</p></div>
             </div>
             <div class="home-action-grid" aria-label="Online games">
-              <button class="home-action-card home-action-find" id="browse-games-button" type="button">
-                <span class="home-action-icon" aria-hidden="true">⌕</span>
-                <span class="home-action-copy"><strong>Find a game</strong><small>Join a table that's waiting</small></span>
-                <span class="home-action-arrow" aria-hidden="true">→</span>
-              </button>
               <button class="home-action-card home-action-create" id="one-v-one-button" type="button">
                 <span class="home-action-icon" aria-hidden="true">↗</span>
                 <span class="home-action-copy"><strong>Create a game</strong><small>Start a duel and invite a friend</small></span>
                 <span class="home-action-arrow" aria-hidden="true">→</span>
               </button>
+              <button class="home-action-card home-action-find" id="browse-games-button" type="button">
+                <span class="home-action-icon" aria-hidden="true">⌕</span>
+                <span class="home-action-copy"><strong>Find a game</strong><small>Join a table that's waiting</small></span>
+                <span class="home-action-arrow" aria-hidden="true">→</span>
+              </button>
             </div>
             <div class="home-more-heading">
               <h3>More ways to play</h3>
-              <span>Pick your style</span>
             </div>
             <div class="game-mode-picker" id="game-mode-picker" role="group" aria-label="Game type">
               <button class="game-mode-option" id="group-game-button" type="button" aria-expanded="false" aria-controls="group-game-options"><strong>Group quest</strong><span>Play with 3–4 players</span></button>
@@ -78,12 +82,6 @@
             </div>
           </section>
           <aside class="home-side-card" id="home-side-card" aria-label="Online play">
-            <section class="home-resume-card hidden" id="home-resume-card" aria-label="Resume a game">
-              <div class="home-side-eyebrow">BACK TO THE TABLE</div>
-              <h2>Resume game</h2>
-              <p id="home-resume-details">Your game is waiting.</p>
-              <button class="primary-button" id="home-resume-button" type="button">Resume</button>
-            </section>
             <section class="online-now-card" aria-label="Players online">
               <span class="online-now-dot" aria-hidden="true"></span>
               <span><strong id="online-now-count">—</strong><small>online now</small></span>
