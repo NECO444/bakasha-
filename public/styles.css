@@ -7759,3 +7759,1244 @@ body .game-screen .playing-card > .card-face {
   font: 900 clamp(34px, 4vw, 46px)/1 "Nunito", "Trebuchet MS", sans-serif;
   transform: translate(-50%, -50%);
 }
+
+body .training-mode-option {
+  border-color: #34463a !important;
+  border-bottom-color: #293a2d !important;
+  color: #edf4ed;
+  background: #202e24;
+}
+
+body .training-mode-option:hover,
+body .training-mode-option.active {
+  border-color: #8bd76a !important;
+  background: #2b3d2e;
+  box-shadow: none;
+}
+
+body .account-card .online-input {
+  border-color: #3b4e40;
+  border-bottom-color: #2b3b30;
+  color: #edf4ed;
+  background: #151f18;
+}
+
+body .account-card .field-label,
+body .account-card .account-status,
+body .account-card .account-session p {
+  color: #b0beb2;
+}
+
+body .account-card .account-submit {
+  border-color: #70b74c;
+  border-bottom-color: #4c8133;
+  color: #10200e;
+  background: #8bd76a;
+  box-shadow: none;
+}
+
+body .account-card .account-submit:hover:not(:disabled) {
+  border-color: #9de77e;
+  color: #10200e;
+  background: #9be27a;
+  box-shadow: none;
+}
+
+body .account-card .account-session .secondary-button {
+  border-color: #3b4e40;
+  border-bottom-color: #2b3b30;
+  color: #eaf2e8;
+  background: #26342a;
+}
+
+body .game-screen .turn-indicator,
+body .game-screen .chat-toggle[aria-expanded="true"] {
+  color: #c1eaa6;
+}
+
+body .game-screen .chat-toggle[aria-expanded="true"] {
+  border-color: #8bd76a;
+  background: #24362a;
+}
+
+body .game-screen .toast.toast-special {
+  border-color: #547a46;
+  color: #edf4ed;
+  background: #38533b;
+  box-shadow: 0 5px 0 #263b2b;
+}
+
+body .leaderboard-card .leaderboard-table td:first-child {
+  color: #b9e795;
+}
+
+body .tutorial-progress {
+  background: #26342a;
+}
+
+body .tutorial-progress span {
+  border-radius: 999px;
+  background: #8bd76a;
+}
+
+body .room-player-presence.is-online {
+  color: #c1eaa6;
+}
+
+body .opponent-reaction,
+body .player-reaction {
+  color: #c1eaa6;
+}
+
+.home-hero-eyebrow::before,
+.home-hero-eyebrow::after,
+.setup-screen .setup-card::before,
+.setup-screen .setup-card::after,
+.setup-screen .setup-card-head::after,
+.online-screen .setup-card::before,
+.online-screen .setup-card::after,
+.online-screen .setup-card-head::after,
+.home-action-grid .home-action-card::before,
+.game-mode-picker .game-mode-option::after {
+  content: none;
+  animation: none;
+}
+
+:root {
+  color-scheme: dark;
+  --ink: #edf4ed;
+  --muted: #a7b7aa;
+  --faint: #829487;
+  --forest: #111914;
+  --surface: #1b261e;
+  --surface-raised: #26342a;
+  --line: #34463a;
+  --blue-accent: #8bd76a;
+  --green: #70c84e;
+  --red: #ff6b78;
+  --blue: #79b9e8;
+  --yellow: #a9df75;
+}
+
+body {
+  color: #edf4ed;
+  background: #111914;
+}
+
+.app-shell {
+  width: min(1120px, calc(100% - 40px));
+}
+
+.topbar {
+  border-bottom-color: #293a2d;
+  background: #111914;
+}
+
+.brand,
+.brand-accent,
+.brand-mark,
+.brand-mark span:nth-child(n) {
+  color: #a9df75;
+}
+
+.brand-mark span:nth-child(2) { color: #ff6b78; }
+.brand-mark span:nth-child(3) { color: #a9df75; }
+.brand-mark span:nth-child(4) { color: #79b9e8; }
+
+.mode-badge,
+.text-button,
+.back-button {
+  color: #a7b7aa;
+}
+
+.text-button:hover,
+.back-button:hover {
+  color: #c1eaa6;
+}
+
+.topbar .nav-link {
+  color: #a7b7aa;
+  background: transparent;
+}
+
+.topbar .nav-link:hover {
+  color: #eaf5e8;
+  background: #202e24;
+}
+
+.topbar .nav-link.active {
+  color: #c8f2a6;
+  background: #243a29;
+  box-shadow: inset 0 -3px #8bd76a;
+}
+
+.topbar .sound-toggle {
+  border-color: #34463a;
+  color: #b9e795;
+  background: #1b261e;
+}
+
+.setup-screen,
+.online-screen {
+  color: #edf4ed;
+}
+
+.setup-screen .setup-card,
+.online-screen .setup-card,
+.home-side-card {
+  border-color: #34463a;
+  border-bottom-color: #293a2d;
+  color: #edf4ed;
+  background: #1b261e;
+  box-shadow: 0 4px 0 #0c120e;
+}
+
+.setup-card-head h2,
+.setup-card h2,
+.modal-card h2,
+.leaderboard-card h2,
+.friends-card h2,
+.stats-card h2,
+.rules-card h2,
+.tutorial-card h2,
+.rematch-card h2,
+.suit-card h2,
+.home-more-heading h3,
+.public-rooms-heading h3,
+.active-games h3,
+.friend-section h3,
+.history-heading {
+  color: #f0f5ef;
+}
+
+.setup-card-head p,
+.setup-card p,
+.modal-card p,
+.leaderboard-card p,
+.friends-card p,
+.stats-card p,
+.rules-card p,
+.tutorial-card p,
+.rematch-card p,
+.suit-card p,
+.presence-status,
+.active-game-limit,
+.group-mode-note {
+  color: #b0beb2;
+}
+
+.home-hero-eyebrow,
+.eyebrow,
+.field-label,
+.home-side-eyebrow {
+  color: #a9df75;
+}
+
+.setup-icon,
+.online-now-card,
+.home-action-icon,
+.invite-ready-mark,
+.rematch-mark {
+  color: #b9e795;
+  background: #2a402f;
+}
+
+.home-action-grid > .home-action-card,
+.home-action-grid > .home-action-create,
+.home-action-grid > .home-action-find,
+.game-mode-picker .game-mode-option,
+.game-mode-picker .training-mode-option,
+.game-mode-option {
+  border-color: #34463a;
+  border-bottom-color: #293a2d;
+  color: #edf4ed;
+  background: #202e24;
+}
+
+.home-action-grid > .home-action-create {
+  border-color: #6ea94c;
+  border-bottom-color: #4a7932;
+  color: #f5fbf3;
+  background: #548d3c;
+}
+
+.home-action-grid > .home-action-card:hover,
+.home-action-grid > .home-action-card:focus-visible,
+.game-mode-picker .game-mode-option:hover,
+.game-mode-picker .game-mode-option.active {
+  border-color: #8bd76a;
+  color: #f0f8ed;
+  background: #2b3d2e;
+  box-shadow: none;
+}
+
+.home-action-grid > .home-action-create:hover {
+  border-color: #8bd76a;
+  background: #619c45;
+}
+
+.home-action-copy strong,
+.home-action-copy small,
+.home-action-arrow,
+.game-mode-picker .game-mode-option strong,
+.game-mode-picker .game-mode-option span {
+  color: #edf4ed;
+}
+
+.home-action-create .home-action-copy strong,
+.home-action-create .home-action-copy small,
+.home-action-create .home-action-arrow {
+  color: #ffffff;
+}
+
+.home-action-grid .home-action-icon,
+.home-action-create .home-action-icon {
+  color: #c7efa8;
+  background: #2b422f;
+}
+
+.home-action-create .home-action-icon {
+  color: #477a31;
+  background: #e7f5df;
+}
+
+.home-more-heading {
+  border-top-color: #34463a;
+}
+
+.online-now-card {
+  color: #edf4ed;
+  background: #202e24;
+}
+
+.online-now-card strong {
+  color: #c1eaa6;
+}
+
+.online-now-card small {
+  color: #a7b7aa;
+}
+
+.online-now-dot,
+.room-player-presence.is-online::before {
+  background: #8bd76a;
+  box-shadow: 0 0 0 3px #324b35;
+}
+
+.primary-button,
+.secondary-button,
+.count-button,
+.duel-tab,
+.account-tab,
+.stats-filter,
+.leaderboard-tab,
+.public-rooms-refresh,
+.friend-action,
+.suit-option,
+.icon-button {
+  border-color: #3b4e40;
+  border-bottom-color: #2b3b30;
+  color: #eaf2e8;
+  background: #26342a;
+}
+
+.primary-button {
+  border-color: #70b74c;
+  border-bottom-color: #4c8133;
+  color: #10200e;
+  background: #8bd76a;
+}
+
+.primary-button:hover:not(:disabled) {
+  border-color: #9de77e;
+  background: #9be27a;
+}
+
+.secondary-button:hover:not(:disabled),
+.count-button:hover,
+.duel-tab:hover,
+.account-tab:hover,
+.stats-filter:hover,
+.leaderboard-tab:hover,
+.public-rooms-refresh:hover,
+.friend-action:hover,
+.suit-option:hover {
+  border-color: #8bd76a;
+  color: #f0f7ed;
+  background: #304333;
+}
+
+.secondary-button.active,
+.count-button.active,
+.duel-tab.active,
+.account-tab.active,
+.stats-filter.active,
+.leaderboard-tab.active {
+  border-color: #70b74c;
+  border-bottom-color: #4c8133;
+  color: #10200e;
+  background: #8bd76a;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.count-button:disabled,
+.duel-tab:disabled,
+.account-tab:disabled,
+.stats-filter:disabled,
+.leaderboard-tab:disabled,
+.suit-option:disabled {
+  border-color: #48554a;
+  color: #9aa79b;
+  background: #2a332c;
+}
+
+.online-input,
+.chat-input,
+.player-field {
+  border-color: #3b4e40;
+  border-bottom-color: #2b3b30;
+  color: #edf4ed;
+  background: #151f18;
+}
+
+.online-input::placeholder,
+.chat-input::placeholder {
+  color: #98a79b;
+}
+
+.online-input:focus,
+.chat-input:focus {
+  border-color: #8bd76a;
+  outline-color: #8bd76a;
+}
+
+.account-panel,
+.room-wait,
+.invite-result,
+.online-status,
+.public-room-item,
+.active-game-item,
+.friend-row {
+  border-color: #34463a;
+  border-bottom-color: #293a2d;
+  color: #edf4ed;
+  background: #202e24;
+}
+
+.room-player,
+.room-player-presence,
+.public-room-details strong,
+.public-room-details span,
+.public-room-empty,
+.room-wait p,
+.invite-result p,
+.online-status,
+.account-status {
+  color: #b0beb2;
+}
+
+.room-player-presence::before {
+  background: #657369;
+}
+
+.room-visibility,
+.room-visibility strong {
+  color: #edf4ed;
+}
+
+.room-visibility small {
+  color: #a7b7aa;
+}
+
+.room-visibility input {
+  accent-color: #8bd76a;
+}
+
+.public-rooms,
+.active-games,
+.friend-section,
+.stats-summary,
+.leaderboard-tabs {
+  border-color: #34463a;
+}
+
+.modal-backdrop,
+.invite-landing,
+.leaderboard-page:not(.hidden) {
+  background: rgba(5, 10, 7, .78);
+}
+
+.modal-card,
+.friends-card,
+.leaderboard-card,
+.rules-card,
+.rematch-card,
+.stats-card,
+.tutorial-card,
+.suit-card {
+  border-color: #34463a;
+  border-bottom-color: #293a2d;
+  color: #edf4ed;
+  background: #1b261e;
+  box-shadow: 0 5px 0 #0c120e;
+}
+
+.modal-close {
+  color: #b9e795;
+  background: #2a402f;
+}
+
+.modal-close:hover {
+  color: #d7f4be;
+  background: #344d37;
+}
+
+.account-tabs,
+.leaderboard-tabs,
+.stats-filters {
+  background: #202e24;
+}
+
+.stats-summary > div {
+  border-color: #34463a;
+  border-bottom-color: #293a2d;
+  color: #edf4ed;
+  background: #202e24;
+}
+
+.stats-summary strong,
+.result-score {
+  color: #b9e795;
+}
+
+.match-history li,
+.leaderboard-table th,
+.leaderboard-table td {
+  border-color: #34463a;
+  color: #e6eee5;
+}
+
+.account-status,
+.stats-status,
+.leaderboard-status,
+.tutorial-status {
+  color: #b0beb2;
+}
+
+.game-invite-alert {
+  border-color: #34463a;
+  border-bottom-color: #293a2d;
+  color: #edf4ed;
+  background: #1b261e;
+  box-shadow: 0 7px 0 #0c120e;
+}
+
+.game-invite-alert-heading strong {
+  color: #f0f5ef;
+}
+
+.game-invite-alert-heading div span,
+.game-invite-alert p {
+  color: #b0beb2;
+}
+
+.game-heading .back-button,
+.game-heading .round-label {
+  color: #b9e795;
+}
+
+.game-heading .round-dot {
+  background: #8bd76a;
+}
+
+.game-footer,
+.game-footer #turn-number {
+  color: #9aa99c;
+}
+
+.footer-heart {
+  color: #ff6b78;
+}
+
+.table-surface,
+body.game-active .table-surface {
+  border-color: #315a3a;
+  border-radius: 26px;
+  background: #1b4b2b;
+  box-shadow: 0 8px 0 #143b21;
+}
+
+.table-surface::before,
+body.game-active .table-surface::before {
+  border-color: #477c50;
+  border-radius: 20px;
+}
+
+.table-surface::after {
+  border-color: #315a3a;
+}
+
+.opponent,
+.player-area,
+.hand {
+  border-color: #477c50;
+}
+
+.game-screen .opponent-name,
+.game-screen .opponent-count,
+.game-screen .player-name,
+.game-screen .player-caption,
+.game-screen .hand-count,
+.game-screen .timer-unit,
+.game-screen .game-hint,
+.game-screen .hand-help,
+.game-screen .pile-label,
+.game-screen .pile-count {
+  color: #d3e8d2;
+}
+
+.game-screen .turn-message {
+  border-color: #477c50;
+  border-radius: 14px;
+  color: #edf4ed;
+  background: #24362a;
+  box-shadow: 0 4px 0 #143b21;
+}
+
+.game-screen .player-avatar {
+  border-color: #7ebd67;
+  color: #c7efa8;
+  background: #24362a;
+}
+
+.game-screen .turn-timer,
+.game-screen .turn-timer strong {
+  color: #c7efa8;
+}
+
+.game-screen .turn-timer.timer-warning,
+.game-screen .turn-timer.timer-warning .timer-unit {
+  color: #ff8992;
+}
+
+.back-card,
+.opponent-back {
+  border-color: #75b45b;
+  border-radius: 10px;
+  background: #2f6738;
+  box-shadow: 0 5px 0 #143b21;
+}
+
+.back-card::after {
+  border-color: #98ca7c;
+}
+
+.back-mark {
+  border-color: #98ca7c;
+  color: #d9f4c2;
+  background: #244b2c;
+}
+
+.active-suit {
+  border-color: #58824f;
+  color: #edf4ed;
+  background: #24362a;
+}
+
+.playing-card,
+.game-screen .playing-card,
+.game-screen .table-surface .playing-card[data-suit="hearts"],
+.game-screen .table-surface .playing-card[data-suit="diamonds"],
+.game-screen .table-surface .playing-card[data-suit="spades"],
+.game-screen .table-surface .playing-card[data-suit="clubs"],
+.game-screen .table-surface .playing-card[data-suit="wild"],
+.winning-card-preview .playing-card,
+.pending-draw-card {
+  border-color: #dfe5df;
+  border-radius: 12px;
+  color: #304236;
+  background: #ffffff;
+  background-image: none;
+  box-shadow: 0 6px 0 #cbd2cb;
+}
+
+.game-screen .table-surface .playing-card[data-suit="hearts"],
+.game-screen .table-surface .playing-card[data-suit="diamonds"] {
+  color: #d94d5a;
+}
+
+.game-screen .table-surface .playing-card[data-suit="spades"],
+.game-screen .table-surface .playing-card[data-suit="clubs"] {
+  color: #304236;
+}
+
+.playing-card::before {
+  content: none;
+}
+
+.playing-card.is-playable {
+  box-shadow: 0 0 0 3px #8bd76a, 0 7px 0 #cbd2cb;
+}
+
+.playing-card.is-unplayable {
+  opacity: .76;
+  filter: grayscale(.2);
+}
+
+.playing-card[data-suit="wild"] > .card-face::after {
+  color: #548d3c;
+}
+
+.game-chat {
+  border-color: #34463a;
+  border-bottom-color: #293a2d;
+  color: #edf4ed;
+  background: #1b261e;
+  box-shadow: 0 7px 0 #0c120e;
+}
+
+.game-chat-heading {
+  border-bottom-color: #34463a;
+}
+
+.game-chat-heading h2,
+.chat-message > p {
+  color: #edf4ed;
+}
+
+.game-chat-heading p,
+.chat-empty,
+.chat-status,
+.chat-message-meta time {
+  color: #a7b7aa;
+}
+
+.chat-message {
+  border-color: #34463a;
+  color: #edf4ed;
+  background: #202e24;
+}
+
+.chat-message.is-own-message {
+  border-color: #4b7045;
+  background: #263c29;
+}
+
+.chat-message-meta strong {
+  color: #b9e795;
+}
+
+.chat-form {
+  border-top-color: #34463a;
+}
+
+.toast {
+  border-color: #548d3c;
+  color: #f4fbf1;
+  background: #345b31;
+  box-shadow: 0 5px 0 #203c23;
+}
+
+.toast.toast-special {
+  border-color: #547a46;
+  color: #edf4ed;
+  background: #38533b;
+  box-shadow: 0 5px 0 #263b2b;
+}
+
+.connection-banner,
+.optimistic-connection {
+  border-color: #548d3c;
+  color: #edf4ed;
+  background: #345b31;
+  box-shadow: 0 5px 0 #203c23;
+}
+
+.game-heading .secondary-button {
+  color: #eaf2e8;
+  background: #26342a;
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    width: calc(100% - 24px);
+  }
+}
+
+@media (max-width: 400px) {
+  .app-shell {
+    width: calc(100% - 20px);
+  }
+}
+
+:root {
+  --duo-amber: #8bd76a;
+  --duo-amber-dark: #4c8133;
+  --palette-orange: #8bd76a;
+  --anime-gold: #b9e795;
+}
+
+.setup-screen:not(.hidden),
+.online-screen:not(.hidden),
+.online-screen.is-duel-sheet:not(.hidden) {
+  background: none;
+}
+
+.topbar .primary-nav .nav-link.active::after {
+  display: none;
+  box-shadow: none;
+}
+
+.mode-dot,
+.round-dot,
+.online-now-dot {
+  box-shadow: none;
+}
+
+#one-v-one-button.home-action-create,
+#one-v-one-button.home-action-create:hover,
+#one-v-one-button.home-action-create:active,
+#start-button,
+#start-button:hover:not(:disabled) {
+  box-shadow: 0 4px 0 #203c23;
+}
+
+#start-button:active:not(:disabled) {
+  box-shadow: 0 2px 0 #203c23;
+}
+
+.active-suit {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .24);
+}
+
+.turn-indicator.is-your-turn {
+  animation-name: turn-pulse-soft;
+}
+
+.game-screen .playing-card.is-playable {
+  box-shadow: 0 0 0 3px #8bd76a, 0 6px 0 #cbd2cb;
+}
+
+.game-screen .discard-stack-card.is-playable {
+  box-shadow: 0 5px 12px rgba(9, 17, 13, .32);
+}
+
+.game-screen .chat-live-label span {
+  background: #8bd76a;
+  box-shadow: 0 0 7px rgba(139, 215, 106, .48);
+}
+
+.friends-challenge-badge:not(.hidden),
+.chat-unread-badge:not(.hidden) {
+  border-color: #34463a;
+  box-shadow: 0 0 10px rgba(139, 215, 106, .2);
+}
+
+@keyframes turn-pulse-soft {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(139, 215, 106, 0)); transform: scale(1); }
+  50% { filter: drop-shadow(0 0 8px rgba(139, 215, 106, .72)); transform: scale(1.12); }
+}
+
+#setup-screen:not(.hidden) {
+  width: min(1060px, calc(100% - 40px));
+  min-height: calc(100dvh - 80px);
+  grid-template-columns: minmax(0, 1fr) 230px;
+  align-content: center;
+  align-items: start;
+  gap: 20px;
+  margin-inline: auto;
+  padding: clamp(24px, 5vw, 52px) 0;
+  background:
+    radial-gradient(ellipse at 18% 0%, rgba(86, 139, 70, .12), transparent 58%),
+    none;
+}
+
+#setup-screen:not(.hidden) > .setup-card {
+  width: 100%;
+  min-width: 0;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid #3b5140;
+  border-radius: 24px;
+  background: linear-gradient(155deg, #1d2b21, #17231b 72%);
+  box-shadow: 0 8px 0 #0c120e, inset 0 1px 0 rgba(226, 245, 220, .04);
+}
+
+#setup-screen .setup-card-head {
+  min-height: 120px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+#setup-screen .home-hero-eyebrow,
+#setup-screen .home-side-eyebrow {
+  color: #a9df75;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+#setup-screen .setup-card-head h2 {
+  margin: 8px 0 5px;
+  color: #f3f8f1;
+  font: 900 clamp(34px, 4.5vw, 48px)/1.05 "Baloo 2", "Nunito", sans-serif;
+  letter-spacing: -.035em;
+  text-shadow: none;
+}
+
+#setup-screen .setup-card-head p {
+  max-width: 38ch;
+  color: #b6c5b8;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+#setup-screen .home-card-fan {
+  display: block;
+  filter: drop-shadow(0 8px 10px rgba(7, 17, 10, .36));
+}
+
+#setup-screen .home-fan-card {
+  border-color: #e4e9e3;
+  border-radius: 8px;
+  color: #263a2b;
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #263a2b12, 0 3px 0 #cbd2cb;
+}
+
+#setup-screen .home-fan-card-back {
+  border-color: #8bd76a;
+  background: repeating-linear-gradient(45deg, #315c38 0 5px, #8bd76a 5px 6px, #315c38 6px 11px);
+}
+
+#setup-screen .home-fan-card-back > span {
+  border-color: #d3efbf;
+  background: #315c38;
+}
+
+#setup-screen .home-action-grid {
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+#setup-screen .home-action-grid > .home-action-card {
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid #3b5140;
+  border-radius: 17px;
+  color: #edf4ed;
+  background: #202e24;
+  box-shadow: 0 4px 0 #0c120e;
+  transition: transform 140ms steps(2), border-color 140ms steps(2), background-color 140ms steps(2), box-shadow 140ms steps(2);
+}
+
+#setup-screen .home-action-grid > .home-action-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #8bd76a;
+  color: #f3f8f1;
+  background: #27392b;
+  box-shadow: 0 6px 0 #0c120e;
+}
+
+#setup-screen .home-action-grid > .home-action-card:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #0c120e;
+}
+
+#setup-screen .home-action-grid > #one-v-one-button {
+  border-color: #9de77e;
+  color: #142414;
+  background: #8bd76a;
+  box-shadow: 0 4px 0 #4c8133;
+}
+
+#setup-screen .home-action-grid > #one-v-one-button:hover:not(:disabled) {
+  border-color: #c3f3a5;
+  color: #142414;
+  background: #9be27a;
+  box-shadow: 0 6px 0 #4c8133;
+}
+
+#setup-screen .home-action-grid > #one-v-one-button:active:not(:disabled) {
+  box-shadow: 0 2px 0 #4c8133;
+}
+
+#setup-screen .home-action-icon,
+#setup-screen .home-action-grid > .home-action-create .home-action-icon {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #48614b;
+  border-radius: 13px;
+  color: #b9e795;
+  background: #2a402f;
+}
+
+#setup-screen .home-action-grid > .home-action-create .home-action-icon {
+  border-color: rgba(20, 36, 20, .18);
+  color: #315c28;
+  background: rgba(255, 255, 255, .72);
+}
+
+#setup-screen .home-action-copy strong {
+  color: inherit;
+  font: 900 17px/1.15 "Nunito", sans-serif;
+}
+
+#setup-screen .home-action-copy small {
+  color: #c1cec2;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#setup-screen .home-action-grid > #one-v-one-button .home-action-copy small,
+#setup-screen .home-action-grid > #one-v-one-button .home-action-arrow {
+  color: #20351d;
+}
+
+#setup-screen .home-action-arrow {
+  color: #b9e795;
+  font-size: 22px;
+}
+
+#setup-screen .home-more-heading {
+  margin: 0 0 12px;
+  padding-top: 20px;
+  border-top: 1px solid #34463a;
+}
+
+#setup-screen .home-more-heading h3 {
+  color: #dfeadd;
+  font: 800 14px "Nunito", sans-serif;
+}
+
+#setup-screen .game-mode-picker {
+  gap: 10px;
+}
+
+#setup-screen .game-mode-picker .game-mode-option {
+  min-height: 76px;
+  padding: 15px;
+  border: 1px solid #3b5140;
+  border-radius: 15px;
+  color: #edf4ed;
+  background: #1b281f;
+  box-shadow: 0 3px 0 #0c120e;
+}
+
+#setup-screen .game-mode-picker .game-mode-option:hover,
+#setup-screen .game-mode-picker .game-mode-option.active {
+  border-color: #8bd76a;
+  background: #27392b;
+}
+
+#setup-screen .game-mode-picker .game-mode-option strong {
+  color: #edf4ed;
+  font-size: 15px;
+}
+
+#setup-screen .game-mode-picker .game-mode-option span {
+  color: #afc0b1;
+  font-size: 12px;
+}
+
+#setup-screen .home-side-card {
+  gap: 12px;
+  padding-top: 0;
+}
+
+#setup-screen .online-now-card,
+#setup-screen .home-resume-card {
+  border: 1px solid #3b5140;
+  border-radius: 18px;
+  color: #edf4ed;
+  background: linear-gradient(155deg, #1d2b21, #17231b);
+  box-shadow: 0 5px 0 #0c120e;
+}
+
+#setup-screen .online-now-card {
+  min-height: 84px;
+  padding: 18px;
+}
+
+#setup-screen .online-now-card strong,
+#setup-screen .home-resume-card h2 {
+  color: #c1eaa6;
+}
+
+#setup-screen .online-now-card small,
+#setup-screen .home-resume-card p {
+  color: #afc0b1;
+}
+
+#setup-screen .presence-status {
+  color: #afc0b1;
+}
+
+#setup-screen .primary-button,
+#setup-screen .secondary-button,
+#setup-screen .count-button {
+  min-height: 48px;
+  border-radius: 13px;
+  font-family: "Nunito", sans-serif;
+  font-weight: 900;
+  box-shadow: 0 4px 0 #0c120e;
+  transition: transform 140ms steps(2), border-color 140ms steps(2), background-color 140ms steps(2), box-shadow 140ms steps(2);
+}
+
+#setup-screen .primary-button {
+  border-color: #9de77e;
+  border-bottom-color: #4c8133;
+  color: #142414;
+  background: #8bd76a;
+}
+
+#setup-screen .primary-button:hover:not(:disabled) {
+  border-color: #c3f3a5;
+  background: #9be27a;
+  box-shadow: 0 5px 0 #4c8133;
+}
+
+#setup-screen .primary-button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #4c8133;
+}
+
+#setup-screen .secondary-button,
+#setup-screen .count-button {
+  border-color: #49604c;
+  border-bottom-color: #2e4132;
+  color: #eaf2e8;
+  background: #26342a;
+}
+
+#setup-screen .secondary-button:hover:not(:disabled),
+#setup-screen .count-button:hover:not(:disabled) {
+  border-color: #8bd76a;
+  background: #304333;
+}
+
+#setup-screen .group-game-options #start-button,
+#setup-screen .group-game-options #start-button:hover:not(:disabled) {
+  box-shadow: 0 4px 0 #4c8133;
+}
+
+#setup-screen .group-game-options #start-button:active:not(:disabled) {
+  box-shadow: 0 1px 0 #4c8133;
+}
+
+#setup-screen button:focus-visible {
+  outline: 2px solid #d5f4c2;
+  outline-offset: 3px;
+}
+
+.topbar .tutorial-replay,
+.topbar #account-button,
+.topbar .sound-toggle {
+  min-height: 44px;
+  border: 1px solid #3b5140;
+  border-radius: 12px;
+  color: #eaf2e8;
+  background: #1b261e;
+  box-shadow: 0 3px 0 #0c120e;
+}
+
+.topbar .tutorial-replay {
+  color: #eaf2e8 !important;
+  font-family: "Nunito", sans-serif;
+}
+
+.topbar .tutorial-replay:hover {
+  color: #f3f8f1 !important;
+  background: #27392b;
+}
+
+.topbar .tutorial-replay:hover,
+.topbar #account-button:hover,
+.topbar .sound-toggle:hover {
+  border-color: #8bd76a;
+  color: #f3f8f1;
+  background: #27392b;
+}
+
+.topbar .tutorial-replay:active,
+.topbar #account-button:active,
+.topbar .sound-toggle:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #0c120e;
+}
+
+.topbar button:focus-visible {
+  outline: 2px solid #d5f4c2;
+  outline-offset: 3px;
+}
+
+.topbar .brand {
+  text-shadow: none;
+}
+
+.topbar .brand::after {
+  display: none;
+  content: none;
+}
+
+.topbar .brand-mark {
+  border-color: #3b5140;
+  background: #1b261e;
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  #setup-screen:not(.hidden) {
+    width: calc(100% - 32px);
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 24px 0 36px;
+  }
+
+  #setup-screen:not(.hidden) > .setup-card {
+    grid-column: 1;
+    padding: clamp(20px, 5vw, 30px);
+  }
+
+  #setup-screen .home-side-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  #setup-screen:not(.hidden) {
+    width: calc(100% - 24px);
+  }
+
+  #setup-screen .setup-card-head {
+    min-height: 0;
+    margin-bottom: 20px;
+  }
+
+  #setup-screen .home-card-fan {
+    display: none;
+  }
+
+  #setup-screen .home-action-grid,
+  #setup-screen .game-mode-picker {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #setup-screen .home-action-grid > .home-action-card {
+    min-height: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #setup-screen .home-action-card,
+  #setup-screen .primary-button,
+  #setup-screen .secondary-button,
+  #setup-screen .count-button,
+  .topbar .tutorial-replay,
+  .topbar #account-button,
+  .topbar .sound-toggle {
+    transition: none;
+  }
+}
