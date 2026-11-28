@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: light;
   --ink: #172530;
   --muted: #596774;
@@ -6461,3 +6461,1301 @@ body::after {
   box-shadow: 0 0 12px rgba(216,165,74,.22);
 }
 
+:root {
+  color-scheme: light;
+  --ink: #3c3c3c;
+  --muted: #777777;
+  --faint: #a5a5a5;
+  --forest: #f7f7f7;
+  --surface: #ffffff;
+  --surface-raised: #f1f7ed;
+  --line: #e5e5e5;
+  --blue-accent: #58cc02;
+  --green: #58cc02;
+  --red: #ea2b2b;
+  --blue: #1cb0f6;
+  --yellow: #ffc800;
+  font-family: "Nunito", "Trebuchet MS", sans-serif;
+}
+
+body {
+  min-width: 320px;
+  color: #3c3c3c;
+  background: #f7f7f7;
+  font-family: "Nunito", "Trebuchet MS", sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #1cb0f6;
+  outline-offset: 3px;
+}
+
+.app-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.topbar {
+  min-height: 76px;
+  height: auto;
+  gap: 18px;
+  border-bottom: 2px solid #e5e5e5;
+  background: #ffffff;
+}
+
+.brand {
+  gap: 10px;
+  color: #58a700;
+  font: 900 20px "Nunito", "Trebuchet MS", sans-serif;
+  letter-spacing: .02em;
+}
+
+.brand-accent,
+.brand-mark {
+  color: #58a700;
+}
+
+.brand-mark {
+  transform: none;
+  font: 12px/1 "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.brand-mark span:nth-child(n) {
+  color: #58a700;
+}
+
+.brand-mark span:nth-child(2) {
+  color: #ea2b2b;
+}
+
+.brand-mark span:nth-child(3) {
+  color: #ffc800;
+}
+
+.brand-mark span:nth-child(4) {
+  color: #1cb0f6;
+}
+
+.topbar-right {
+  gap: 14px;
+}
+
+.mode-badge,
+.text-button,
+.back-button {
+  color: #777777;
+  font-family: "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.mode-dot,
+.round-dot {
+  background: #58cc02;
+  box-shadow: none;
+}
+
+.topbar .nav-link {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  color: #777777;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.topbar .nav-link:hover {
+  color: #58a700;
+  background: #f1f7ed;
+}
+
+.topbar .nav-link.active {
+  color: #58a700;
+  background: #e5f7d8;
+  box-shadow: inset 0 -3px #58cc02;
+}
+
+.topbar-right > .text-button,
+.game-heading .back-button {
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.topbar .sound-toggle {
+  width: 44px;
+  height: 44px;
+  border: 2px solid #e5e5e5;
+  border-radius: 14px;
+  color: #58a700;
+  background: #ffffff;
+}
+
+.setup-screen,
+.online-screen {
+  min-height: calc(100vh - 78px);
+  align-items: center;
+  padding: 36px 0 56px;
+}
+
+.setup-screen:not(.hidden) {
+  grid-template-columns: minmax(0, 1.45fr) minmax(220px, .7fr);
+  gap: 22px;
+}
+
+.setup-screen > .setup-card {
+  grid-column: 1;
+}
+
+.home-side-card {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  padding: 16px;
+  border: 2px solid #e5e5e5;
+  border-bottom: 5px solid #e5e5e5;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.online-screen:not(.hidden) {
+  grid-template-columns: minmax(0, 640px);
+  padding-top: 40px;
+}
+
+.setup-screen .setup-card,
+.online-screen .setup-card {
+  width: 100%;
+  padding: clamp(24px, 4vw, 42px);
+  border: 2px solid #e5e5e5;
+  border-bottom: 7px solid #e5e5e5;
+  border-radius: 26px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: 0 3px 0 #ededed;
+}
+
+.setup-card-head {
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.setup-card-head h2,
+.setup-card h2,
+.modal-card h2,
+.leaderboard-card h2 {
+  color: #3c3c3c;
+  font-family: "Baloo 2", "Nunito", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.setup-card-head h2 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1.1;
+}
+
+.setup-card-head p,
+.setup-card p,
+.modal-card p,
+.leaderboard-card p {
+  color: #777777;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.home-hero-eyebrow,
+.eyebrow,
+.field-label,
+.home-side-eyebrow {
+  color: #58a700;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .09em;
+}
+
+.setup-screen > .setup-card::before,
+.setup-screen > .setup-card::after,
+.setup-screen .setup-card-head::after,
+.online-screen .setup-card::before,
+.online-screen .setup-card::after,
+.online-screen .setup-card-head::after,
+.home-card-fan {
+  display: none;
+  content: none;
+  animation: none;
+}
+
+.setup-icon,
+.online-now-card,
+.home-action-icon,
+.invite-ready-mark,
+.rematch-mark {
+  border-radius: 16px;
+  color: #58a700;
+  background: #e5f7d8;
+}
+
+.setup-icon {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  font-size: 22px;
+}
+
+.home-action-grid {
+  gap: 14px;
+  margin: 18px 0 26px;
+}
+
+.home-action-grid > .home-action-card,
+.home-action-grid > .home-action-create,
+.home-action-grid > .home-action-find {
+  min-height: 104px;
+  padding: 16px;
+  border: 2px solid #e5e5e5;
+  border-bottom: 5px solid #d6d6d6;
+  border-radius: 18px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: none;
+  backdrop-filter: none;
+  font-family: inherit;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.home-action-grid > .home-action-create {
+  border-color: #58a700;
+  border-bottom-color: #398400;
+  color: #ffffff;
+  background: #58cc02;
+}
+
+.home-action-grid > .home-action-card:hover,
+.home-action-grid > .home-action-card:focus-visible {
+  border-color: #58cc02;
+  background: #f4fce9;
+  transform: translateY(-2px);
+}
+
+.home-action-grid > .home-action-create:hover {
+  border-color: #398400;
+  background: #61d90a;
+}
+
+.home-action-grid > .home-action-card:active {
+  border-bottom-width: 2px;
+  transform: translateY(3px);
+}
+
+.home-action-grid > .home-action-create::before,
+.home-action-grid > .home-action-find::before {
+  content: none;
+}
+
+.home-action-icon {
+  width: 46px;
+  height: 46px;
+  border: 0;
+  font-size: 22px;
+}
+
+.home-action-create .home-action-icon {
+  color: #58a700;
+  background: #ffffff;
+}
+
+.home-action-copy strong {
+  color: #3c3c3c;
+  font: 900 18px/1.2 "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.home-action-create .home-action-copy strong,
+.home-action-create .home-action-copy small,
+.home-action-create .home-action-arrow {
+  color: #ffffff;
+}
+
+.home-action-copy small {
+  color: #777777;
+  font-size: 14px;
+}
+
+.home-action-arrow {
+  color: #58a700;
+}
+
+.home-more-heading {
+  margin: 0 0 14px;
+  padding: 18px 0 0;
+  border-top: 2px solid #e5e5e5;
+}
+
+.home-more-heading h3,
+.public-rooms-heading h3,
+.active-games h3,
+.friend-section h3,
+.history-heading {
+  color: #3c3c3c;
+  font: 800 20px "Baloo 2", "Nunito", sans-serif;
+}
+
+.game-mode-picker {
+  gap: 12px;
+}
+
+.game-mode-picker .game-mode-option,
+.game-mode-picker .training-mode-option,
+.game-mode-option {
+  min-height: 76px;
+  padding: 12px 16px;
+  border: 2px solid #e5e5e5;
+  border-bottom: 5px solid #d6d6d6;
+  border-radius: 16px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: none;
+  font-family: inherit;
+}
+
+.game-mode-picker .game-mode-option strong {
+  color: #3c3c3c;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.game-mode-picker .game-mode-option span {
+  color: #777777;
+  font-size: 14px;
+}
+
+.game-mode-picker .game-mode-option:hover,
+.game-mode-picker .game-mode-option.active {
+  border-color: #58cc02;
+  color: #3c3c3c;
+  background: #f4fce9;
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+.online-now-card {
+  min-height: 58px;
+  border: 0;
+  background: #f1f7ed;
+}
+
+.online-now-card strong {
+  color: #58a700;
+  font-size: 20px;
+}
+
+.presence-status,
+.active-game-limit,
+.group-mode-note {
+  color: #777777;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.primary-button,
+.secondary-button,
+.count-button,
+.duel-tab,
+.account-tab,
+.stats-filter,
+.leaderboard-tab,
+.public-rooms-refresh,
+.friend-action,
+.suit-option,
+.icon-button {
+  min-height: 44px;
+  border: 2px solid #e5e5e5;
+  border-bottom: 5px solid #d6d6d6;
+  border-radius: 14px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: none;
+  font: 800 15px "Nunito", "Trebuchet MS", sans-serif;
+  transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.primary-button {
+  border-color: #58a700;
+  border-bottom-color: #398400;
+  color: #ffffff;
+  background: #58cc02;
+}
+
+.primary-button:hover:not(:disabled) {
+  border-color: #398400;
+  color: #ffffff;
+  background: #61d90a;
+  transform: translateY(-1px);
+}
+
+.secondary-button:hover:not(:disabled),
+.count-button:hover,
+.duel-tab:hover,
+.account-tab:hover,
+.stats-filter:hover,
+.leaderboard-tab:hover,
+.public-rooms-refresh:hover,
+.friend-action:hover,
+.suit-option:hover {
+  border-color: #58cc02;
+  color: #3c3c3c;
+  background: #f4fce9;
+}
+
+.primary-button:active:not(:disabled),
+.secondary-button:active:not(:disabled),
+.count-button:active,
+.duel-tab:active,
+.account-tab:active,
+.stats-filter:active,
+.leaderboard-tab:active,
+.suit-option:active {
+  border-bottom-width: 2px;
+  transform: translateY(3px);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.count-button:disabled,
+.duel-tab:disabled,
+.account-tab:disabled,
+.stats-filter:disabled,
+.leaderboard-tab:disabled,
+.suit-option:disabled {
+  border: 2px dotted #bdbdbd;
+  color: #858585;
+  background: #eeeeee;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+  transform: none;
+}
+
+.secondary-button.active,
+.count-button.active,
+.duel-tab.active,
+.account-tab.active,
+.stats-filter.active,
+.leaderboard-tab.active {
+  border-color: #58a700;
+  border-bottom-color: #398400;
+  color: #ffffff;
+  background: #58cc02;
+}
+
+.online-input,
+.chat-input,
+.player-field {
+  min-height: 48px;
+  border: 2px solid #e5e5e5;
+  border-bottom-width: 4px;
+  border-radius: 14px;
+  color: #3c3c3c;
+  background: #ffffff;
+  font: 600 15px "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.online-input:focus,
+.chat-input:focus {
+  border-color: #1cb0f6;
+  outline: 3px solid #1cb0f6;
+}
+
+.online-input::placeholder,
+.chat-input::placeholder {
+  color: #777777;
+}
+
+.account-panel,
+.room-wait,
+.invite-result,
+.online-status,
+.public-room-item,
+.active-game-item,
+.friend-row {
+  border: 2px solid #e5e5e5;
+  border-bottom-width: 4px;
+  border-radius: 16px;
+  color: #3c3c3c;
+  background: #f8fbf6;
+}
+
+.account-panel,
+.room-wait,
+.invite-result {
+  padding: 16px;
+}
+
+.room-player,
+.room-player-presence,
+.public-room-details strong,
+.public-room-details span,
+.public-room-empty,
+.room-wait p,
+.invite-result p,
+.online-status,
+.account-status {
+  color: #555555;
+  font-size: 14px;
+}
+
+.room-player-presence::before {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #a5a5a5;
+  box-shadow: none;
+}
+
+.room-player-presence.is-online::before {
+  background: #58cc02;
+  box-shadow: 0 0 0 3px #dff4d1;
+}
+
+.room-visibility {
+  min-height: 48px;
+  color: #3c3c3c;
+}
+
+.room-visibility strong {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.room-visibility small {
+  color: #777777;
+  font-size: 13px;
+}
+
+.room-visibility input {
+  width: 22px;
+  height: 22px;
+  accent-color: #58cc02;
+}
+
+.public-rooms,
+.active-games,
+.friend-section,
+.stats-summary,
+.leaderboard-tabs {
+  border-color: #e5e5e5;
+}
+
+.public-rooms-refresh {
+  width: 44px;
+  height: 44px;
+  color: #58a700;
+}
+
+.modal-backdrop {
+  background: rgba(0, 0, 0, .68);
+  backdrop-filter: none;
+  animation: none;
+}
+
+.modal-backdrop:not(.hidden) .modal-card {
+  animation: duo-pop-in 180ms ease-out both;
+}
+
+.modal-card,
+.friends-card,
+.leaderboard-card,
+.rules-card,
+.rematch-card,
+.stats-card,
+.tutorial-card,
+.suit-card {
+  border: 2px solid #e5e5e5;
+  border-bottom: 7px solid #e5e5e5;
+  border-radius: 24px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: 0 4px 0 #ededed;
+}
+
+.modal-card h2,
+.leaderboard-card h2,
+.friends-card h2,
+.stats-card h2,
+.rules-card h2,
+.tutorial-card h2,
+.rematch-card h2,
+.suit-card h2 {
+  margin-top: 6px;
+  color: #3c3c3c;
+  font: 800 28px/1.2 "Baloo 2", "Nunito", sans-serif;
+}
+
+.modal-card p,
+.leaderboard-card p,
+.friends-card p,
+.stats-card p,
+.rules-card p,
+.tutorial-card p,
+.rematch-card p,
+.suit-card p {
+  color: #666666;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.modal-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  color: #58a700;
+  background: #e5f7d8;
+  font: 900 25px "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.modal-close:hover {
+  color: #398400;
+  background: #d7f0c4;
+}
+
+.account-tabs,
+.leaderboard-tabs,
+.stats-filters {
+  gap: 8px;
+  border: 0;
+  border-radius: 14px;
+  background: #f1f7ed;
+  padding: 5px;
+}
+
+.stats-summary > div {
+  border: 2px solid #e5e5e5;
+  border-bottom-width: 4px;
+  border-radius: 16px;
+  background: #f8fbf6;
+}
+
+.stats-summary strong {
+  color: #58a700;
+  font-family: "Baloo 2", "Nunito", sans-serif;
+}
+
+.match-history li,
+.leaderboard-table th,
+.leaderboard-table td {
+  border-color: #e5e5e5;
+  color: #3c3c3c;
+}
+
+.result-score {
+  color: #58a700;
+  font-weight: 900;
+}
+
+.account-status,
+.stats-status,
+.leaderboard-status,
+.tutorial-status,
+.online-status {
+  color: #555555;
+}
+
+.invite-landing,
+.leaderboard-page:not(.hidden) {
+  background: rgba(0, 0, 0, .68);
+  backdrop-filter: none;
+}
+
+.invite-landing-card {
+  width: min(520px, 100%);
+  text-align: center;
+}
+
+.invite-landing-card h1 {
+  color: #3c3c3c;
+  font: 800 30px/1.2 "Baloo 2", "Nunito", sans-serif;
+}
+
+.game-invite-alert {
+  border: 2px solid #e5e5e5;
+  border-bottom: 6px solid #e5e5e5;
+  border-radius: 20px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: 0 8px 0 #e5e5e5;
+  animation: duo-pop-in 180ms ease-out both;
+}
+
+.game-invite-alert-heading strong {
+  color: #3c3c3c;
+  font: 900 18px "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.game-invite-alert-heading div span,
+.game-invite-alert p {
+  color: #666666;
+}
+
+.game-heading {
+  gap: 12px;
+  color: #58a700;
+}
+
+.game-heading .back-button,
+.game-heading .round-label {
+  color: #58a700;
+  font-weight: 900;
+}
+
+.game-heading .secondary-button {
+  width: auto;
+  padding: 0 14px;
+}
+
+.table-surface {
+  min-height: min(700px, calc(100vh - 165px));
+  border: 4px solid #46a302;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #58cc02, #46a302);
+  box-shadow: 0 8px 0 #398400;
+}
+
+.table-surface::before {
+  inset: 14px;
+  border: 2px solid #d9f6c5;
+  border-radius: 22px;
+}
+
+.table-surface::after {
+  border-color: #d9f6c5;
+}
+
+.opponent,
+.player-area,
+.hand {
+  border-color: #d9f6c5;
+}
+
+.opponent-name,
+.opponent-count,
+.player-name,
+.player-caption,
+.hand-count,
+.timer-unit,
+.game-hint,
+.hand-help,
+.pile-label,
+.pile-count,
+.game-footer,
+.game-footer #turn-number {
+  color: #174500;
+}
+
+.turn-message {
+  border: 2px solid #46a302;
+  border-radius: 14px;
+  color: #174500;
+  background: #ffffff;
+  box-shadow: 0 4px 0 #398400;
+  font: 800 16px "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.player-avatar {
+  border: 2px solid #46a302;
+  color: #58a700;
+  background: #ffffff;
+  font-family: "Nunito", "Trebuchet MS", sans-serif;
+  font-weight: 900;
+}
+
+.turn-timer,
+.turn-timer strong {
+  color: #174500;
+  font-family: "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.turn-timer.timer-warning,
+.turn-timer.timer-warning .timer-unit {
+  color: #8a1f1f;
+}
+
+.draw-pile {
+  border: 0;
+  background: transparent;
+}
+
+.back-card,
+.opponent-back {
+  border: 3px solid #398400;
+  border-radius: 12px;
+  background: repeating-linear-gradient(45deg, #58cc02 0 7px, #46a302 7px 10px);
+  box-shadow: 0 5px 0 #398400;
+}
+
+.back-card::after {
+  border: 2px solid #d9f6c5;
+  border-radius: 8px;
+}
+
+.back-mark {
+  border: 2px solid #d9f6c5;
+  border-radius: 12px;
+  color: #ffffff;
+  background: #46a302;
+}
+
+.active-suit {
+  border: 2px solid #46a302;
+  border-radius: 12px;
+  color: #3c3c3c;
+  background: #ffffff;
+}
+
+.playing-card,
+.game-screen .playing-card,
+.winning-card-preview .playing-card,
+.pending-draw-card {
+  border: 2px solid #e5e5e5;
+  border-radius: 14px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: 0 6px 0 #d6d6d6;
+}
+
+.playing-card::before {
+  content: none;
+}
+
+.game-screen .table-surface .playing-card[data-suit="hearts"],
+.game-screen .table-surface .playing-card[data-suit="diamonds"] {
+  border-color: #e5e5e5;
+  color: #d93030;
+  background: #ffffff;
+}
+
+.game-screen .table-surface .playing-card[data-suit="spades"],
+.game-screen .table-surface .playing-card[data-suit="clubs"],
+.game-screen .table-surface .playing-card[data-suit="wild"] {
+  border-color: #e5e5e5;
+  color: #3c3c3c;
+  background: #ffffff;
+}
+
+.pending-draw-card {
+  color: #3c3c3c;
+  background: #ffffff;
+}
+
+.playing-card.is-playable {
+  box-shadow: 0 0 0 3px #58cc02, 0 7px 0 #d6d6d6;
+}
+
+.playing-card.is-unplayable {
+  opacity: .7;
+  filter: grayscale(.25);
+}
+
+.draw-pile:hover .back-card {
+  transform: rotate(-3deg) translateY(-4px);
+}
+
+.game-chat {
+  border: 2px solid #e5e5e5;
+  border-bottom: 6px solid #e5e5e5;
+  border-radius: 20px;
+  color: #3c3c3c;
+  background: #ffffff;
+  box-shadow: 0 8px 0 #e5e5e5;
+}
+
+.game-chat-heading {
+  border-bottom-color: #e5e5e5;
+}
+
+.game-chat-heading h2,
+.chat-message > p {
+  color: #3c3c3c;
+  font-family: "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.game-chat-heading p,
+.chat-empty,
+.chat-status,
+.chat-message-meta time {
+  color: #666666;
+}
+
+.chat-message {
+  border-color: #e5e5e5;
+  border-radius: 14px;
+  color: #3c3c3c;
+  background: #f8fbf6;
+}
+
+.chat-message.is-own-message {
+  border-color: #b7e89a;
+  background: #effbe8;
+}
+
+.chat-message-meta strong {
+  color: #58a700;
+}
+
+.chat-form {
+  border-top-color: #e5e5e5;
+}
+
+.chat-input {
+  background: #ffffff;
+}
+
+.chat-status {
+  font-size: 12px;
+}
+
+.toast {
+  border: 2px solid #398400;
+  border-radius: 14px;
+  color: #ffffff;
+  background: #58a700;
+  box-shadow: 0 5px 0 #398400;
+  font: 800 14px "Nunito", "Trebuchet MS", sans-serif;
+}
+
+.toast.toast-special {
+  border-color: #d39a00;
+  color: #3c3c3c;
+  background: #ffc800;
+  box-shadow: 0 5px 0 #d39a00;
+}
+
+.connection-banner,
+.optimistic-connection {
+  border-color: #58a700;
+  border-radius: 16px;
+  color: #ffffff;
+  background: #58a700;
+  box-shadow: 0 5px 0 #398400;
+}
+
+.game-footer {
+  font-size: 12px;
+}
+
+@keyframes duo-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    width: calc(100% - 24px);
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: 10px 0;
+  }
+
+  .topbar-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .primary-nav {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .setup-screen:not(.hidden),
+  .online-screen:not(.hidden) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px 0 32px;
+  }
+
+  .setup-screen > .setup-card,
+  .home-side-card {
+    grid-column: 1;
+  }
+
+  .home-side-card {
+    grid-row: auto;
+  }
+
+  .setup-screen .setup-card,
+  .online-screen .setup-card {
+    padding: 24px 18px;
+  }
+
+  .home-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-action-grid > .home-action-card {
+    min-height: 84px;
+  }
+
+  .game-screen {
+    padding-top: 16px;
+  }
+
+  .game-heading {
+    flex-wrap: wrap;
+  }
+
+  .game-heading .round-label {
+    order: 3;
+    width: 100%;
+  }
+
+  .table-surface {
+    min-height: min(660px, calc(100vh - 130px));
+    border-radius: 22px;
+  }
+
+  .opponents {
+    min-height: 88px;
+    gap: 12px;
+    padding: 18px 8px 0;
+  }
+
+  .player-area {
+    padding: 0 10px 14px;
+  }
+
+  .player-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .play-area {
+    gap: 12px;
+  }
+
+  .draw-pile {
+    width: 62px;
+    height: 98px;
+  }
+
+  .back-card {
+    width: 56px;
+    height: 82px;
+  }
+
+  .pile-count {
+    top: 88px;
+  }
+
+  .discard-pile {
+    width: 64px;
+    height: 92px;
+  }
+
+  .turn-indicator {
+    width: 38px;
+  }
+
+  .turn-indicator span {
+    font-size: 24px;
+  }
+
+  .hand {
+    min-height: 120px;
+    justify-content: flex-start;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .hand .playing-card {
+    width: clamp(54px, 15vw, 70px);
+    height: clamp(82px, 22vw, 100px);
+    margin-left: clamp(-16px, -3vw, -8px);
+  }
+
+  .hand .playing-card:first-child {
+    margin-left: 0;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal-card,
+  .friends-card,
+  .leaderboard-card,
+  .rules-card,
+  .rematch-card,
+  .stats-card,
+  .tutorial-card,
+  .suit-card {
+    max-width: 100%;
+    padding: 24px 18px;
+  }
+
+  .game-chat {
+    top: 78px;
+    right: 8px;
+    width: min(300px, calc(100vw - 16px));
+  }
+}
+
+@media (max-width: 400px) {
+  .app-shell {
+    width: calc(100% - 20px);
+  }
+
+  .topbar .nav-link {
+    padding: 0 10px;
+  }
+
+  .topbar-right > .text-button {
+    padding: 0 5px;
+    font-size: 12px;
+  }
+
+  .setup-screen .setup-card,
+  .online-screen .setup-card {
+    padding: 20px 14px;
+  }
+
+  .game-heading-actions {
+    gap: 5px;
+  }
+
+  .game-heading .secondary-button {
+    padding: 0 8px;
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+.playing-card > .card-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  margin: 0;
+  color: inherit;
+  font: 900 clamp(34px, 4vw, 46px)/1 "Nunito", "Trebuchet MS", sans-serif;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.playing-card .card-corner {
+  z-index: 2;
+  color: inherit;
+}
+
+.playing-card .card-rank {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.playing-card .card-suit {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.playing-card[data-suit="wild"] > .card-face {
+  font-size: 0;
+}
+
+.playing-card[data-suit="wild"] > .card-face::after {
+  color: #58a700;
+  content: "✳";
+  font-size: 40px;
+  line-height: 1;
+}
+
+body.game-active .table-surface {
+  border: 4px solid #46a302;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #58cc02, #46a302);
+  box-shadow: 0 8px 0 #398400;
+}
+
+body.game-active .table-surface::before {
+  border: 2px solid #d9f6c5;
+  border-radius: 22px;
+}
+
+body .game-screen .turn-message {
+  border: 2px solid #46a302;
+  border-radius: 14px;
+  color: #174500;
+  background: #ffffff;
+  box-shadow: 0 4px 0 #398400;
+  font: 800 16px "Nunito", "Trebuchet MS", sans-serif;
+}
+
+body .game-screen .player-avatar {
+  border: 2px solid #46a302;
+  color: #58a700;
+  background: #ffffff;
+}
+
+body .game-screen .opponent-name,
+body .game-screen .opponent-count,
+body .game-screen .player-name,
+body .game-screen .player-caption,
+body .game-screen .hand-count,
+body .game-screen .timer-unit,
+body .game-screen .game-hint,
+body .game-screen .hand-help,
+body .game-screen .pile-label,
+body .game-screen .pile-count {
+  color: #174500;
+}
+
+body .game-screen .turn-timer,
+body .game-screen .turn-timer strong {
+  color: #174500;
+}
+
+body .game-screen .turn-timer.timer-warning,
+body .game-screen .turn-timer.timer-warning .timer-unit {
+  color: #8a1f1f;
+}
+
+body .game-screen .playing-card > .card-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: inherit;
+  font: 900 clamp(34px, 4vw, 46px)/1 "Nunito", "Trebuchet MS", sans-serif;
+  transform: translate(-50%, -50%);
+}

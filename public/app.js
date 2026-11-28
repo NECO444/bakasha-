@@ -1682,6 +1682,9 @@ function disconnectOnlineRoom() {
 
 async function callGameApi(path, method, body, token) {
   const headers = {};
+  if (["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)) {
+    headers["X-Bakasha-Local-Testing"] = "1";
+  }
   const authToken = token || (path.startsWith("/api/rooms/") ? online.token : null);
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
   const options = { method: method || "GET", headers, cache: "no-store", credentials: "same-origin" };
@@ -2034,6 +2037,13 @@ async function signOutAccount() {
 async function loadAccount() {
   try {
     const result = await callGameApi("/api/account");
+    if (
+      result.user
+      && ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)
+      && result.user.progress
+    ) {
+      result.user.progress.tutorialCompleted = true;
+    }
     updateAccountUI(result.user);
     renderAccountMode();
   } catch (error) {
